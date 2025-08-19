@@ -457,7 +457,6 @@ export default function PetServiceWebsite() {
   };
 
 
-
   // 장바구니에서 상품 제거
   const onRemoveFromCart = async (cartId: number) => {
     try {
