@@ -428,33 +428,7 @@ export default function PetServiceWebsite() {
 
 
 
-  const handleAddToCart = async (product: Product) => {
-    if (!isLoggedIn) {
-      toast.error("로그인이 필요합니다", { duration: 5000 });
-      return;
-    }
-    try {
-      const currentUserId = currentUser?.id || 1;
-      const url = `http://localhost:8080/api/carts?userId=${currentUserId}&productId=${product.id}&quantity=1`;
-      const response = await axios.post(url, null, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        timeout: 5000,
-      });
-      if (response.status !== 200) {
-        throw new Error(`장바구니 추가에 실패했습니다. (${response.status})`);
-      }
-      await fetchCartItems();
-      toast.success(`${product.name}을(를) 장바구니에 추가했습니다`, { duration: 5000 });
-      router.push("/store/cart");
-    } catch (error: any) {
-      console.error("장바구니 추가 오류:", error);
-      toast.error("백엔드 서버 연결에 실패했습니다. 장바구니 추가가 불가능합니다.", { duration: 5000 });
-    }
-  };
 
-  const isInCart = (id: number) => {
-    return cart.some((item) => item.id === id);
-  };
 
   // 장바구니에서 상품 제거
   const onRemoveFromCart = async (cartId: number) => {
@@ -599,6 +573,69 @@ export default function PetServiceWebsite() {
   };
 
 
+  const purchaseAllFromCart = async () => {
+    if (!isLoggedIn || !currentUser) {
+      toast.error("로그인이 필요합니다", { duration: 5000 })
+      return
+    }
+    try {
+      const response = await axios.post(`http://localhost:8080/api/orders/purchase-all/${currentUser.id}`)
+      if (response.status !== 200) {
+        throw new Error("전체 구매에 실패했습니다.")
+      }
+      const newOrder = response.data
+      setOrders((prev) => [...prev, newOrder])
+      setCart([])
+      await fetchUserOrders()
+      toast.success("전체 구매가 완료되었습니다", { duration: 5000 })
+      router.push("/my")
+    } catch (error) {
+      console.error("전체 구매 오류:", error)
+      toast.error("전체 구매에 실패했습니다", { duration: 5000 })
+    }
+  }
+
+  const purchaseSingleItem = async (cartItem: CartItem) => {
+    if (!isLoggedIn || !currentUser) {
+      toast.error("로그인이 필요합니다", { duration: 5000 })
+      return
+    }
+    try {
+      const accessToken = localStorage.getItem("accessToken")
+      const headers: any = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      }
+      if (accessToken) headers["access_token"] = accessToken
+      const orderData = {
+        userId: currentUser.id,
+        totalPrice: cartItem.price * cartItem.quantity,
+        orderItems: [
+          {
+            productId: cartItem.product?.productId || cartItem.id,
+            productName: cartItem.product?.name || cartItem.name || cartItem.brand + " " + cartItem.category,
+            imageUrl: cartItem.product?.imageUrl || cartItem.image || "/placeholder.svg",
+            quantity: cartItem.quantity,
+            price: cartItem.product?.price || cartItem.price,
+          },
+        ],
+      }
+      const response = await axios.post("http://localhost:8080/api/orders", orderData, {
+        headers,
+        timeout: 10000,
+      })
+      if (response.status !== 200) {
+        throw new Error("개별 구매에 실패했습니다.")
+      }
+              await onRemoveFromCart(cartItem.id)
+      await fetchUserOrders()
+      toast.success("개별 구매가 완료되었습니다", { duration: 5000 })
+      router.push("/my")
+    } catch (error: any) {
+      console.error("개별 구매 오류:", error)
+      toast.error("개별 구매에 실패했습니다", { duration: 5000 })
+    }
+  }
 
   const fetchUserOrders = useCallback(async () => {
     if (!isLoggedIn || !currentUser) return;
@@ -1013,6 +1050,40 @@ export default function PetServiceWebsite() {
         return <DogResearchLabPage onClose={() => router.push("/")} />;
 
 
+      case "cart":
+        if (!isLoggedIn) {
+          return (
+            <div className="min-h-screen bg-gray-50 pt-20">
+              <div className="container mx-auto px-4 py-8">
+                <div className="max-w-md mx-auto text-center">
+                  <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <ShoppingCart className="w-12 h-12 text-gray-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">로그인이 필요합니다</h3>
+                  <p className="text-gray-600 mb-6">장바구니를 이용하려면 로그인해주세요.</p>
+                  <div className="space-y-3">
+                    <Button
+                      onClick={() => router.push("/")}
+                      className="w-full bg-yellow-400 hover:bg-yellow-500 text-black"
+                    >
+                      홈으로 돌아가기
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        }
+        return (
+          <CartPage
+            cartItems={cart}
+            onRemoveFromCart={onRemoveFromCart}
+            onNavigateToStore={() => router.push("/store")}
+            onPurchaseAll={purchaseAllFromCart}
+            onPurchaseSingle={purchaseSingleItem}
+            onUpdateQuantity={handleUpdateCartQuantity}
+          />
+        )
 
       case "naming":
         return <PetNamingService onClose={() => router.push("/")} />;

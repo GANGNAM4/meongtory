@@ -1050,7 +1050,6 @@ export default function StorePage({
                 <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-bold z-10">
                   멍토리
                 </div>
-              )}
               <div className="relative">
                 <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden cursor-pointer" onClick={() => window.location.href = `/store/${product.id}`}>
                   <img
@@ -1078,10 +1077,9 @@ export default function StorePage({
                 {product.stock === 0 && (
                   <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
                     <span className="text-white font-bold">품절</span>
-                      </div>
-                    )}
                   </div>
-                </CardContent>
+                )}
+              </CardContent>
 
               </Card>
             ))}
