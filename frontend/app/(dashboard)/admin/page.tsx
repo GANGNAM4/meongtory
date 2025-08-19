@@ -1582,20 +1582,21 @@ export default function AdminPage({
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Button
-                    onClick={onNavigateToStoreRegistration}
+                    onClick={() => router.push('/store/register')
+                    }
                     className="h-20 flex flex-col items-center justify-center bg-yellow-400 hover:bg-yellow-500 text-black"
                   >
                     <Plus className="h-6 w-6 mb-2" />
                     상품 등록
                   </Button>
                   <Button
-                    onClick={onNavigateToAnimalRegistration}
+                    onClick={() => router.push("/adoption/register")}
                     className="h-20 flex flex-col items-center justify-center bg-yellow-400 hover:bg-yellow-500 text-black"
                   >
                     <Heart className="h-6 w-6 mb-2" />
                     동물 등록
                   </Button>
-                  <Button onClick={onNavigateToCommunity} className="h-20 flex flex-col items-center justify-center bg-yellow-400 hover:bg-yellow-500 text-black">
+                  <Button onClick={() => router.push("/community")} className="h-20 flex flex-col items-center justify-center bg-yellow-400 hover:bg-yellow-500 text-black">
                     <MessageSquare className="h-6 w-6 mb-2" />
                     커뮤니티 관리
                   </Button>
