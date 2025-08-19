@@ -603,8 +603,12 @@ export default function StorePage({
 
   useEffect(() => {
     fetchProducts();
-    // 페이지 로드 시 네이버 쇼핑에서 인기 펫 용품 가져오기
-    loadInitialNaverProducts();
+    // 페이지 로드 시 네이버 쇼핑에서 인기 펫 용품 가져오기 (한 번만 실행)
+    const hasLoadedNaverProducts = sessionStorage.getItem('naverProductsLoaded');
+    if (!hasLoadedNaverProducts) {
+      loadInitialNaverProducts();
+      sessionStorage.setItem('naverProductsLoaded', 'true');
+    }
   }, []);
 
   // 초기 네이버 상품 로드
