@@ -286,8 +286,8 @@ export const productApi = {
   getProducts: async (): Promise<any[]> => {
     const response = await axios.get(`${API_BASE_URL}/products`);
     console.log('Raw products response:', response.data);
-    // 응답이 배열이면 그대로 반환, 아니면 response.data.data 반환
-    return Array.isArray(response.data) ? response.data : response.data.data;
+    // ResponseDto 형태로 응답이 오므로 response.data.data를 반환
+    return response.data.data || [];
   },
 
   getProduct: async (productId: number): Promise<any> => {
