@@ -426,7 +426,35 @@ export default function PetServiceWebsite() {
     if (isLoggedIn) fetchCartItems();
   }, [isLoggedIn]);
 
+  // 장바구니에 상품 추가
+  const handleAddToCart = async (product: Product) => {
+    if (!isLoggedIn) {
+      toast.error("로그인이 필요합니다", { duration: 5000 });
+      return;
+    }
+    try {
+      const currentUserId = currentUser?.id || 1;
+      const url = `http://localhost:8080/api/carts?userId=${currentUserId}&productId=${product.id}&quantity=1`;
+      const response = await axios.post(url, null, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        timeout: 5000,
+      });
+      if (response.status !== 200) {
+        throw new Error(`장바구니 추가에 실패했습니다. (${response.status})`);
+      }
+      await fetchCartItems();
+      toast.success(`${product.name}을(를) 장바구니에 추가했습니다`, { duration: 5000 });
+      router.push("/store/cart");
+    } catch (error: any) {
+      console.error("장바구니 추가 오류:", error);
+      toast.error("백엔드 서버 연결에 실패했습니다. 장바구니 추가가 불가능합니다.", { duration: 5000 });
+    }
+  };
 
+  // 장바구니에 상품이 있는지 확인
+  const isInCart = (id: number) => {
+    return cart.some((item) => item.id === id);
+  };
 
 
 
