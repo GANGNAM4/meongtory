@@ -568,6 +568,15 @@ export default function StorePage({
       
       const response = await productApi.getProducts();
       console.log('가져온 상품 데이터:', response);
+      console.log('응답 타입:', typeof response);
+      console.log('응답이 배열인가?', Array.isArray(response));
+      
+      // 응답이 배열이 아닌 경우 빈 배열로 처리
+      if (!Array.isArray(response)) {
+        console.error('응답이 배열이 아닙니다:', response);
+        setProducts([]);
+        return;
+      }
       
       // 백엔드 응답을 프론트엔드 형식으로 변환
       const data: Product[] = response.map((item: any) => ({

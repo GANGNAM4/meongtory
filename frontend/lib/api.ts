@@ -286,6 +286,12 @@ export const productApi = {
   getProducts: async (): Promise<any[]> => {
     const response = await axios.get(`${API_BASE_URL}/products`);
     console.log('Raw products response:', response.data);
+    console.log('Response structure:', {
+      success: response.data.success,
+      hasData: !!response.data.data,
+      dataType: typeof response.data.data,
+      isDataArray: Array.isArray(response.data.data)
+    });
     // ResponseDto 형태로 응답이 오므로 response.data.data를 반환
     return response.data.data || [];
   },
