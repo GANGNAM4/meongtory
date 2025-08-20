@@ -60,6 +60,7 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
     
     try {
       const accessToken = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
 
       if (!accessToken) {
         throw new Error('로그인이 필요합니다.');
@@ -71,38 +72,72 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
       console.log('사용자 정보:', userData);
       
       let response;
+      let currentToken = accessToken;
       
       // 네이버 상품인지 일반 상품인지 구분하여 주문 생성
-      if (firstItem.isNaverProduct) {
-        console.log('네이버 상품 주문 생성');
-        const orderData = {
-          accountId: userData.id,
-          naverProductId: firstItem.id,
-          quantity: firstItem.quantity
-        };
+      const createOrderRequest = async (token: string) => {
+        if (firstItem.isNaverProduct) {
+          console.log('네이버 상품 주문 생성');
+          const orderData = {
+            accountId: userData.id,
+            naverProductId: firstItem.id,
+            quantity: firstItem.quantity
+          };
 
-        console.log('네이버 상품 주문 생성 요청:', orderData);
-        
-        response = await axios.post(`${API_BASE_URL}/orders/naver-product`, orderData, {
-          headers: {
-            'Access_Token': accessToken
-          }
-        });
-      } else {
-        console.log('일반 상품 주문 생성');
-        const orderData = {
-          accountId: userData.id,
-          productId: firstItem.id,
-          quantity: firstItem.quantity
-        };
+          console.log('네이버 상품 주문 생성 요청:', orderData);
+          
+          return await axios.post(`${API_BASE_URL}/orders/naver-product`, orderData, {
+            headers: {
+              'Access_Token': token
+            }
+          });
+        } else {
+          console.log('일반 상품 주문 생성');
+          const orderData = {
+            accountId: userData.id,
+            productId: firstItem.id,
+            quantity: firstItem.quantity
+          };
 
-        console.log('일반 상품 주문 생성 요청:', orderData);
-        
-        response = await axios.post(`${API_BASE_URL}/orders`, orderData, {
-          headers: {
-            'Access_Token': accessToken
+          console.log('일반 상품 주문 생성 요청:', orderData);
+          
+          return await axios.post(`${API_BASE_URL}/orders`, orderData, {
+            headers: {
+              'Access_Token': token
+            }
+          });
+        }
+      };
+
+      try {
+        response = await createOrderRequest(currentToken);
+      } catch (orderError: any) {
+        // 토큰이 만료된 경우 리프레시 토큰으로 갱신 시도
+        if (orderError.response?.status === 401 && refreshToken) {
+          console.log('주문 생성 중 토큰이 만료되었습니다. 리프레시 토큰으로 갱신을 시도합니다.');
+          
+          try {
+            const refreshResponse = await axios.post(`${API_BASE_URL}/accounts/refresh`, {
+              refreshToken: refreshToken
+            });
+            
+            if (refreshResponse.data.success) {
+              const newAccessToken = refreshResponse.data.data.accessToken;
+              localStorage.setItem('accessToken', newAccessToken);
+              currentToken = newAccessToken;
+              
+              // 새로운 토큰으로 주문 생성 다시 시도
+              response = await createOrderRequest(currentToken);
+            } else {
+              throw new Error('토큰 갱신에 실패했습니다.');
+            }
+          } catch (refreshError) {
+            console.error('토큰 갱신 실패:', refreshError);
+            throw new Error('토큰이 만료되었습니다. 다시 로그인해주세요.');
           }
-        });
+        } else {
+          throw orderError;
+        }
       }
 
       console.log('주문 생성 응답:', response.data);
@@ -130,8 +165,10 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
     try {
       // 메인 웹사이트와 동일한 토큰 저장 방식 사용
       const accessToken = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
       
       console.log('토큰 확인:', accessToken ? '토큰 존재' : '토큰 없음');
+      console.log('리프레시 토큰 확인:', refreshToken ? '토큰 존재' : '토큰 없음');
 
       if (!accessToken) {
         console.error('No access token found. Please login first.');
@@ -141,27 +178,76 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
         throw new Error('로그인이 필요합니다.');
       }
 
-      const response = await axios.get(`${API_BASE_URL}/accounts/me`, {
-        headers: {
-          'Access_Token': accessToken
+      // 토큰이 만료되었을 경우 리프레시 토큰으로 갱신 시도
+      let currentToken = accessToken;
+      try {
+        const response = await axios.get(`${API_BASE_URL}/accounts/me`, {
+          headers: {
+            'Access_Token': currentToken
+          }
+        });
+
+        console.log('API Response:', response.data);
+
+        // 백엔드에서 ResponseDto.success()로 감싸서 반환
+        if (response.data.success) {
+          const userData = response.data.data;
+          setUserInfo(userData);
+          console.log('User info set:', userData);
+          
+          // 사용자 정보를 가져온 후 주문 생성
+          await createOrder(userData);
+          
+          // 초기화 완료 표시
+          setIsInitialized(true);
+        } else {
+          throw new Error('사용자 정보를 가져올 수 없습니다.');
         }
-      });
-
-      console.log('API Response:', response.data);
-
-      // 백엔드에서 ResponseDto.success()로 감싸서 반환
-      if (response.data.success) {
-        const userData = response.data.data;
-        setUserInfo(userData);
-        console.log('User info set:', userData);
-        
-        // 사용자 정보를 가져온 후 주문 생성
-        await createOrder(userData);
-        
-        // 초기화 완료 표시
-        setIsInitialized(true);
-      } else {
-        throw new Error('사용자 정보를 가져올 수 없습니다.');
+      } catch (tokenError: any) {
+        // 토큰이 만료된 경우 리프레시 토큰으로 갱신 시도
+        if (tokenError.response?.status === 401 && refreshToken) {
+          console.log('액세스 토큰이 만료되었습니다. 리프레시 토큰으로 갱신을 시도합니다.');
+          
+          try {
+            const refreshResponse = await axios.post(`${API_BASE_URL}/accounts/refresh`, {
+              refreshToken: refreshToken
+            });
+            
+            if (refreshResponse.data.success) {
+              const newAccessToken = refreshResponse.data.data.accessToken;
+              localStorage.setItem('accessToken', newAccessToken);
+              currentToken = newAccessToken;
+              
+              // 새로운 토큰으로 사용자 정보 다시 요청
+              const userResponse = await axios.get(`${API_BASE_URL}/accounts/me`, {
+                headers: {
+                  'Access_Token': currentToken
+                }
+              });
+              
+              if (userResponse.data.success) {
+                const userData = userResponse.data.data;
+                setUserInfo(userData);
+                console.log('User info set (after refresh):', userData);
+                
+                // 사용자 정보를 가져온 후 주문 생성
+                await createOrder(userData);
+                
+                // 초기화 완료 표시
+                setIsInitialized(true);
+              } else {
+                throw new Error('사용자 정보를 가져올 수 없습니다.');
+              }
+            } else {
+              throw new Error('토큰 갱신에 실패했습니다.');
+            }
+          } catch (refreshError) {
+            console.error('토큰 갱신 실패:', refreshError);
+            throw new Error('토큰이 만료되었습니다. 다시 로그인해주세요.');
+          }
+        } else {
+          throw tokenError;
+        }
       }
     } catch (error) {
       console.error('사용자 정보 조회 실패:', error);

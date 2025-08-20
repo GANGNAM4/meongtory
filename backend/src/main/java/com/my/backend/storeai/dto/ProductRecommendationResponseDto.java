@@ -1,7 +1,6 @@
 package com.my.backend.storeai.dto;
 
 import com.my.backend.store.entity.Category;
-import com.my.backend.store.entity.TargetAnimal;
 import com.my.backend.store.entity.ProductSource;
 import com.my.backend.storeai.enums.RecommendationType;
 import lombok.AllArgsConstructor;
@@ -21,7 +20,6 @@ public class ProductRecommendationResponseDto {
     private Long price;
     private String imageUrl;
     private Category category;
-    private TargetAnimal targetAnimal;
     private ProductSource source;
     private String externalProductUrl;
     private String externalMallName;

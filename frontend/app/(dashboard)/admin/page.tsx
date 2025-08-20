@@ -1570,6 +1570,7 @@ export default function AdminPage({
                   <Button
                     onClick={() => router.push('/store/register')
                     }
+
                     className="h-20 flex flex-col items-center justify-center bg-yellow-400 hover:bg-yellow-500 text-black"
                   >
                     <Plus className="h-6 w-6 mb-2" />

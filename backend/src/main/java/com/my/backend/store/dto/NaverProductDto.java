@@ -27,6 +27,7 @@ public class NaverProductDto {
     private Integer reviewCount;
     private Double rating;
     private Integer searchCount;
+    private Integer stock; // 네이버 상품은 재고 무제한
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long relatedProductId;
@@ -49,6 +50,7 @@ public class NaverProductDto {
         this.reviewCount = naverProduct.getReviewCount();
         this.rating = naverProduct.getRating();
         this.searchCount = naverProduct.getSearchCount();
+        this.stock = 999; // 네이버 상품은 재고 무제한으로 설정
         this.createdAt = naverProduct.getCreatedAt();
         this.updatedAt = naverProduct.getUpdatedAt();
         this.relatedProductId = naverProduct.getRelatedProduct() != null ? naverProduct.getRelatedProduct().getId() : null;

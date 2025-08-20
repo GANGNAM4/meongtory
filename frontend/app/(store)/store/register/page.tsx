@@ -131,7 +131,7 @@ function StoreProductRegistrationPageContent({
         category: formData.category,
         description: formData.description.trim(),
         stock: stock,
-        targetAnimal: formData.petType as "dog" | "cat" | "all", // 백엔드에서 기대하는 필드명
+
       }
 
       console.log("새 상품 데이터:", newProduct)

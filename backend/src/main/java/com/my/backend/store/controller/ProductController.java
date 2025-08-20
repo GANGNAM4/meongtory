@@ -37,7 +37,6 @@ public class ProductController {
         System.out.println("재고: " + product.getStock());
         System.out.println("설명: " + product.getDescription());
         System.out.println("카테고리: " + product.getCategory());
-        System.out.println("대상동물: " + product.getTargetAnimal());
         System.out.println("이미지URL: " + (product.getImageUrl() != null ? product.getImageUrl().substring(0, Math.min(100, product.getImageUrl().length())) + "..." : "null"));
         
         try {
@@ -81,7 +80,6 @@ public class ProductController {
             System.out.println("조회된 상품: " + product.getName());
             System.out.println("상품 ID: " + product.getId());
             System.out.println("상품 카테고리: " + product.getCategory());
-            System.out.println("상품 대상동물: " + product.getTargetAnimal());
             System.out.println("상품 이미지: " + product.getImageUrl());
             System.out.println("=== 상품 조회 성공 ===");
 

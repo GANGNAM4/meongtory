@@ -2,7 +2,6 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './card';
 import { Button } from './button';
 import { Badge } from './badge';
-import { ShoppingCart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface ProductRecommendationCardProps {
@@ -74,12 +73,17 @@ export function ProductRecommendationCard({
         <Button
           onClick={(e) => {
             e.stopPropagation(); // 카드 클릭 이벤트 전파 방지
-            onAddToCart?.(product.id || product.productId || 0);
+            const productId = product.id || product.productId || 0;
+            console.log('추천 상품 장바구니 버튼 클릭:', {
+              productId: productId,
+              product: product,
+              onAddToCart: typeof onAddToCart
+            });
+            onAddToCart?.(productId);
           }}
           className="w-full bg-yellow-400 hover:bg-yellow-500 text-black"
           size="sm"
         >
-          <ShoppingCart className="w-4 h-4 mr-1" />
           장바구니
         </Button>
       </CardContent>

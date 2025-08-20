@@ -33,7 +33,6 @@ export interface Product {
   stock: number
   imageUrl: string  // image -> imageUrl로 변경
   category: '의류' | '장난감' | '건강관리' | '용품' | '간식' | '사료'  // string -> enum으로 변경
-  targetAnimal: 'ALL' | 'DOG' | 'CAT'  // petType -> targetAnimal으로 변경
   registrationDate: string  // LocalDate를 string으로 표현
   registeredBy: string
   selectedQuantity?: number  // 선택된 수량 (장바구니 추가 시 사용)
@@ -65,7 +64,6 @@ export interface CartItem {
     stock: number
     imageUrl: string
     category: string
-    targetAnimal: string
     registrationDate: string
     registeredBy: string
   }

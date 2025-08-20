@@ -1,7 +1,6 @@
 package com.my.backend.store.dto;
 
 import com.my.backend.store.entity.Category;
-import com.my.backend.store.entity.TargetAnimal;
 import com.my.backend.store.entity.Product;
 import lombok.*;
 
@@ -20,7 +19,6 @@ public class ProductDto {
     private Long stock;
     private String imageUrl;
     private Category category;
-    private TargetAnimal targetAnimal;
     private LocalDate registrationDate;
     private String registeredBy;
     
@@ -33,7 +31,6 @@ public class ProductDto {
         this.stock = product.getStock();
         this.imageUrl = product.getImageUrl();
         this.category = product.getCategory();
-        this.targetAnimal = product.getTargetAnimal();
         this.registrationDate = product.getRegistrationDate();
         this.registeredBy = product.getRegisteredBy();
     }

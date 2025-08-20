@@ -73,6 +73,7 @@ public class WebSecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+
                         .requestMatchers(
                                 "/api/accounts/register",
                                 "/api/accounts/login",
@@ -92,8 +93,10 @@ public class WebSecurityConfig {
                                 "/api/community/**",
                                 "/api/carts/**",
                                 "/error",
-                                "/actuator/**"
+                                "/actuator/**",
+                                "/api/naver-shopping/products/**"
                         ).permitAll()
+
                         .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/travel-plans/**", "/chat").authenticated()
                         .anyRequest().authenticated())

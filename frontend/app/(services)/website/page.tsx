@@ -255,6 +255,10 @@ export default function PetServiceWebsite() {
     checkLoginStatus();
   }, []);
   */
+      }
+    }, 3000);
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
 
   // OAuth 콜백 처리
   useEffect(() => {
@@ -339,31 +343,62 @@ export default function PetServiceWebsite() {
       const cartData = response.data;
       const cartItems: CartItem[] = cartData
         .sort((a: any, b: any) => a.id - b.id)
-        .map((item: any, index: number) => ({
-          id: item.id,  // cartId가 아니라 id입니다!
-          name: item.product.name,
-          brand: "브랜드 없음",
-          price: item.product.price,
-          image: item.product.imageUrl || "/placeholder.svg",
-          category: item.product.category,
-          quantity: item.quantity,
-          order: index,
-          product: {
-            id: item.product.id,  // productId가 아니라 id입니다!
-            name: item.product.name,
-            description: item.product.description,
-            price: item.product.price,
-            stock: item.product.stock,
-            imageUrl: item.product.imageUrl,
-            category: item.product.category,
-            targetAnimal: item.product.targetAnimal,
-            registrationDate: item.product.registrationDate,
-            registeredBy: item.product.registeredBy,
-          },
-        }));
-      console.log("fetchCartItems - 매핑된 cartItems:", cartItems);
-      setCart(cartItems);
-      console.log("장바구니 설정 완료:", cartItems.length, "개");
+        .map((item: any, index: number) => {
+          // 네이버 상품인지 일반 상품인지 확인
+          if (item.naverProduct) {
+            // 네이버 상품
+            return {
+              id: item.id,
+              name: item.naverProduct.title,
+              brand: item.naverProduct.brand || "네이버 쇼핑",
+              price: item.naverProduct.price,
+              image: item.naverProduct.imageUrl || "/placeholder.svg",
+              category: item.naverProduct.category1 || "기타",
+              quantity: item.quantity,
+              order: index,
+              isNaverProduct: true,
+              product: {
+                id: item.naverProduct.id,
+                name: item.naverProduct.title,
+                description: item.naverProduct.description,
+                price: item.naverProduct.price,
+                stock: 999,
+                imageUrl: item.naverProduct.imageUrl,
+                category: item.naverProduct.category1 || "기타",
+
+                registrationDate: new Date().toISOString(),
+                registeredBy: "네이버 쇼핑"
+              }
+            }
+          } else {
+            // 일반 상품
+            return {
+              id: item.id,
+              name: item.product.name,
+              brand: "브랜드 없음",
+              price: item.product.price,
+              image: item.product.imageUrl || "/placeholder.svg",
+              category: item.product.category,
+              quantity: item.quantity,
+              order: index,
+              isNaverProduct: false,
+              product: {
+                id: item.product.id,
+                name: item.product.name,
+                description: item.product.description,
+                price: item.product.price,
+                stock: item.product.stock,
+                imageUrl: item.product.imageUrl,
+                category: item.product.category,
+
+                registrationDate: item.product.registrationDate,
+                registeredBy: item.product.registeredBy,
+              }
+            }
+          }
+        })
+      setCart(cartItems)
+      console.log('장바구니 설정 완료:', cartItems.length, '개')
     } catch (error: any) {
       console.error("장바구니 조회 오류:", error);
       setCart([]);
@@ -720,7 +755,7 @@ export default function PetServiceWebsite() {
         price: product.price || 0,
         imageUrl: product.imageUrl || product.image || "/placeholder.svg?height=300&width=300",
         category: (product.category as '의류' | '장난감' | '건강관리' | '용품' | '간식' | '사료') || '용품',
-        targetAnimal: (product.targetAnimal as 'ALL' | 'DOG' | 'CAT') || 'ALL',
+
         stock: product.stock || 0,
         registrationDate: product.registrationDate || new Date().toISOString().split("T")[0],
         registeredBy: product.registeredBy || "admin",

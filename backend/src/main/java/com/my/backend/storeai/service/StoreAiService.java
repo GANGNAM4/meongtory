@@ -9,7 +9,6 @@ import com.my.backend.store.service.ProductService;
 import com.my.backend.store.service.NaverShoppingService;
 import com.my.backend.store.dto.NaverProductDto;
 import com.my.backend.store.dto.NaverShoppingSearchRequestDto;
-import com.my.backend.store.entity.TargetAnimal;
 import com.my.backend.store.entity.ProductSource;
 import com.my.backend.store.entity.NaverProduct;
 import com.my.backend.store.repository.NaverProductRepository;
@@ -185,8 +184,7 @@ public class StoreAiService {
         switch (type) {
             case SIMILAR:
                 if (currentProduct != null) {
-                    recommendations = productService.findByCategoryAndTargetAnimal(
-                        currentProduct.getCategory(), currentProduct.getTargetAnimal());
+                    recommendations = productService.findByCategory(currentProduct.getCategory());
                 } else {
                     // 현재 상품이 없으면 전체 상품에서 추천
                     recommendations = productService.getAllProducts();
@@ -405,7 +403,6 @@ public class StoreAiService {
                     .price(product.getPrice())
                     .imageUrl(product.getImageUrl())
                     .category(product.getCategory())
-                    .targetAnimal(product.getTargetAnimal())
                     .source(product.getSource())
                     .externalProductUrl(product.getExternalProductUrl())
                     .externalMallName(product.getExternalMallName())
@@ -454,7 +451,6 @@ public class StoreAiService {
                         .price(parsePrice(item.getLprice()))
                         .imageUrl(item.getImage())
                         .category(Category.용품) // 기본값
-                        .targetAnimal(TargetAnimal.ALL)
                         .source(ProductSource.NAVER)
                         .externalProductId(item.getProductId()) // 네이버 상품 ID를 externalProductId로 저장
                         .externalProductUrl(item.getLink())

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, ShoppingCart, Sparkles, PawPrint } from "lucide-react"
+import { ArrowLeft, Sparkles, PawPrint } from "lucide-react"
 import Image from "next/image"
 import axios from "axios"
 import { useRouter } from "next/navigation"
@@ -69,7 +69,6 @@ interface Product {
   registrationDate: string
   registeredBy: string
   petType: "dog" | "cat" | "all"
-  targetAnimal?: "ALL" | "DOG" | "CAT"
   brand?: string
 }
 
@@ -117,7 +116,19 @@ export default function StoreProductDetailPage({
   const router = useRouter()
   
   // params에서 productId를 추출하거나 props에서 받기
-  const productId = propProductId || (params ? parseInt(params.id) : null)
+  let productId: string | number | null = propProductId || (params ? parseInt(params.id) : null)
+  
+  // URL 파라미터가 인코딩된 문자열인 경우 디코딩
+  if (params && params.id && isNaN(parseInt(params.id))) {
+    try {
+      const decodedId = decodeURIComponent(params.id);
+      productId = decodedId;
+      console.log('디코딩된 productId:', decodedId);
+    } catch (error) {
+      console.error('URL 파라미터 디코딩 실패:', error);
+      productId = params.id;
+    }
+  }
   
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -325,7 +336,22 @@ export default function StoreProductDetailPage({
   useEffect(() => {
     // 네이버 상품이 있는 경우
     if (propNaverProduct) {
-      setProduct(null) // 일반 상품 정보 초기화
+             // 네이버 상품을 Product 형태로 변환하여 재고 정보 포함
+       const naverProductAsProduct: Product = {
+         id: propNaverProduct.id,
+         name: propNaverProduct.title.replace(/<[^>]*>/g, ''),
+         price: propNaverProduct.price,
+         imageUrl: propNaverProduct.imageUrl,
+         category: propNaverProduct.category1 || '네이버 쇼핑',
+         description: (propNaverProduct.description || propNaverProduct.title).replace(/<[^>]*>/g, ''),
+         tags: [],
+         stock: 999, // 네이버 상품은 재고 제한 없음으로 설정
+         registrationDate: '',
+         registeredBy: '',
+         petType: 'all',
+         brand: propNaverProduct.brand || '브랜드 없음'
+       }
+      setProduct(naverProductAsProduct)
       setLoading(false)
       return
     }
@@ -346,14 +372,16 @@ export default function StoreProductDetailPage({
 
         let rawData: any;
         
-        // productId가 큰 숫자인지 확인하여 네이버 상품인지 일반 상품인지 판단
+        // productId가 문자열인지 숫자인지 확인
+        const isNumeric = !isNaN(Number(productId));
         const numericProductId = Number(productId);
-        if (!isNaN(numericProductId) && numericProductId > 1000000) {
+        
+        if (isNumeric && numericProductId > 1000000) {
           // 네이버 상품인 경우 (100만 이상이면 네이버 상품으로 간주)
-          console.log('네이버 상품 조회 시도:', productId);
+          console.log('네이버 상품 조회 시도 (숫자):', productId);
           const naverResponse = await productApi.getNaverProduct(String(productId));
           rawData = naverResponse.data; // ResponseDto 구조에서 data 추출
-        } else if (!isNaN(numericProductId)) {
+        } else if (isNumeric && numericProductId <= 1000000) {
           // 일반 상품인 경우
           console.log('일반 상품 조회 시도:', productId);
           rawData = await productApi.getProduct(numericProductId);
@@ -366,23 +394,23 @@ export default function StoreProductDetailPage({
         
         console.log('상품 상세 데이터:', rawData);
         
-        // 백엔드 응답을 프론트엔드 형식으로 변환
-        const data: Product = {
-          ...rawData,
-          id: rawData.id || rawData.productId || 0,  // id를 우선 사용
-          productId: rawData.id || rawData.productId || 0,  // 호환성을 위해 productId도 설정
-          name: rawData.name || rawData.title || '상품명 없음',
-          price: typeof rawData.price === 'number' ? rawData.price : 0,
-          imageUrl: rawData.image || rawData.imageUrl || '/placeholder.svg',
-          category: rawData.category || '카테고리 없음',
-          description: rawData.description || rawData.title || '상품 설명이 없습니다.',
-          petType: rawData.targetAnimal?.toLowerCase() || 'all',
-          brand: rawData.brand || '브랜드 없음',
-          tags: rawData.tags || [],
-          stock: typeof rawData.stock === 'number' ? rawData.stock : 0,
-          registrationDate: rawData.registrationDate || '등록일 없음',
-          registeredBy: rawData.registeredBy || '등록자 없음'
-        };
+                 // 백엔드 응답을 프론트엔드 형식으로 변환
+         const data: Product = {
+           ...rawData,
+           id: rawData.id || rawData.productId || 0,  // id를 우선 사용
+           productId: rawData.id || rawData.productId || 0,  // 호환성을 위해 productId도 설정
+           name: (rawData.name || rawData.title || '상품명 없음').replace(/<[^>]*>/g, ''),
+           price: typeof rawData.price === 'number' ? rawData.price : 0,
+           imageUrl: rawData.image || rawData.imageUrl || '/placeholder.svg',
+           category: rawData.category || rawData.category1 || '카테고리 없음',
+           description: (rawData.description || rawData.title || '상품 설명이 없습니다.').replace(/<[^>]*>/g, ''),
+           petType: 'all',
+           brand: rawData.brand || '브랜드 없음',
+           tags: rawData.tags || [],
+           stock: typeof rawData.stock === 'number' ? rawData.stock : 999, // 네이버 상품은 기본값 999
+           registrationDate: rawData.registrationDate || rawData.createdAt || '등록일 없음',
+           registeredBy: rawData.registeredBy || '네이버'
+         };
         
         setProduct(data)
       } catch (error) {
@@ -432,6 +460,13 @@ export default function StoreProductDetailPage({
           return
         }
 
+        console.log('장바구니 추가 요청:', {
+          url: `${API_BASE_URL}/carts?productId=${product.id}&quantity=${quantity}`,
+          productId: product.id,
+          quantity: quantity,
+          product: product
+        })
+        
         // 장바구니 추가 API 호출 (수량 포함)
         const response = await axios.post(`${API_BASE_URL}/carts?productId=${product.id}&quantity=${quantity}`, null, {
           headers: {
@@ -440,6 +475,8 @@ export default function StoreProductDetailPage({
           }
         })
 
+        console.log('장바구니 추가 응답:', response.data)
+        
         if (response.status === 200) {
           alert(`장바구니에 ${quantity}개가 추가되었습니다!`)
           // 장바구니 페이지로 이동
@@ -500,42 +537,71 @@ export default function StoreProductDetailPage({
     return false
   }
 
-     // 추천 상품 장바구니 추가
-   const handleRecommendationAddToCart = async (productId: number) => {
-     try {
-       console.log('추천 상품 장바구니 추가 - productId:', productId, '타입:', typeof productId)
-       
-       if (!productId || isNaN(productId)) {
-         alert('유효하지 않은 상품 ID입니다.')
-         return
-       }
+  // 네이버 상품의 재고 상태 확인
+  const isNaverProductInStock = () => {
+    if (propNaverProduct) {
+      return true // 네이버 상품은 항상 재고 있음으로 가정
+    }
+    return (product?.stock || 0) > 0
+  }
 
-       const token = localStorage.getItem('accessToken')
-       if (!token) {
-         alert('로그인이 필요합니다.')
-         return
-       }
-
-       const response = await axios.post(`${API_BASE_URL}/carts?productId=${productId}&quantity=1`, null, {
-         headers: {
-           "Access_Token": token,
-           "Refresh_Token": localStorage.getItem('refreshToken') || ''
+                       // 추천 상품 장바구니 추가
+     const handleRecommendationAddToCart = async (productId: number) => {
+       try {
+         console.log('추천 상품 장바구니 추가 - productId:', productId, '타입:', typeof productId)
+         
+         if (!productId || isNaN(productId)) {
+           alert('유효하지 않은 상품 ID입니다.')
+           return
          }
-       })
 
-       if (response.status === 200) {
-         alert('장바구니에 추가되었습니다!')
+         const token = localStorage.getItem('accessToken')
+         if (!token) {
+           alert('로그인이 필요합니다.')
+           return
+         }
+
+         console.log('추천 상품 장바구니 추가 요청:', {
+           url: `${API_BASE_URL}/carts?productId=${productId}&quantity=1`,
+           productId: productId,
+           quantity: 1
+         })
+
+         const response = await axios.post(`${API_BASE_URL}/carts?productId=${productId}&quantity=1`, null, {
+           headers: {
+             "Access_Token": token,
+             "Refresh_Token": localStorage.getItem('refreshToken') || ''
+           }
+         })
+
+         console.log('추천 상품 장바구니 추가 응답:', response.data)
+
+         if (response.status === 200) {
+           alert('장바구니에 추가되었습니다!')
+           // 장바구니 페이지로 이동
+           router.push('/store/cart')
+         } else {
+           alert('장바구니 추가에 실패했습니다.')
+         }
+       } catch (error: any) {
+         console.error('추천 상품 장바구니 추가 오류:', error)
+         console.error('에러 상세 정보:', {
+           message: error.message,
+           status: error.response?.status,
+           data: error.response?.data,
+           url: error.config?.url
+         })
+         
+         // 백엔드에서 재고 부족 에러 처리
+         if (error.response?.data?.message?.includes('재고가 부족합니다')) {
+           alert(error.response.data.message)
+         } else if (error.response?.status === 400) {
+           alert('이미 장바구니에 있는 상품입니다.')
+         } else {
+           alert('장바구니 추가에 실패했습니다.')
+         }
        }
-     } catch (error: any) {
-       console.error('추천 상품 장바구니 추가 오류:', error)
-       console.error('에러 상세 정보:', {
-         message: error.message,
-         status: error.response?.status,
-         data: error.response?.data
-       })
-       alert('장바구니 추가에 실패했습니다.')
      }
-   }
 
   // 추천 상품 위시리스트 추가
   const handleRecommendationAddToWishlist = async (productId: number) => {
@@ -626,6 +692,9 @@ export default function StoreProductDetailPage({
                     <p className="text-sm text-gray-600">
                       제조사: <span className="font-semibold">{propNaverProduct.maker || '정보 없음'}</span>
                     </p>
+                                         <p className="text-sm text-gray-600">
+                       재고: <span className="font-semibold text-green-600">재고 있음 (무제한)</span>
+                     </p>
                     {propNaverProduct.rating > 0 && (
                       <p className="text-sm text-gray-600">
                         평점: <span className="font-semibold">⭐ {propNaverProduct.rating}</span>
@@ -651,20 +720,25 @@ export default function StoreProductDetailPage({
                          -
                        </Button>
                        <span className="w-12 text-center text-sm font-medium">{quantity}</span>
-                       <Button
-                         size="sm"
-                         variant="outline"
-                         onClick={() => setQuantity(quantity + 1)}
-                         className="w-8 h-8 p-0"
-                       >
-                         +
-                       </Button>
-                     </div>
-                   </div>
+                                               <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setQuantity(quantity + 1)}
+                          disabled={quantity >= 999} // 네이버 상품은 최대 999개로 제한
+                          className="w-8 h-8 p-0"
+                        >
+                          +
+                                                </Button>
+                      </div>
+                      {quantity >= 999 && (
+                        <span className="text-xs text-red-500">최대 수량입니다</span>
+                      )}
+                    </div>
 
                                        <div className="flex gap-3">
                       <Button
-                        onClick={async () => {
+                        disabled={!isNaverProductInStock()}
+                        onClick={async (event) => {
                           // 중복 클릭 방지
                           const button = event?.target as HTMLButtonElement;
                           if (button) {
@@ -718,59 +792,96 @@ export default function StoreProductDetailPage({
                               return
                             }
 
-                            // 네이버 상품을 백엔드 cart에 추가
-                            const response = await axios.post(`${API_BASE_URL}/carts?productId=${propNaverProduct.id}&quantity=${quantity}`, null, {
-                              headers: {
-                                "Access_Token": token,
-                                "Refresh_Token": localStorage.getItem('refreshToken') || ''
-                              }
-                            })
+                            // 네이버 상품을 백엔드 API로 장바구니에 추가
+                            try {
+                              console.log('네이버 상품 장바구니 추가 요청:', {
+                                productId: propNaverProduct.productId,
+                                title: propNaverProduct.title,
+                                price: propNaverProduct.price
+                              });
 
-                            if (response.status === 200) {
-                              // 로컬 스토리지에 저장 (백엔드 성공 후)
-                              localStorage.setItem('naverCart', JSON.stringify(existingNaverCart))
-                              
-                              // 알림 한 번만 표시
-                              alert(`장바구니에 ${quantity}개가 추가되었습니다!`)
-                              
-                              // propOnAddToCart가 있으면 호출 (website/page.tsx에서 사용될 때)
-                              if (propOnAddToCart) {
-                                const naverProductAsProduct = {
-                                  id: propNaverProduct.id,
-                                  name: propNaverProduct.title.replace(/<[^>]*>/g, ''),
-                                  price: propNaverProduct.price,
-                                  imageUrl: propNaverProduct.imageUrl,
-                                  category: propNaverProduct.category1,
-                                  description: propNaverProduct.description || '',
-                                  tags: [],
-                                  stock: 999,
-                                  registrationDate: '',
-                                  registeredBy: '',
-                                  petType: 'all' as const,
-                                  selectedQuantity: quantity,
-                                  isNaverProduct: true,
-                                  productUrl: propNaverProduct.productUrl,
-                                  mallName: propNaverProduct.mallName,
-                                  brand: propNaverProduct.brand,
-                                  maker: propNaverProduct.maker
+                              const response = await axios.post(`${getBackendUrl()}/api/naver-shopping/cart/add`, {
+                                productId: propNaverProduct.productId,
+                                title: propNaverProduct.title,
+                                description: propNaverProduct.description || propNaverProduct.title,
+                                price: propNaverProduct.price,
+                                imageUrl: propNaverProduct.imageUrl,
+                                mallName: propNaverProduct.mallName,
+                                productUrl: propNaverProduct.productUrl,
+                                brand: propNaverProduct.brand || '',
+                                maker: propNaverProduct.maker || '',
+                                category1: propNaverProduct.category1 || '',
+                                category2: propNaverProduct.category2 || '',
+                                category3: propNaverProduct.category3 || '',
+                                category4: propNaverProduct.category4 || '',
+                                reviewCount: propNaverProduct.reviewCount || 0,
+                                rating: propNaverProduct.rating || 0.0,
+                                searchCount: propNaverProduct.searchCount || 0
+                              }, {
+                                params: { quantity },
+                                headers: {
+                                  'Access_Token': token,
+                                  'Refresh_Token': localStorage.getItem('refreshToken') || '',
+                                  'Content-Type': 'application/json'
+                                },
+                                withCredentials: true
+                              });
+
+                              console.log('네이버 상품 장바구니 추가 응답:', response.data);
+
+                              if (response.status === 200) {
+                                alert(`네이버 상품이 장바구니에 추가되었습니다!`);
+                                
+                                // propOnAddToCart가 있으면 호출 (website/page.tsx에서 사용될 때)
+                                if (propOnAddToCart) {
+                                  const naverProductAsProduct = {
+                                    id: propNaverProduct.id,
+                                    name: propNaverProduct.title.replace(/<[^>]*>/g, ''),
+                                    price: propNaverProduct.price,
+                                    imageUrl: propNaverProduct.imageUrl,
+                                    category: propNaverProduct.category1,
+                                    description: propNaverProduct.description || '',
+                                    tags: [],
+                                    stock: 999,
+                                    registrationDate: '',
+                                    registeredBy: '',
+                                    petType: 'all' as const,
+                                    selectedQuantity: quantity,
+                                    isNaverProduct: true,
+                                    productUrl: propNaverProduct.productUrl,
+                                    mallName: propNaverProduct.mallName,
+                                    brand: propNaverProduct.brand,
+                                    maker: propNaverProduct.maker
+                                  }
+                                  propOnAddToCart(naverProductAsProduct)
+                                } else {
+                                  // 직접 cart 페이지로 이동
+                                  router.push('/store/cart')
                                 }
-                                propOnAddToCart(naverProductAsProduct)
                               } else {
-                                // 직접 cart 페이지로 이동
-                                router.push('/cart')
+                                alert('장바구니 추가에 실패했습니다.');
                               }
+                            } catch (apiError: any) {
+                              console.error('네이버 상품 장바구니 API 오류:', apiError);
+                              console.error('에러 상세 정보:', {
+                                message: apiError.message,
+                                status: apiError.response?.status,
+                                data: apiError.response?.data,
+                                url: apiError.config?.url
+                              });
+                              alert('장바구니 추가에 실패했습니다.');
                             }
                           } catch (error) {
                             console.error('네이버 상품 장바구니 추가 오류:', error)
                             alert('장바구니 추가에 실패했습니다.')
                           }
                         }}
-                        className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-black"
+                        className={`flex-1 ${isNaverProductInStock() ? 'bg-yellow-400 hover:bg-yellow-500 text-black' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
                       >
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                        장바구니에 추가
+                        {isNaverProductInStock() ? '장바구니에 추가' : '품절'}
                       </Button>
                       <Button
+                        disabled={!isNaverProductInStock()}
                         onClick={async () => {
                           // 네이버 상품 바로구매 로직
                           if (!currentUser) {
@@ -853,9 +964,9 @@ export default function StoreProductDetailPage({
                           }
                         }}
                         variant="outline"
-                        className="flex-1"
+                        className={`flex-1 ${!isNaverProductInStock() ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : ''}`}
                       >
-                        바로 구매
+                        {isNaverProductInStock() ? '바로 구매' : '품절'}
                       </Button>
                     </div>
                 </CardContent>
@@ -910,23 +1021,27 @@ export default function StoreProductDetailPage({
                    </Button>
                  </div>
                ) : recommendations.length > 0 ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                   {recommendations.map((recommendation) => (
-                     <ProductRecommendationCard
-                       key={recommendation.productId || recommendation.id}
-                       product={{
-                         id: recommendation.productId || recommendation.id,
-                         productId: recommendation.productId,
-                         name: recommendation.name.replace(/<[^>]*>/g, ''),
-                         price: recommendation.price,
-                         imageUrl: recommendation.imageUrl,
-                         category: recommendation.category,
-                         recommendationReason: recommendation.recommendationReason
-                       }}
-                       onAddToCart={handleRecommendationAddToCart}
-                     />
-                   ))}
-                 </div>
+                                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {recommendations.map((recommendation) => {
+                      console.log('추천 상품 렌더링:', recommendation)
+                      const productId = recommendation.productId || recommendation.id
+                      return (
+                        <ProductRecommendationCard
+                          key={productId}
+                          product={{
+                            id: productId,
+                            productId: productId,
+                            name: recommendation.name.replace(/<[^>]*>/g, ''),
+                            price: recommendation.price,
+                            imageUrl: recommendation.imageUrl,
+                            category: recommendation.category,
+                            recommendationReason: recommendation.recommendationReason
+                          }}
+                          onAddToCart={handleRecommendationAddToCart}
+                        />
+                      )
+                    })}
+                  </div>
                ) : (
                  <div className="text-center py-8">
                    <p className="text-gray-600">추천할 상품이 없습니다.</p>
@@ -1053,7 +1168,6 @@ export default function StoreProductDetailPage({
                     disabled={(typeof product.stock === 'number' ? product.stock : 0) === 0 || isInCart(product.id)}
                     className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-black"
                   >
-                    <ShoppingCart className="w-4 h-4 mr-2" />
                     {isInCart(product.id) ? '장바구니에 추가됨' : '장바구니에 추가'}
                   </Button>
                   <Button
@@ -1069,16 +1183,16 @@ export default function StoreProductDetailPage({
             </Card>
 
             {/* Product Description */}
-            <Card>
-              <CardHeader>
-                <CardTitle>상품 설명</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-700 leading-relaxed">
-                  {product.description || '상품 설명이 없습니다.'}
-                </p>
-              </CardContent>
-            </Card>
+                         <Card>
+               <CardHeader>
+                 <CardTitle>상품 설명</CardTitle>
+               </CardHeader>
+               <CardContent>
+                 <p className="text-gray-700 leading-relaxed">
+                   {(product.description || '상품 설명이 없습니다.').replace(/<[^>]*>/g, '')}
+                 </p>
+               </CardContent>
+             </Card>
 
             {/* Product Details */}
             <Card>
@@ -1091,12 +1205,7 @@ export default function StoreProductDetailPage({
                     <span className="text-gray-600">카테고리</span>
                     <span className="font-medium">{product.category}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">대상 동물</span>
-                    <span className="font-medium">
-                      {product.targetAnimal === 'ALL' ? '강아지/고양이' : product.targetAnimal === 'DOG' ? '강아지' : product.targetAnimal === 'CAT' ? '고양이' : '알 수 없음'}
-                    </span>
-                  </div>
+
  
                   {product.tags && Array.isArray(product.tags) && product.tags.length > 0 && (
                     <div className="flex justify-between items-start">
@@ -1161,26 +1270,27 @@ export default function StoreProductDetailPage({
                   </Button>
                 </div>
               ) : recommendations.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {recommendations.map((recommendation) => {
-                    console.log('추천 상품 데이터:', recommendation)
-                    return (
-                      <ProductRecommendationCard
-                        key={recommendation.productId || recommendation.id}
-                        product={{
-                          id: recommendation.productId || recommendation.id,
-                          productId: recommendation.productId,
-                          name: recommendation.name.replace(/<[^>]*>/g, ''),
-                          price: recommendation.price,
-                          imageUrl: recommendation.imageUrl,
-                          category: recommendation.category,
-                          recommendationReason: recommendation.recommendationReason
-                        }}
-                        onAddToCart={handleRecommendationAddToCart}
-                      />
-                    )
-                  })}
-                </div>
+                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                   {recommendations.map((recommendation) => {
+                     console.log('추천 상품 데이터:', recommendation)
+                     const productId = recommendation.productId || recommendation.id
+                     return (
+                       <ProductRecommendationCard
+                         key={productId}
+                         product={{
+                           id: productId,
+                           productId: productId,
+                           name: recommendation.name.replace(/<[^>]*>/g, ''),
+                           price: recommendation.price,
+                           imageUrl: recommendation.imageUrl,
+                           category: recommendation.category,
+                           recommendationReason: recommendation.recommendationReason
+                         }}
+                         onAddToCart={handleRecommendationAddToCart}
+                       />
+                     )
+                   })}
+                 </div>
               ) : (
                 <div className="text-center py-8">
                   <p className="text-gray-600">추천할 상품이 없습니다.</p>
