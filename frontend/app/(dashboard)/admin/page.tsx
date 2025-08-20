@@ -1618,7 +1618,7 @@ export default function AdminPage({
           {/* Pets Tab */}
           <TabsContent value="pets" className="space-y-6">
             <PetsTab
-              onNavigateToAnimalRegistration={onNavigateToAnimalRegistration}
+              onNavigateToAnimalRegistration={() => router.push("/adoption/register")}
               onUpdatePet={handleEditPetFromTab}
               onViewContract={handleViewContractFromTab}
             />

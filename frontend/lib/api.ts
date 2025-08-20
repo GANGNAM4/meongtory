@@ -234,7 +234,9 @@ export const adoptionRequestApi = {
     email: string;
     message: string;
   }): Promise<any> => {
+    console.log("API 요청 데이터:", requestData)
     const response = await axios.post(`${API_BASE_URL}/adoption-requests`, requestData);
+    console.log("API 응답:", response.data)
     return response.data.data;
   },
 
@@ -285,15 +287,26 @@ export const adoptionRequestApi = {
 export const productApi = {
   getProducts: async (): Promise<any[]> => {
     const response = await axios.get(`${API_BASE_URL}/products`);
-    console.log('Raw products response:', response.data);
-    console.log('Response structure:', {
-      success: response.data.success,
-      hasData: !!response.data.data,
-      dataType: typeof response.data.data,
-      isDataArray: Array.isArray(response.data.data)
-    });
+    console.log('Raw products response:', response);
+    console.log('Response data:', response.data);
+    console.log('Response data type:', typeof response.data);
+    console.log('Response data keys:', Object.keys(response.data));
+    console.log('Response data.data:', response.data.data);
+    console.log('Response data.data type:', typeof response.data.data);
+    console.log('Response data.data isArray:', Array.isArray(response.data.data));
+    
     // ResponseDto 형태로 응답이 오므로 response.data.data를 반환
-    return response.data.data || [];
+    if (!response.data || !response.data.success) {
+      throw new Error(response.data?.error?.message || "API 응답이 올바르지 않습니다.");
+    }
+    
+    const products = response.data.data || [];
+    if (!Array.isArray(products)) {
+      throw new Error("상품 데이터가 배열 형식이 아닙니다.");
+    }
+    
+    console.log('Final products to return:', products);
+    return products;
   },
 
   getProduct: async (productId: number): Promise<any> => {

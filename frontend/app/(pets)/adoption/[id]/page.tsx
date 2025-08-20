@@ -86,14 +86,18 @@ export default function AdoptionDetailPage({ params }: PageProps) {
     [key: string]: any
   }) => {
     try {
+      console.log("입양신청 데이터:", requestData)
+      
       // API 함수 호출 시 필요한 기본 필드들을 포함
       const apiRequestData = {
+        petId: requestData.petId, // petId를 명시적으로 포함
         applicantName: requestData.applicantName || "",
         contactNumber: requestData.contactNumber || "",
         email: requestData.email || "",
-        message: requestData.message || "",
-        ...requestData
+        message: requestData.message || ""
       }
+      
+      console.log("API로 보낼 데이터:", apiRequestData)
       
       await adoptionRequestApi.createAdoptionRequest(apiRequestData)
       alert("입양신청이 성공적으로 접수되었습니다. 보호소에서 검토 후 연락드리겠습니다.")

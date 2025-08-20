@@ -127,7 +127,7 @@ jobs:
         sed -i "s|\${AWS_S3_BUCKET_NAME}|${{ secrets.AWS_S3_BUCKET_NAME }}|g" docker-compose.production.yml
         sed -i "s|\${AI_SERVICE_URL}|${{ secrets.AI_SERVICE_URL }}|g" docker-compose.production.yml
         sed -i "s|\${TOSS_SECRET_KEY}|${{ secrets.TOSS_SECRET_KEY }}|g" docker-compose.production.yml
-        sed -i "s|\${TOSS_CLIENT_KEY}|${{ secrets.TOSS_CLIENT_KEY }}|g" docker-compose.production.yml
+        sed -i "s|\${NEXT_PUBLIC_TOSS_CLIENT_KEY}|${{ secrets.NEXT_PUBLIC_TOSS_CLIENT_KEY }}|g" docker-compose.production.yml
         
         # AI 서비스 환경변수
         sed -i "s|\${DB_PORT}|${{ secrets.DB_PORT }}|g" docker-compose.production.yml

@@ -75,7 +75,7 @@ public class WebSecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/accounts/register", "/api/accounts/login", "/api/accounts/refresh", "/error").permitAll()
                         .requestMatchers("/api/verifyAmount", "/api/accounts/me", "/login/**", "/oauth2/**", "/file/**", "/test", "/ws/**", "/post/**").permitAll()
-                        .requestMatchers("/api/products/**", "/api/orders/**", "/api/diary/**", "/api/ai/**").permitAll()
+                        .requestMatchers("/api/products/**", "/api/orders/**", "/api/diary/**", "/api/ai/**", "/api/naver-shopping/**").permitAll()
                         .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/carts/**", "/api/travel-plans/**", "/chat").authenticated()
                         .requestMatchers("/actuator/**").permitAll()
