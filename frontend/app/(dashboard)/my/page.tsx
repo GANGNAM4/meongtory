@@ -136,7 +136,7 @@ export default function MyPage() {
         .map((order: any) => ({
           orderId: order.id,
           userId: order.accountId,
-          totalPrice: order.amount,
+          amount: order.amount,
           paymentStatus: 'COMPLETED', // 결제 완료된 주문만 표시하므로 항상 COMPLETED
           orderedAt: order.createdAt,
           orderItems: [{
@@ -650,7 +650,7 @@ export default function MyPage() {
                             <TableCell className="font-medium">{orderItem?.productName || "상품명 없음"}</TableCell>
                             <TableCell>{orderItem?.productId || "N/A"}</TableCell>
                             <TableCell>{orderItem?.quantity || 0}</TableCell>
-                            <TableCell>{((order.totalPrice || 0)).toLocaleString()}원</TableCell>
+                            <TableCell>{((order.amount || 0)).toLocaleString()}원</TableCell>
                             <TableCell>
                               {order.orderedAt ? 
                                 (() => {

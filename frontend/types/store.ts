@@ -1,5 +1,29 @@
 // 스토어 관련 타입들
 
+export interface NaverProduct {
+  id: number
+  productId: string
+  title: string
+  description: string
+  price: number
+  imageUrl: string
+  mallName: string
+  productUrl: string
+  brand: string
+  maker: string
+  category1: string
+  category2: string
+  category3: string
+  category4: string
+  reviewCount: number
+  rating: number
+  searchCount: number
+  createdAt: string
+  updatedAt: string
+  relatedProductId?: number
+  link?: string
+}
+
 export interface Product {
   id: number  // productId -> id로 변경
   productId?: number  // 호환성을 위해 유지

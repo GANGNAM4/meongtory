@@ -8,140 +8,89 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Heart, Search, Store, BookOpen, ShoppingCart } from "lucide-react";
 import AdoptionPage from "../../(pets)/adoption/page";
 import AdoptionDetailPage from "../../(pets)/adoption/[id]/page";
-import StorePage from "../../(store)/store/page";
+import AnimalRegistrationPage from "../../(pets)/adoption/register/page";
 
+import GrowthDiaryPage from "../../(pets)/diary/page";
+import GrowthDiaryWritePage from "../../(pets)/diary/write/page";
+import DiaryEntryDetail from "../../(pets)/diary/[id]/page";
+
+import StorePage from "../../(store)/store/page";
+import StoreProductDetailPage from "../../(store)/store/[id]/page";
 import StoreProductRegistrationPage from "../../(store)/store/register/page";
+import StoreProductEditPage from "../../(store)/store/edit/page";
+import CartPage from "../../(store)/store/cart/page";
 
 import PetInsurancePage from "../insurance/page";
 import InsuranceDetailPage from "../insurance/[id]/page";
-import GrowthDiaryPage from "../../(pets)/diary/page";
-import GrowthDiaryWritePage from "../../(pets)/diary/write/page";
+import InsuranceFavoritesPage from "../insurance/favorites/page";
+
 import CommunityPage from "../../(community)/community/page";
 import CommunityDetailPage from "../../(community)/community/[id]/page";
 import CommunityWritePage from "../../(community)/community/write/page";
+
 import DogResearchLabPage from "../research/page";
-import AnimalRegistrationPage from "../../(pets)/adoption/register/page";
+import PetNamingService from "../naming/page";
 
 import AdminPage from "../../(dashboard)/admin/page";
-import PetNamingService from "../naming/page";
-import InsuranceFavoritesPage from "../insurance/favorites/page";
 import MyPage from "../../(dashboard)/my/page";
-import axios from "axios";
-import { toast } from "react-hot-toast";
-import { getCurrentKSTDate } from "@/lib/utils";
 
-// 인터페이스 정의 (기존과 동일)
-interface Pet {
-  id: number;
-  name: string;
-  breed: string;
-  age: string;
-  gender: string;
-  size: string;
-  personality: string[];
-  healthStatus: string;
-  description: string;
-  images: string[];
-  location: string;
-  contact: string;
-  adoptionFee: number;
-  isNeutered: boolean;
-  isVaccinated: boolean;
-  dateRegistered: string;
-  adoptionStatus: string;
-  ownerEmail?: string;
-}
+import axios from "axios"
+import { Toaster, toast } from "react-hot-toast"
+import { getCurrentKSTDate } from "@/lib/utils"
 
-interface Product {
-  id: number;
-  name: string;
-  brand: string;
-  price: number;
-  image: string;
-  category: string;
-  description: string;
-  tags: string[];
-  stock: number;
-  petType: string;
-  registrationDate: string;
-  registeredBy: string;
-}
+// Types
+import type { Pet } from "@/types/pets"
+import type { Product, WishlistItem, CartItem, NaverProduct } from "@/types/store"
+import type { Insurance } from "@/types/insurance"
 
-interface WishlistItem {
-  id: number;
-  name: string;
-  price: number;
-  image: string;
-}
-
-interface CartItem {
-  id: number;
-  name: string;
-  brand: string;
-  price: number;
-  image: string;
-  category: string;
-  quantity: number;
-  order: number;
-  product?: Product;
-}
-
-interface Insurance {
-  id: number;
-  company: string;
-  planName: string;
-  monthlyPremium: number;
-  coverage: string[];
-  deductible: number;
-  maxPayout: number;
-  ageLimit: string;
-  description: string;
-  rating: number;
-  isPopular: boolean;
+// Product 타입 확장 (brand, image 속성 추가)
+interface ExtendedProduct extends Product {
+  brand?: string
+  image?: string
 }
 
 interface DiaryEntry {
-  id: number;
-  petName: string;
-  date: string;
-  title: string;
-  content: string;
-  images: string[];
-  milestones: string[];
-  tags?: string[];
-  weight?: number;
-  height?: number;
-  mood: string;
-  activities: string[];
-  ownerEmail?: string;
-  audioUrl?: string;
+  id: number
+  petName: string
+  date: string
+  title: string
+  content: string
+  images: string[]
+  milestones: string[]
+  tags?: string[]
+  weight?: number
+  height?: number
+  mood: string
+  activities: string[]
+  ownerEmail?: string
+  audioUrl?: string
 }
 
 interface CommunityPost {
-  id: number;
-  title: string;
-  content: string;
-  author: string;
-  date: string;
-  category: string;
-  boardType: "Q&A" | "자유게시판";
-  views: number;
-  likes: number;
-  comments: number;
-  tags: string[];
-  ownerEmail?: string;
+  id: number
+  title: string
+  content: string
+  author: string
+  date: string
+  category: string
+  boardType: "Q&A" | "자유게시판"
+  views: number
+  likes: number
+  comments: number
+  tags: string[]
+  ownerEmail?: string
 }
 
 interface AdoptionInquiry {
-  id: number;
-  petId: number;
-  petName: string;
-  inquirerName: string;
-  phone: string;
-  email: string;
-  message: string;
-  status: "대기중" | "연락완료" | "승인" | "거절";
-  date: string;
+  id: number
+  petId: number
+  petName: string
+  inquirerName: string
+  phone: string
+  email: string
+  message: string
+  status: "대기중" | "연락완료" | "승인" | "거절"
+  date: string
 }
 
 interface Comment {
@@ -574,13 +523,7 @@ export default function PetServiceWebsite() {
     }
   }
 
-
-
-
-
-
-
-  const createOrder = async (orderData: { userId: number; totalPrice: number }) => {
+  const createOrder = async (orderData: { userId: number; amount: number }) => {
     try {
       const response = await axios.post("http://localhost:8080/api/orders", orderData, {
         headers: { "Content-Type": "application/json" },
@@ -636,7 +579,7 @@ export default function PetServiceWebsite() {
       if (accessToken) headers["access_token"] = accessToken
       const orderData = {
         userId: currentUser.id,
-        totalPrice: cartItem.price * cartItem.quantity,
+        amount: cartItem.price * cartItem.quantity,
         orderItems: [
           {
             productId: cartItem.product?.productId || cartItem.id,
@@ -676,9 +619,9 @@ export default function PetServiceWebsite() {
         if (order.orderItems && order.orderItems.length > 0) {
           return order.orderItems.map((item: any) => ({
             id: item.id || order.orderId,
-            productId: item.productId || 0,
+                            productId: item.id || 0,
             productName: item.productName || `주문 #${order.orderId}`,
-            price: item.price || order.totalPrice,
+                          price: item.price || order.amount,
             quantity: item.quantity || 1,
             orderDate: order.orderedAt || new Date().toISOString(),
             status: order.paymentStatus === "COMPLETED" ? "completed" : order.paymentStatus === "PENDING" ? "pending" : "cancelled",
@@ -690,7 +633,7 @@ export default function PetServiceWebsite() {
               id: order.orderId,
               productId: 0,
               productName: `주문 #${order.orderId}`,
-              price: order.totalPrice,
+              price: order.amount,
               quantity: 1,
               orderDate: order.orderedAt || new Date().toISOString(),
               status: order.paymentStatus === "COMPLETED" ? "completed" : order.paymentStatus === "PENDING" ? "pending" : "cancelled",
@@ -774,16 +717,14 @@ export default function PetServiceWebsite() {
         throw new Error("잘못된 데이터 형식");
       }
       const convertedProducts: Product[] = backendProducts.map((product: any) => ({
-        id: product.productId || product.id,
-        name: product.name || "상품명 없음",
-        brand: product.brand || "브랜드 없음",
+        id: product.id || product.productId || 0,
+        name: product.name || '상품명 없음',
+        description: product.description || '',
         price: product.price || 0,
-        image: product.imageUrl || product.image || "/placeholder.svg?height=300&width=300",
-        category: product.category || "기타",
-        description: product.description || "",
-        tags: product.tags || [],
+        imageUrl: product.imageUrl || product.image || "/placeholder.svg?height=300&width=300",
+        category: (product.category as '의류' | '장난감' | '건강관리' | '용품' | '간식' | '사료') || '용품',
+        targetAnimal: (product.targetAnimal as 'ALL' | 'DOG' | 'CAT') || 'ALL',
         stock: product.stock || 0,
-        petType: product.targetAnimal?.toLowerCase() || product.petType || "all",
         registrationDate: product.registrationDate || new Date().toISOString().split("T")[0],
         registeredBy: product.registeredBy || "admin",
       }));
@@ -813,9 +754,31 @@ export default function PetServiceWebsite() {
     router.push("/store");
   };
 
-  const handleViewProduct = (product: Product) => {
-    router.push(`/store/${product.id}`);
-  };
+  const handleViewProduct = (product: Product | NaverProduct) => {
+    console.log("handleViewProduct called with:", product)
+    console.log("Product keys:", Object.keys(product))
+    console.log("Product type check:", {
+      hasProductUrl: 'productUrl' in product,
+      hasMallName: 'mallName' in product,
+      hasTitle: 'title' in product,
+      hasName: 'name' in product
+    })
+    
+    // 네이버 상품인지 확인 (productUrl, mallName, 또는 title 속성 존재 여부로 판단)
+    if ('productUrl' in product || 'mallName' in product || 'title' in product) {
+      console.log("네이버 상품으로 인식됨:", product)
+      setSelectedNaverProduct(product as NaverProduct)
+      setCurrentPage("product-detail")
+      return
+    }
+    
+    // 일반 상품인지 확인
+    if ('id' in product && product.id) {
+      console.log("일반 상품으로 인식됨:", product)
+      setSelectedProductId(Number(product.id))
+      setCurrentPage("product-detail")
+    }
+  }
 
   const handleEditProduct = (product: Product) => {
     router.push(`/store/edit?productId=${product.id}`);
@@ -914,7 +877,7 @@ export default function PetServiceWebsite() {
             pets={pets}
             onViewPet={(pet) => {
               // window.location.href를 사용하여 상세페이지로 이동
-              window.location.href = `/adoption/${pet.id}`;
+              window.location.href = `/adoption/${pet.petId}`;
             }}
             onClose={() => router.push("/")}
             isAdmin={isAdmin}
@@ -949,6 +912,42 @@ export default function PetServiceWebsite() {
 
 
 
+<<<<<<< HEAD
+=======
+      case "product-detail":
+        if (selectedNaverProduct) {
+          return (
+            <StoreProductDetailPage
+              productId={0}
+              propNaverProduct={selectedNaverProduct}
+              onBack={() => {
+                setSelectedNaverProduct(null)
+                setCurrentPage("store")
+              }}
+              onAddToWishlist={handleAddToWishlist}
+              onAddToCart={handleAddToCart}
+              onBuyNow={handleBuyNow}
+              isInWishlist={isInWishlist}
+              isInCart={isInCart}
+            />
+          )
+        }
+        
+        return (
+          <StoreProductDetailPage
+            productId={selectedProductId!}
+            onBack={() => {
+              setSelectedProductId(null)
+              router.push("/store")
+            }}
+            onAddToWishlist={handleAddToWishlist}
+            onAddToCart={handleAddToCart}
+            onBuyNow={handleBuyNow}
+            isInWishlist={isInWishlist}
+            isInCart={isInCart}
+          />
+        )
+>>>>>>> origin/develop
 
 
       case "storeRegistration":

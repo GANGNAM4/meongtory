@@ -107,7 +107,7 @@ interface Comment {
 interface Order {
   orderId: number
   userId: number
-  totalPrice: number
+  amount: number
   paymentStatus: "PENDING" | "COMPLETED" | "CANCELLED"
   orderedAt: string
   id?: number
@@ -388,7 +388,7 @@ export default function AdminPage({
             return {
               orderId: order.id || order.orderId, // 백엔드에서는 id 필드 사용
               userId: order.accountId || order.userId,
-              totalPrice: order.amount || order.totalPrice, // 백엔드에서는 amount 필드 사용
+              amount: order.amount, // 백엔드에서는 amount 필드 사용
               paymentStatus: 'COMPLETED', // 결제 완료된 주문만 표시하므로 항상 COMPLETED
               orderedAt: order.createdAt || order.orderedAt,
               orderItems: [{
@@ -440,19 +440,19 @@ export default function AdminPage({
     fetchAdoptionRequests();
   }, []);
 
-  // if (!isAdmin) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <Card className="p-8 text-center">
-  //         <CardContent>
-  //           <h2 className="text-2xl font-bold text-red-600 mb-4">접근 권한이 없습니다</h2>
-  //           <p className="text-gray-600 mb-4">관리자만 접근할 수 있는 페이지입니다.</p>
-  //           <Button onClick={onClose}>홈으로 돌아가기</Button>
-  //         </CardContent>
-  //       </Card>
-  //     </div>
-  //   )
-  // }
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <CardContent>
+            <h2 className="text-2xl font-bold text-red-600 mb-4">접근 권한이 없습니다</h2>
+            <p className="text-gray-600 mb-4">관리자만 접근할 수 있는 페이지입니다.</p>
+            <Button onClick={onClose}>홈으로 돌아가기</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -1941,7 +1941,7 @@ export default function AdminPage({
                           
                           <div className="space-y-2 mb-4">
                             <p className="text-sm text-gray-600">사용자 ID: {order.userId}</p>
-                            <p className="text-sm text-gray-600">총 금액: {(order.totalPrice || 0).toLocaleString()}원</p>
+                            <p className="text-sm text-gray-600">총 금액: {(order.amount || 0).toLocaleString()}원</p>
                             <p className="text-sm text-gray-600">
                               주문일: {order.orderedAt ? 
                                 (() => {

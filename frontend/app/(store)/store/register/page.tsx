@@ -174,19 +174,19 @@ function StoreProductRegistrationPageContent({
     }
   }
 
-  // if (!isAdmin) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <Card className="w-full max-w-md">
-  //         <CardContent className="pt-6 text-center">
-  //           <h2 className="text-xl font-semibold mb-2">접근 권한이 없습니다</h2>
-  //           <p className="text-gray-600 mb-4">관리자만 상품을 등록할 수 있습니다.</p>
-  //           <Button onClick={onBack}>돌아가기</Button>
-  //         </CardContent>
-  //       </Card>
-  //     </div>
-  //   )
-  // }
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">접근 권한이 없습니다</h2>
+            <p className="text-gray-600 mb-4">관리자만 상품을 등록할 수 있습니다.</p>
+            <Button onClick={onBack}>돌아가기</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

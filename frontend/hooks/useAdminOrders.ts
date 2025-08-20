@@ -49,7 +49,7 @@ export function useAdminOrders() {
             userId: order.accountId || order.userId,
             orderDate: order.createdAt || order.orderedAt,
             status: 'completed', // 결제 완료된 주문만 표시하므로 항상 completed
-            totalAmount: order.amount || order.totalPrice, // 백엔드에서는 amount 필드 사용
+            totalAmount: order.amount, // 백엔드에서는 amount 필드 사용
             items: [{
               id: order.id,
               productId: order.productId,

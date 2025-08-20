@@ -99,6 +99,8 @@ interface NaverProduct {
 
 interface StorePageProps {
   onClose: () => void
+  onAddToWishlist: (product: Product) => void
+  isInWishlist: (productId: number) => boolean
   isAdmin: boolean
   isLoggedIn: boolean
   onNavigateToStoreRegistration: () => void
@@ -109,6 +111,8 @@ interface StorePageProps {
 
 export default function StorePage({
   onClose,
+  onAddToWishlist,
+  isInWishlist,
   isAdmin,
   isLoggedIn,
   onNavigateToStoreRegistration,
@@ -1100,7 +1104,18 @@ export default function StorePage({
             {/* 네이버 상품들 */}
             {sortedNaverProducts.map((naverProduct, index) => (
               <Card key={`naver-${naverProduct.id}-${index}`} className="group cursor-pointer hover:shadow-lg transition-shadow relative">
-                <div className="relative" onClick={() => onViewProduct(naverProduct)}>
+                <div className="relative" onClick={() => {
+                  try {
+                    console.log("네이버 상품 클릭됨:", naverProduct);
+                    if (typeof onViewProduct === 'function') {
+                      onViewProduct(naverProduct);
+                    } else {
+                      console.error("onViewProduct is not a function:", onViewProduct);
+                    }
+                  } catch (error) {
+                    console.error("onViewProduct 호출 중 오류:", error);
+                  }
+                }}>
                   <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
                     <img
                       src={naverProduct.imageUrl}
@@ -1129,7 +1144,18 @@ export default function StorePage({
                   )}
                 </div>
                 <CardContent className="p-4">
-                  <div className="mb-2" onClick={() => onViewProduct(naverProduct)}>
+                  <div className="mb-2" onClick={() => {
+                    try {
+                      console.log("네이버 상품 제목 클릭됨:", naverProduct);
+                      if (typeof onViewProduct === 'function') {
+                        onViewProduct(naverProduct);
+                      } else {
+                        console.error("onViewProduct is not a function:", onViewProduct);
+                      }
+                    } catch (error) {
+                      console.error("onViewProduct 호출 중 오류:", error);
+                    }
+                  }}>
                     <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 mb-1">
                       {removeHtmlTags(naverProduct.title)}
                     </h3>

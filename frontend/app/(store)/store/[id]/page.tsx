@@ -98,7 +98,7 @@ interface PageProps {
     id: string
   }
   productId?: number
-  naverProduct?: NaverProduct
+  propNaverProduct?: NaverProduct
   onBack?: () => void
   onAddToCart?: (product: Product) => void
   onBuyNow?: (product: Product) => void
@@ -108,7 +108,7 @@ interface PageProps {
 export default function StoreProductDetailPage({ 
   params, 
   productId: propProductId,
-  naverProduct: propNaverProduct,
+  propNaverProduct,
   onBack: propOnBack,
   onAddToCart: propOnAddToCart,
   onBuyNow: propOnBuyNow,
