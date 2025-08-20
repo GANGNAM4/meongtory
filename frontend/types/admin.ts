@@ -29,7 +29,10 @@ export interface AdminPet extends Pet {
 // 관리자 페이지에서 사용하는 Product 확장 타입
 export interface AdminProduct extends Product {
   tags: string[]
-  // Product에서 이미 있는 필드들: id, name, description, price, stock, imageUrl, category, targetAnimal, registrationDate, registeredBy 등
+  isNaverProduct?: boolean // 네이버 상품 여부
+  mallName?: string // 네이버 상품의 경우 판매자 정보
+  productUrl?: string // 네이버 상품의 경우 상품 링크
+  // Product에서 이미 있는 필드들: id, name, description, price, stock, imageUrl, category, registrationDate, registeredBy 등
 }
 
 // 관리자 페이지에서 사용하는 Order 확장 타입

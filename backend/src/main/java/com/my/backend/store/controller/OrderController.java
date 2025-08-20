@@ -35,13 +35,25 @@ public class OrderController {
         System.out.println("Quantity: " + requestDto.getQuantity());
         
         try {
+            // 요청 데이터 검증
+            if (requestDto.getAccountId() == null) {
+                throw new IllegalArgumentException("AccountId는 필수입니다.");
+            }
+            if (requestDto.getProductId() == null) {
+                throw new IllegalArgumentException("ProductId는 필수입니다.");
+            }
+            if (requestDto.getQuantity() <= 0) {
+                throw new IllegalArgumentException("Quantity는 0보다 커야 합니다.");
+            }
+            
             OrderResponseDto responseDto = orderService.createOrder(requestDto);
             System.out.println("주문 생성 성공: " + responseDto.getId());
             return ResponseEntity.ok(responseDto);
         } catch (Exception e) {
             System.out.println("주문 생성 실패: " + e.getMessage());
             e.printStackTrace();
-            throw e;
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
         }
     }
 
@@ -87,7 +99,8 @@ public class OrderController {
         } catch (Exception e) {
             System.out.println("네이버 상품 주문 생성 실패: " + e.getMessage());
             e.printStackTrace();
-            throw e;
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
         }
     }
 

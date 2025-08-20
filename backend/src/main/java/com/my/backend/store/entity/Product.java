@@ -42,10 +42,6 @@ public class Product {
     @Column(nullable = false)
     private Category category;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TargetAnimal targetAnimal;
-
     private LocalDate registrationDate;
 
     private String registeredBy;
@@ -78,10 +74,5 @@ public class Product {
                 this.category = Category.용품;
             }
         }
-    }
-
-    public void setTargetAnimal(String targetAnimalStr) {
-        // 항상 ALL로 설정
-        this.targetAnimal = TargetAnimal.ALL;
     }
 }

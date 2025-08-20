@@ -2,7 +2,7 @@
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Trash2, ShoppingCart, ArrowLeft } from "lucide-react"
+import { Trash2, ArrowLeft } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import axios from "axios"
@@ -28,7 +28,6 @@ interface CartItem {
     stock: number
     imageUrl: string
     category: string
-    targetAnimal: string
     registrationDate: string
     registeredBy: string
   }
@@ -46,49 +45,117 @@ export default function CartPage() {
     try {
       setLoading(true)
       const token = localStorage.getItem("accessToken")
-      if (!token) {
-        console.log("토큰이 없어서 장바구니를 불러올 수 없습니다.")
-        setCartItems([])
-        return
+      
+      let cartData: any[] = []
+      
+      if (token) {
+        try {
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/carts`, {
+            headers: { "Access_Token": token },
+            timeout: 5000,
+          })
+
+          if (response.status === 200) {
+            cartData = response.data
+          }
+        } catch (error) {
+          console.log("백엔드 장바구니 조회 실패, 로컬 스토리지만 사용")
+        }
       }
 
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/carts`, {
-        headers: { "Access_Token": token },
-        timeout: 5000,
+      // 로컬 스토리지의 네이버 상품 가져오기
+      const naverCartData = JSON.parse(localStorage.getItem('naverCart') || '[]')
+      const naverItems = naverCartData.map((item: any, index: number) => ({
+        id: `naver-${index}`,
+        productId: item.id,
+        quantity: item.quantity,
+        isNaverProduct: true,
+        naverProductInfo: {
+          title: item.name,
+          price: item.price,
+          imageUrl: item.imageUrl,
+          mallName: item.mallName,
+          brand: item.brand,
+          maker: item.maker,
+          category1: item.category
+        }
+      }))
+
+      // 백엔드 장바구니와 네이버 장바구니 합치기
+      const allCartData = [...cartData, ...naverItems]
+      
+      // 유효하지 않은 데이터 필터링
+      const validCartData = allCartData.filter((item: any) => {
+        if (item.isNaverProduct || (item.naverProductInfo && Object.keys(item.naverProductInfo).length > 0)) {
+          return true // 네이버 상품은 항상 유효
+        }
+        return item.product && item.product.name // 일반 상품은 product와 name이 있어야 유효
       })
-
-      if (response.status !== 200) {
-        throw new Error("장바구니 조회에 실패했습니다.")
-      }
-
-      const cartData = response.data
-      const items: CartItem[] = cartData
+      
+      const items: CartItem[] = validCartData
         .sort((a: any, b: any) => a.id - b.id)
-        .map((item: any, index: number) => ({
-          id: item.id,
-          name: item.product.name,
-          brand: "브랜드 없음",
-          price: item.product.price,
-          image: item.product.imageUrl || "/placeholder.svg",
-          category: item.product.category,
-          quantity: item.quantity,
-          order: index,
-          product: {
-            id: item.product.id,
-            name: item.product.name,
-            description: item.product.description,
-            price: item.product.price,
-            stock: item.product.stock,
-            imageUrl: item.product.imageUrl,
-            category: item.product.category,
-            targetAnimal: item.product.targetAnimal,
-            registrationDate: item.product.registrationDate,
-            registeredBy: item.product.registeredBy,
-          },
-        }))
+        .map((item: any, index: number) => {
+          // 네이버 상품인지 확인
+          const isNaverProduct = item.isNaverProduct || (item.naverProductInfo && Object.keys(item.naverProductInfo).length > 0)
+          
+          if (isNaverProduct && item.naverProductInfo) {
+            // 네이버 상품 처리
+            return {
+              id: item.id,
+              name: item.naverProductInfo.title || item.naverProductInfo.name || '네이버 상품',
+              brand: item.naverProductInfo.brand || "브랜드 없음",
+              price: item.naverProductInfo.price,
+              image: item.naverProductInfo.imageUrl || "/placeholder.svg",
+              category: item.naverProductInfo.category1 || "네이버 쇼핑",
+              quantity: item.quantity,
+              order: index,
+              isNaverProduct: true,
+              product: {
+                id: item.productId || item.id,
+                name: item.naverProductInfo.title || item.naverProductInfo.name || '네이버 상품',
+                description: item.naverProductInfo.title || '',
+                price: item.naverProductInfo.price,
+                stock: 999,
+                imageUrl: item.naverProductInfo.imageUrl || "/placeholder.svg",
+                category: item.naverProductInfo.category1 || "네이버 쇼핑",
+                registrationDate: '',
+                registeredBy: '',
+              },
+            }
+          } else {
+            // 일반 상품 처리 - product가 null인 경우 더 안전하게 처리
+            const product = item.product || {}
+            const safeProduct = {
+              id: product.id || item.id || 0,
+              name: product.name || '상품명 없음',
+              description: product.description || '',
+              price: product.price || 0,
+              stock: product.stock || 0,
+              imageUrl: product.imageUrl || '/placeholder.svg',
+              category: product.category || '카테고리 없음',
+              registrationDate: product.registrationDate || '',
+              registeredBy: product.registeredBy || '',
+            }
+            
+            return {
+              id: item.id,
+              name: safeProduct.name,
+              brand: "브랜드 없음",
+              price: safeProduct.price,
+              image: safeProduct.imageUrl,
+              category: safeProduct.category,
+              quantity: item.quantity || 1,
+              order: index,
+              product: safeProduct,
+            }
+          }
+        })
 
       setCartItems(items)
       console.log("장바구니 설정 완료:", items.length, "개")
+      console.log("백엔드 장바구니 데이터:", cartData)
+      console.log("네이버 장바구니 데이터:", naverItems)
+      console.log("유효한 장바구니 데이터:", validCartData)
     } catch (error: any) {
       console.error("장바구니 조회 오류:", error)
       setCartItems([])
@@ -98,8 +165,21 @@ export default function CartPage() {
   }
 
   // 장바구니에서 상품 제거
-  const onRemoveFromCart = async (cartId: number) => {
+  const onRemoveFromCart = async (cartId: number | string) => {
     try {
+      // 네이버 상품인지 확인 (ID가 문자열로 시작하는 경우)
+      if (typeof cartId === 'string' && cartId.startsWith('naver-')) {
+        // 네이버 상품은 로컬 스토리지에서 삭제
+        const naverCartData = JSON.parse(localStorage.getItem('naverCart') || '[]')
+        const index = parseInt(cartId.replace('naver-', ''))
+        naverCartData.splice(index, 1)
+        localStorage.setItem('naverCart', JSON.stringify(naverCartData))
+        await fetchCartItems()
+        alert("장바구니에서 상품을 삭제했습니다")
+        return
+      }
+
+      // 일반 상품은 백엔드에서 삭제
       const accessToken = localStorage.getItem("accessToken")
       if (!accessToken) {
         alert("로그인이 필요합니다")
@@ -123,8 +203,20 @@ export default function CartPage() {
   }
 
   // 수량 업데이트
-  const onUpdateQuantity = async (cartId: number, quantity: number) => {
+  const onUpdateQuantity = async (cartId: number | string, quantity: number) => {
     try {
+      // 네이버 상품인지 확인 (ID가 문자열로 시작하는 경우)
+      if (typeof cartId === 'string' && cartId.startsWith('naver-')) {
+        // 네이버 상품은 로컬 스토리지에서 수량 업데이트
+        const naverCartData = JSON.parse(localStorage.getItem('naverCart') || '[]')
+        const index = parseInt(cartId.replace('naver-', ''))
+        naverCartData[index].quantity = quantity
+        localStorage.setItem('naverCart', JSON.stringify(naverCartData))
+        await fetchCartItems()
+        return
+      }
+
+      // 일반 상품은 백엔드에서 수량 업데이트
       const accessToken = localStorage.getItem("accessToken")
       if (!accessToken) {
         alert("로그인이 필요합니다")
@@ -216,6 +308,18 @@ export default function CartPage() {
   // 페이지 로드 시 장바구니 데이터 가져오기
   useEffect(() => {
     fetchCartItems()
+    
+    // 결제 완료 후 장바구니 새로고침을 위한 이벤트 리스너
+    const handleCartUpdate = () => {
+      console.log('장바구니 업데이트 이벤트 수신')
+      fetchCartItems()
+    }
+    
+    window.addEventListener('cartUpdated', handleCartUpdate)
+    
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate)
+    }
   }, [])
 
   // 디버깅: cartItems 배열 확인
@@ -302,7 +406,7 @@ export default function CartPage() {
         {!cartItems || cartItems.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ShoppingCart className="w-12 h-12 text-gray-400" />
+              <div className="w-12 h-12 text-gray-400" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">장바구니가 비어있습니다</h3>
             <p className="text-gray-600 mb-6">마음에 드는 상품을 장바구니에 담아보세요!</p>

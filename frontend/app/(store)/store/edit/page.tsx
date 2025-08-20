@@ -106,11 +106,7 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
               : productData.tags.split(',').map((tag: string) => tag.trim())
             : [],
           stock: productData.stock || 0,
-          petType: productData.targetAnimal
-            ? productData.targetAnimal === 'ALL' ? 'all'
-              : productData.targetAnimal === 'DOG' ? 'dog'
-              : 'cat'
-            : 'all',
+          petType: 'all',
           registrationDate: Array.isArray(productData.registrationDate) 
             ? new Date(productData.registrationDate[0], productData.registrationDate[1] - 1, productData.registrationDate[2]).toISOString()
             : productData.registration_date || productData.registrationDate || productData.createdAt || new Date().toISOString(),
@@ -216,7 +212,7 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
         category: product.category,
         description: product.description,
         stock: product.stock,
-        targetAnimal: product.petType === 'all' ? 'ALL' : product.petType === 'dog' ? 'DOG' : 'CAT',
+
         imageUrl: imageUrl,
       };
       console.log('Sending update data:', updateData);

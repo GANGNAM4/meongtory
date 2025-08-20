@@ -3,7 +3,6 @@ package com.my.backend.store.service;
 import com.my.backend.global.dto.ResponseDto;
 import com.my.backend.store.entity.Product;
 import com.my.backend.store.entity.Category;
-import com.my.backend.store.entity.TargetAnimal;
 import com.my.backend.store.entity.Order;
 import com.my.backend.store.repository.OrderItemRepository;
 import com.my.backend.store.repository.OrderRepository;
@@ -51,7 +50,6 @@ public class ProductService {
                     .stock(50L)
                     .imageUrl("/placeholder.svg?height=300&width=300")
                     .category(Category.사료)
-                    .targetAnimal(TargetAnimal.ALL)
                     .registrationDate(LocalDate.now())
                     .registeredBy("admin")
                     .build();
@@ -64,7 +62,6 @@ public class ProductService {
                     .stock(100L)
                     .imageUrl("/placeholder.svg?height=300&width=300")
                     .category(Category.장난감)
-                    .targetAnimal(TargetAnimal.ALL)
                     .registrationDate(LocalDate.now())
                     .registeredBy("admin")
                     .build();
@@ -218,7 +215,6 @@ public class ProductService {
                 .stock(product.getStock())
                 .imageUrl(product.getImageUrl())
                 .category(product.getCategory())
-                .targetAnimal(product.getTargetAnimal())
                 .registrationDate(product.getRegistrationDate())
                 .registeredBy(product.getRegisteredBy())
                 .build();
@@ -230,9 +226,7 @@ public class ProductService {
                 .orElseThrow(() -> new RuntimeException("상품을 찾을 수 없습니다: " + id));
     }
     
-    public List<Product> findByCategoryAndTargetAnimal(Category category, TargetAnimal targetAnimal) {
-        return productRepository.findByCategoryAndTargetAnimal(category, targetAnimal);
-    }
+
     
     public List<Product> findByCategory(Category category) {
         return productRepository.findByCategory(category);

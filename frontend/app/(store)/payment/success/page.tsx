@@ -69,6 +69,13 @@ function PaymentSuccessContent() {
 
         console.log('결제 승인 성공:', response.data);
         setPaymentInfo(response.data);
+        
+        // 결제 성공 후 장바구니 상태 새로고침을 위해 이벤트 발생
+        window.dispatchEvent(new CustomEvent('cartUpdated'));
+        
+        // 로컬 스토리지에서 장바구니 관련 데이터 정리
+        localStorage.removeItem('cartItems');
+        sessionStorage.removeItem('cartItems');
       } catch (error: any) {
         console.error('결제 승인 실패:', error);
         if (axios.isAxiosError(error)) {

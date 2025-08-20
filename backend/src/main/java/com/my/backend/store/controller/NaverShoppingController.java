@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import com.my.backend.global.security.user.UserDetailsImpl;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -141,18 +141,11 @@ public class NaverShoppingController {
     /**
      * 현재 인증된 사용자의 ID를 가져오는 헬퍼 메서드
      */
-    private Long getCurrentUserId(@AuthenticationPrincipal UserDetails userDetails) {
-        if (userDetails == null) {
+    private Long getCurrentUserId(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        if (userDetails == null || userDetails.getAccount() == null) {
             throw new IllegalArgumentException("로그인이 필요합니다");
         }
-        
-        if (userDetails instanceof com.my.backend.account.oauth2.CustomUserDetails) {
-            return ((com.my.backend.account.oauth2.CustomUserDetails) userDetails).getAccount().getId();
-        } else if (userDetails instanceof com.my.backend.global.security.user.UserDetailsImpl) {
-            return ((com.my.backend.global.security.user.UserDetailsImpl) userDetails).getId();
-        } else {
-            throw new IllegalArgumentException("사용자 정보를 찾을 수 없습니다");
-        }
+        return userDetails.getAccount().getId();
     }
 
     /**
@@ -161,7 +154,7 @@ public class NaverShoppingController {
     @PostMapping("/cart/add")
     public ResponseEntity<ResponseDto> addToCartWithProduct(@RequestBody NaverProductDto naverProductDto,
                                                            @RequestParam(defaultValue = "1") int quantity,
-                                                           @AuthenticationPrincipal UserDetails userDetails) {
+                                                           @AuthenticationPrincipal UserDetailsImpl userDetails) {
         try {
             Long accountId = getCurrentUserId(userDetails);
             
@@ -185,7 +178,7 @@ public class NaverShoppingController {
     public ResponseEntity<ResponseDto> addToCart(
             @PathVariable Long naverProductId,
             @RequestParam(defaultValue = "1") int quantity,
-            @AuthenticationPrincipal UserDetails userDetails) {
+            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         try {
             Long accountId = getCurrentUserId(userDetails);
             
@@ -246,6 +239,27 @@ public class NaverShoppingController {
         } catch (Exception e) {
             log.error("네이버 상품 저장 실패: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(ResponseDto.fail("SAVE_FAILED", "네이버 상품 저장에 실패했습니다: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 네이버 상품 삭제
+     */
+    @DeleteMapping("/products/{id}")
+    public ResponseEntity<ResponseDto> deleteNaverProduct(@PathVariable Long id) {
+        try {
+            log.info("네이버 상품 삭제 요청 받음: {}", id);
+            
+            if (id == null || id <= 0) {
+                return ResponseEntity.badRequest().body(ResponseDto.fail("INVALID_ID", "유효하지 않은 상품 ID입니다."));
+            }
+            
+            naverShoppingService.deleteNaverProduct(id);
+            log.info("네이버 상품 삭제 성공: {}", id);
+            return ResponseEntity.ok(ResponseDto.success("네이버 상품이 성공적으로 삭제되었습니다."));
+        } catch (Exception e) {
+            log.error("네이버 상품 삭제 실패: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(ResponseDto.fail("DELETE_FAILED", "네이버 상품 삭제에 실패했습니다: " + e.getMessage()));
         }
     }
 }

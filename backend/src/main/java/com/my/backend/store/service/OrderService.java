@@ -102,17 +102,36 @@ public class OrderService {
         
         // 장바구니에서 해당 상품 삭제
         try {
+            System.out.println("장바구니 삭제 시작 - AccountId: " + requestDto.getAccountId() + ", ProductId: " + requestDto.getProductId());
+            
             List<Cart> cartItems = cartRepository.findByAccount_Id(requestDto.getAccountId());
+            System.out.println("찾은 장바구니 아이템 수: " + cartItems.size());
+            
             List<Cart> itemsToDelete = cartItems.stream()
-                .filter(cart -> cart.getProduct().getId().equals(requestDto.getProductId()))
+                .filter(cart -> {
+                    boolean shouldDelete = cart.getProduct() != null && cart.getProduct().getId().equals(requestDto.getProductId());
+                    if (shouldDelete) {
+                        System.out.println("삭제할 장바구니 아이템 발견 - CartId: " + cart.getId() + ", ProductId: " + cart.getProduct().getId());
+                    }
+                    return shouldDelete;
+                })
                 .collect(Collectors.toList());
             
+            System.out.println("삭제할 아이템 수: " + itemsToDelete.size());
+            
             if (!itemsToDelete.isEmpty()) {
-                cartRepository.deleteAll(itemsToDelete);
+                // 개별 삭제로 변경하여 더 안정적으로 처리
+                for (Cart cartItem : itemsToDelete) {
+                    cartRepository.delete(cartItem);
+                    System.out.println("장바구니 아이템 삭제 완료 - CartId: " + cartItem.getId());
+                }
                 System.out.println("장바구니에서 상품 삭제 완료: " + itemsToDelete.size() + "개 항목");
+            } else {
+                System.out.println("삭제할 장바구니 아이템이 없습니다.");
             }
         } catch (Exception e) {
             System.out.println("장바구니 삭제 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
             // 장바구니 삭제 실패는 주문 생성에 영향을 주지 않도록 함
         }
         
@@ -302,6 +321,9 @@ public class OrderService {
                     .orElseThrow(() -> new IllegalArgumentException("NaverProduct not found: " + naverProductId));
             System.out.println("찾은 네이버 상품: " + naverProduct.getTitle() + " (ID: " + naverProduct.getId() + ", 가격: " + naverProduct.getPrice() + ")");
 
+            // 네이버 상품은 재고 확인 없이 주문 가능 (실제 재고는 네이버에서 관리)
+            System.out.println("네이버 상품 재고 확인 생략 (네이버에서 관리)");
+
             // 중복 주문 방지: 최근 10초 내에 같은 사용자가 같은 네이버 상품에 대해 주문한 경우 기존 주문 반환
             LocalDateTime tenSecondsAgo = LocalDateTime.now().minusSeconds(10);
             List<Order> recentOrders = orderRepository.findByAccountIdAndNaverProductIdAndCreatedAtAfter(
@@ -343,17 +365,36 @@ public class OrderService {
             
             // 장바구니에서 해당 네이버 상품 삭제
             try {
+                System.out.println("네이버 상품 장바구니 삭제 시작 - AccountId: " + accountId + ", NaverProductId: " + naverProductId);
+                
                 List<Cart> cartItems = cartRepository.findByAccount_Id(accountId);
+                System.out.println("찾은 장바구니 아이템 수: " + cartItems.size());
+                
                 List<Cart> itemsToDelete = cartItems.stream()
-                    .filter(cart -> cart.getNaverProduct() != null && cart.getNaverProduct().getId().equals(naverProductId))
+                    .filter(cart -> {
+                        boolean shouldDelete = cart.getNaverProduct() != null && cart.getNaverProduct().getId().equals(naverProductId);
+                        if (shouldDelete) {
+                            System.out.println("삭제할 네이버 상품 장바구니 아이템 발견 - CartId: " + cart.getId() + ", NaverProductId: " + cart.getNaverProduct().getId());
+                        }
+                        return shouldDelete;
+                    })
                     .collect(Collectors.toList());
                 
+                System.out.println("삭제할 네이버 상품 아이템 수: " + itemsToDelete.size());
+                
                 if (!itemsToDelete.isEmpty()) {
-                    cartRepository.deleteAll(itemsToDelete);
+                    // 개별 삭제로 변경하여 더 안정적으로 처리
+                    for (Cart cartItem : itemsToDelete) {
+                        cartRepository.delete(cartItem);
+                        System.out.println("네이버 상품 장바구니 아이템 삭제 완료 - CartId: " + cartItem.getId());
+                    }
                     System.out.println("장바구니에서 네이버 상품 삭제 완료: " + itemsToDelete.size() + "개 항목");
+                } else {
+                    System.out.println("삭제할 네이버 상품 장바구니 아이템이 없습니다.");
                 }
             } catch (Exception e) {
-                System.out.println("장바구니 삭제 중 오류 발생: " + e.getMessage());
+                System.out.println("네이버 상품 장바구니 삭제 중 오류 발생: " + e.getMessage());
+                e.printStackTrace();
                 // 장바구니 삭제 실패는 주문 생성에 영향을 주지 않도록 함
             }
             

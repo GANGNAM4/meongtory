@@ -526,7 +526,7 @@ const pathname = usePathname()
                 stock: 999,
                 imageUrl: item.naverProduct.imageUrl,
                 category: item.naverProduct.category1 || "기타",
-                targetAnimal: "기타",
+
                 registrationDate: new Date().toISOString(),
                 registeredBy: "네이버 쇼핑"
               }
@@ -551,7 +551,7 @@ const pathname = usePathname()
                 stock: item.product.stock,
                 imageUrl: item.product.imageUrl,
                 category: item.product.category,
-                targetAnimal: item.product.targetAnimal,
+
                 registrationDate: item.product.registrationDate,
                 registeredBy: item.product.registeredBy,
               }
@@ -914,7 +914,7 @@ const pathname = usePathname()
         price: product.price || 0,
         imageUrl: product.imageUrl || product.image || "/placeholder.svg?height=300&width=300",
         category: (product.category as '의류' | '장난감' | '건강관리' | '용품' | '간식' | '사료') || '용품',
-        targetAnimal: (product.targetAnimal as 'ALL' | 'DOG' | 'CAT') || 'ALL',
+
         stock: product.stock || 0,
         registrationDate: product.registrationDate || new Date().toISOString().split("T")[0],
         registeredBy: product.registeredBy || "admin",

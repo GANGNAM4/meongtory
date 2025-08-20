@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, ShoppingCart } from "lucide-react"
+import { Search, Plus } from "lucide-react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import axios from "axios" // axios 직접 import
@@ -68,7 +68,6 @@ interface Product {
   tags: string[]
   stock: number
   petType?: "dog" | "cat" | "all"
-  targetAnimal?: "ALL" | "DOG" | "CAT"
   registrationDate: string
   registeredBy: string
 }
@@ -176,7 +175,7 @@ export default function StorePage({
       }
     },
 
-    // 인기 상품 조회
+    // 인기 상품 조회 (저장된 네이버 상품들)
     getPopularProducts: async (page: number = 0, size: number = 20) => {
       try {
         const response = await axios.get(`${API_BASE_URL}/naver-shopping/products/popular`, {
@@ -185,6 +184,19 @@ export default function StorePage({
         return response.data;
       } catch (error) {
         console.error('인기 네이버 상품 조회 실패:', error);
+        throw error;
+      }
+    },
+
+    // 저장된 네이버 상품들 조회
+    getSavedProducts: async (page: number = 0, size: number = 20) => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/naver-shopping/products/search`, {
+          params: { keyword: '', page, size }
+        });
+        return response.data;
+      } catch (error) {
+        console.error('저장된 네이버 상품 조회 실패:', error);
         throw error;
       }
     },
@@ -205,8 +217,38 @@ export default function StorePage({
     // 네이버 상품을 카트에 추가
     addToCart: async (naverProduct: NaverProduct, quantity: number = 1) => {
       try {
-        const response = await axios.post(`${API_BASE_URL}/naver-shopping/cart/add`, naverProduct, {
-          params: { quantity }
+        // 로그인 상태 확인
+        const token = localStorage.getItem('accessToken');
+        if (!token) {
+          throw new Error('로그인이 필요합니다.');
+        }
+
+        // NaverProductDto 형태로 변환
+        const naverProductDto = {
+          productId: naverProduct.productId,
+          title: naverProduct.title,
+          description: naverProduct.description,
+          price: naverProduct.price,
+          imageUrl: naverProduct.imageUrl,
+          mallName: naverProduct.mallName,
+          productUrl: naverProduct.productUrl,
+          brand: naverProduct.brand,
+          maker: naverProduct.maker,
+          category1: naverProduct.category1,
+          category2: naverProduct.category2,
+          category3: naverProduct.category3,
+          category4: naverProduct.category4,
+          reviewCount: naverProduct.reviewCount,
+          rating: naverProduct.rating,
+          searchCount: naverProduct.searchCount
+        };
+
+        const response = await axios.post(`${API_BASE_URL}/naver-shopping/cart/add`, naverProductDto, {
+          params: { quantity },
+          headers: {
+            'Authorization': token,
+            'Content-Type': 'application/json'
+          }
         });
         return response.data;
       } catch (error) {
@@ -274,8 +316,14 @@ export default function StorePage({
     }
   };
 
-  // 네이버 상품들을 일괄 저장하는 함수
+  // 네이버 상품들을 일괄 저장하는 함수 (관리자 전용)
   const saveNaverProductsToDb = async (products: NaverProduct[]) => {
+    // 관리자가 아닌 경우 저장하지 않음
+    if (!isAdmin) {
+      console.log('관리자가 아니므로 네이버 상품을 저장하지 않습니다.');
+      return;
+    }
+    
     // isSaved 필드 확인 없이 모든 상품을 저장 시도
     console.log(`${products.length}개의 네이버 상품을 DB에 저장합니다...`);
     
@@ -326,10 +374,12 @@ export default function StorePage({
         setNaverProducts(safeProducts);
         setShowNaverProducts(true);
         
-        // 검색된 네이버 상품들을 DB에 자동 저장
-        setTimeout(() => {
-          saveNaverProductsToDb(safeProducts);
-        }, 500);
+        // 관리자인 경우에만 검색된 네이버 상품들을 DB에 저장
+        if (isAdmin) {
+          setTimeout(() => {
+            saveNaverProductsToDb(safeProducts);
+          }, 500);
+        }
       }
     } catch (error) {
       console.error('네이버 검색 실패:', error);
@@ -348,10 +398,12 @@ export default function StorePage({
         setNaverProducts(popularProducts);
         setShowNaverProducts(true);
         
-        // 인기 네이버 상품들을 DB에 자동 저장
-        setTimeout(() => {
-          saveNaverProductsToDb(popularProducts);
-        }, 500);
+        // 관리자인 경우에만 인기 네이버 상품들을 DB에 저장
+        if (isAdmin) {
+          setTimeout(() => {
+            saveNaverProductsToDb(popularProducts);
+          }, 500);
+        }
       }
     } catch (error) {
       console.error('인기 네이버 상품 조회 실패:', error);
@@ -370,10 +422,12 @@ export default function StorePage({
         setNaverProducts(topRatedProducts);
         setShowNaverProducts(true);
         
-        // 높은 평점 네이버 상품들을 DB에 자동 저장
-        setTimeout(() => {
-          saveNaverProductsToDb(topRatedProducts);
-        }, 500);
+        // 관리자인 경우에만 높은 평점 네이버 상품들을 DB에 저장
+        if (isAdmin) {
+          setTimeout(() => {
+            saveNaverProductsToDb(topRatedProducts);
+          }, 500);
+        }
       }
     } catch (error) {
       console.error('높은 평점 네이버 상품 조회 실패:', error);
@@ -385,27 +439,7 @@ export default function StorePage({
 
   const router = useRouter();
 
-  const handleAddNaverProductToCart = async (naverProduct: NaverProduct) => {
-    try {
-      await naverShoppingApi.addToCart(naverProduct, 1);
-      alert('네이버 상품이 카트에 추가되었습니다!');
-      
-      console.log('네이버 상품 장바구니 추가 성공, setCurrentPage 함수 확인:', !!setCurrentPage);
-      
-      // 카트 페이지로 이동
-      if (setCurrentPage) {
-        console.log('setCurrentPage("cart") 호출');
-        setCurrentPage("cart");
-      } else {
-        console.log('setCurrentPage가 없어서 홈으로 이동');
-        // setCurrentPage가 없으면 메인 페이지로 이동
-        window.location.href = '/';
-      }
-    } catch (error) {
-      console.error('장바구니 추가 실패:', error);
-      alert('장바구니 추가에 실패했습니다.');
-    }
-  };
+
 
   // 우리 스토어 상품을 장바구니에 추가하는 함수
   const handleAddLocalProductToCart = async (product: Product) => {
@@ -482,8 +516,8 @@ export default function StorePage({
       setProducts(filteredLocalProducts);
       setShowNaverProducts(true); // 네이버 상품 표시 모드로 설정
       
-      // 검색된 네이버 상품들을 DB에 자동 저장
-      if (naverResults.length > 0) {
+      // 관리자인 경우에만 검색된 네이버 상품들을 DB에 저장
+      if (naverResults.length > 0 && isAdmin) {
         setTimeout(() => {
           saveNaverProductsToDb(naverResults);
         }, 500);
@@ -579,7 +613,7 @@ export default function StorePage({
         id: item.id || item.productId || 0,  // id를 우선 사용
         productId: item.id || item.productId || 0,  // 호환성을 위해 productId도 설정
         imageUrl: item.imageUrl || item.image || '/placeholder.svg',
-        petType: item.targetAnimal?.toLowerCase() || 'all',
+        petType: 'all',
         price: typeof item.price === 'number' ? item.price : 0,
         stock: typeof item.stock === 'number' ? item.stock : 0,
         category: item.category || '카테고리 없음',
@@ -611,10 +645,39 @@ export default function StorePage({
     loadInitialNaverProducts();
   }, []);
 
-  // 초기 네이버 상품 로드
+  // 초기 네이버 상품 로드 - 저장된 상품들 불러오기
   const loadInitialNaverProducts = async () => {
     try {
-      // 다양한 펫 용품 검색어들
+      // 먼저 저장된 네이버 상품들을 불러오기
+      const savedResponse = await naverShoppingApi.getSavedProducts(0, 20);
+      if (savedResponse.success && savedResponse.data?.content) {
+        const savedProducts = savedResponse.data.content.map((item: any) => ({
+          id: item.id || item.productId || Math.random(),
+          productId: item.productId || '',
+          title: item.title || '제목 없음',
+          description: item.description || '',
+          price: parseInt(item.price) || 0,
+          imageUrl: item.imageUrl || '/placeholder.svg',
+          mallName: item.mallName || '판매자 정보 없음',
+          productUrl: item.productUrl || '#',
+          brand: item.brand || '',
+          maker: item.maker || '',
+          category1: item.category1 || '',
+          category2: item.category2 || '',
+          category3: item.category3 || '',
+          category4: item.category4 || '',
+          reviewCount: parseInt(item.reviewCount) || 0,
+          rating: parseFloat(item.rating) || 0,
+          searchCount: parseInt(item.searchCount) || 0,
+          createdAt: item.createdAt || new Date().toISOString(),
+          updatedAt: item.updatedAt || new Date().toISOString(),
+          isSaved: true // 저장된 상품
+        }));
+        setNaverProducts(savedProducts);
+        return;
+      }
+      
+      // 저장된 상품이 없으면 실시간 검색
       const searchTerms = [
         "강아지 사료",
         "고양이 사료", 
@@ -669,10 +732,12 @@ export default function StorePage({
       const finalProducts = uniqueProducts.slice(0, 20);
       setNaverProducts(finalProducts);
       
-      // 네이버 상품들을 DB에 자동 저장
-      setTimeout(() => {
-        saveNaverProductsToDb(finalProducts);
-      }, 1000); // 1초 후 저장 시작
+      // 관리자인 경우에만 네이버 상품들을 DB에 저장
+      if (isAdmin) {
+        setTimeout(() => {
+          saveNaverProductsToDb(finalProducts);
+        }, 1000); // 1초 후 저장 시작
+      }
       
     } catch (error) {
       console.error('초기 네이버 상품 로드 실패:', error);
@@ -749,10 +814,12 @@ export default function StorePage({
       const finalProducts = uniqueProducts.slice(0, 15);
       setNaverProducts(finalProducts);
       
-      // 카테고리별 검색된 네이버 상품들을 DB에 자동 저장
-      setTimeout(() => {
-        saveNaverProductsToDb(finalProducts);
-      }, 500);
+      // 관리자인 경우에만 카테고리별 검색된 네이버 상품들을 DB에 저장
+      if (isAdmin) {
+        setTimeout(() => {
+          saveNaverProductsToDb(finalProducts);
+        }, 500);
+      }
       
     } catch (error) {
       console.error('카테고리 검색 실패:', error);
@@ -770,6 +837,10 @@ export default function StorePage({
     
     try {
       const accessToken = localStorage.getItem("accessToken");
+      
+      // 일반 상품인 경우
+      console.log('일반 상품 장바구니 추가:', product.id);
+      
       const response = await axios.post(`${API_BASE_URL}/api/carts?productId=${product.id}&quantity=1`, null, {
         headers: {
           "Access_Token": accessToken,
@@ -791,6 +862,57 @@ export default function StorePage({
       } else {
         alert("장바구니 추가에 실패했습니다.");
       }
+    }
+  };
+
+  // 네이버 상품을 장바구니에 추가하는 함수
+  const handleAddNaverProductToCart = async (naverProduct: NaverProduct) => {
+    const isLoggedIn = !!localStorage.getItem("accessToken");
+    if (!isLoggedIn) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+    
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      console.log('네이버 상품 장바구니 추가:', naverProduct.productId);
+      
+      // 네이버 상품 전용 API 사용
+      const response = await axios.post(`${API_BASE_URL}/api/naver-shopping/cart/add`, {
+        productId: naverProduct.productId,
+        title: naverProduct.title,
+        description: naverProduct.description,
+        price: naverProduct.price,
+        imageUrl: naverProduct.imageUrl,
+        mallName: naverProduct.mallName,
+        productUrl: naverProduct.productUrl,
+        brand: naverProduct.brand,
+        maker: naverProduct.maker,
+        category1: naverProduct.category1,
+        category2: naverProduct.category2,
+        category3: naverProduct.category3,
+        category4: naverProduct.category4,
+        reviewCount: naverProduct.reviewCount,
+        rating: naverProduct.rating,
+        searchCount: naverProduct.searchCount
+      }, {
+        params: { quantity: 1 },
+        headers: {
+          "Authorization": accessToken,
+          "Content-Type": "application/json"
+        }
+      });
+      
+      if (response.status === 200) {
+        alert("네이버 상품이 장바구니에 추가되었습니다!");
+        // 장바구니 페이지로 이동
+        window.location.href = "/store/cart";
+      } else {
+        alert("네이버 상품 장바구니 추가에 실패했습니다.");
+      }
+    } catch (error: any) {
+      console.error("네이버 상품 장바구니 추가 오류:", error);
+      alert("네이버 상품 장바구니 추가에 실패했습니다.");
     }
   };
 
@@ -1054,36 +1176,24 @@ export default function StorePage({
                 <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-bold z-10">
                   멍토리
                 </div>
-              <div className="relative">
-                <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden cursor-pointer" onClick={() => window.location.href = `/store/${product.id}`}>
-                  <img
-                    src={product.imageUrl || "/placeholder.svg"}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
-                </div>
-                {/* 장바구니 버튼 */}
-                <Button
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddToCart(product);
-                  }}
-                  className="absolute bottom-2 right-2 bg-yellow-400 hover:bg-yellow-500 text-black rounded-full p-2 h-8 w-8"
-                  disabled={product.stock === 0}
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                </Button>
-              </div>
-              <CardContent className="p-4 cursor-pointer" onClick={() => window.location.href = `/store/${product.id}`}>
-                <h3 className="font-medium text-sm text-gray-900 mb-2 line-clamp-2 leading-tight">{product.name}</h3>
-                <p className="text-lg font-bold text-gray-900">{product.price.toLocaleString()}원</p>
-                {product.stock === 0 && (
-                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
-                    <span className="text-white font-bold">품절</span>
+                <div className="relative">
+                  <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden cursor-pointer" onClick={() => window.location.href = `/store/${product.id}`}>
+                    <img
+                      src={product.imageUrl || "/placeholder.svg"}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
                   </div>
-                )}
-              </CardContent>
+                </div>
+                                 <CardContent className="p-4 cursor-pointer" onClick={() => window.location.href = `/store/${product.id}`}>
+                   <h3 className="font-medium text-sm text-gray-900 mb-2 line-clamp-2 leading-tight">{product.name}</h3>
+                   <p className="text-lg font-bold text-yellow-600">{product.price.toLocaleString()}원</p>
+                  {product.stock === 0 && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
+                      <span className="text-white font-bold">품절</span>
+                    </div>
+                  )}
+                </CardContent>
 
               </Card>
             ))}
@@ -1097,10 +1207,16 @@ export default function StorePage({
                     if (typeof onViewProduct === 'function') {
                       onViewProduct(naverProduct);
                     } else {
-                      console.error("onViewProduct is not a function:", onViewProduct);
+                      // onViewProduct가 없으면 직접 라우팅
+                      console.log("onViewProduct 함수가 없어 직접 라우팅합니다.");
+                      const encodedId = encodeURIComponent(naverProduct.productId);
+                      window.location.href = `/store/${encodedId}`;
                     }
                   } catch (error) {
                     console.error("onViewProduct 호출 중 오류:", error);
+                    // 에러 발생 시에도 직접 라우팅
+                    const encodedId = encodeURIComponent(naverProduct.productId);
+                    window.location.href = `/store/${encodedId}`;
                   }
                 }}>
                   <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
@@ -1137,10 +1253,16 @@ export default function StorePage({
                       if (typeof onViewProduct === 'function') {
                         onViewProduct(naverProduct);
                       } else {
-                        console.error("onViewProduct is not a function:", onViewProduct);
+                        // onViewProduct가 없으면 직접 라우팅
+                        console.log("onViewProduct 함수가 없어 직접 라우팅합니다.");
+                        const encodedId = encodeURIComponent(naverProduct.productId);
+                        window.location.href = `/store/${encodedId}`;
                       }
                     } catch (error) {
                       console.error("onViewProduct 호출 중 오류:", error);
+                      // 에러 발생 시에도 직접 라우팅
+                      const encodedId = encodeURIComponent(naverProduct.productId);
+                      window.location.href = `/store/${encodedId}`;
                     }
                   }}>
                     <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 mb-1">

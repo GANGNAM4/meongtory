@@ -367,4 +367,31 @@ public class NaverShoppingService {
             return 0.0;
         }
     }
+
+    /**
+     * 네이버 상품 삭제
+     */
+    @Transactional
+    public void deleteNaverProduct(Long id) {
+        log.info("네이버 상품 삭제 시작: {}", id);
+        
+        NaverProduct naverProduct = naverProductRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("네이버 상품을 찾을 수 없습니다: " + id));
+        
+        log.info("삭제할 네이버 상품: {}", naverProduct.getTitle());
+        
+        try {
+            // 관련된 장바구니 항목들 먼저 삭제
+            // CartService에서 네이버 상품 관련 장바구니 삭제 로직이 있다면 여기서 호출
+            // 또는 직접 CartRepository를 주입받아서 처리
+            
+            // 네이버 상품 삭제
+            naverProductRepository.delete(naverProduct);
+            log.info("네이버 상품 삭제 완료: {}", id);
+            
+        } catch (Exception e) {
+            log.error("네이버 상품 삭제 중 오류 발생: {}", e.getMessage(), e);
+            throw new RuntimeException("네이버 상품 삭제에 실패했습니다: " + e.getMessage());
+        }
+    }
 }
