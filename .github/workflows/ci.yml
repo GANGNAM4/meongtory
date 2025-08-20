@@ -13,46 +13,18 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Build db Docker image
-        run: |
-          cd db
-          docker build -t test-db .
-          
-      - name: Build backend Docker image
-        run: |
-          cd backend
-          docker build -t test-backend .
-          
       - name: Build frontend Docker image
         run: |
           cd frontend
           docker build -t test-frontend .
-
-  create-pr:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: success()
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Create Pull Request
-        env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+           
+      - name: Build backend Docker image
         run: |
-          gh pr create \
-            --base develop \
-            --head ${{ github.ref_name }} \
-            --title "Auto PR: ${{ github.ref_name }} → develop" \
-            --body "자동으로 생성된 Pull Request입니다.
-
-          **브랜치**: \`${{ github.ref_name }}\` → \`develop\`
-          **커밋**: ${{ github.sha }}
-          
-          모든 Docker 이미지 빌드가 성공적으로 완료되었습니다:
-          - db Dockerfile
-          - backend Dockerfile  
-          - frontend Dockerfile
-          
-          리뷰 후 머지해주세요." || echo "PR already exists or failed to create"
+          cd backend
+          docker build -t test-backend .
+           
+      - name: Build db Docker image
+        run: |
+          cd db
+          docker build -t test-db .
+           

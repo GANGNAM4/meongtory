@@ -4,7 +4,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-
         BUILD_ENV: dev
         NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
     ports:
@@ -23,7 +22,6 @@ services:
     ports:
       - "8080:8080"
     environment:
-
       - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
@@ -44,11 +42,8 @@ services:
       - NEXT_PUBLIC_TOSS_CLIENT_KEY=${TOSS_CLIENT_KEY}
       - NAVER_API_CLIENT_ID=${NAVER_API_CLIENT_ID}
       - NAVER_API_CLIENT_SECRET=${NAVER_API_CLIENT_SECRET}
-
     depends_on:
-      - db
       - ai
-      
     networks:
       - meongtory-network
 
@@ -58,12 +53,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "9000:9000"
-
     environment:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
-      - DB_HOST=db
+      - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL}
@@ -76,48 +70,12 @@ services:
       - VECTORSTORE_SEARCH_LIMIT=${VECTORSTORE_SEARCH_LIMIT:-5}
       - SAMPLE_DATA_PATH=${SAMPLE_DATA_PATH}
       - PROMPT_TEMPLATE_PATH=${PROMPT_TEMPLATE_PATH}
-
     volumes:
       - ./ai:/app
       - ./ai/chatBot:/app/chatBot
-      
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9000", "--reload"]
-    depends_on:
-      - db
     networks:
       - meongtory-network
-
-  db:
-    build:
-      context: ./db
-      dockerfile: Dockerfile
-    environment:
-
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
-      - NEXT_PUBLIC_TOSS_CLIENT_KEY=${TOSS_CLIENT_KEY}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./db/init-db:/docker-entrypoint-initdb.d
-    ports:
-      - "5433:5432"
-
-    networks:
-      - meongtory-network
-    command: |
-      bash -c "
-        docker-entrypoint.sh postgres &
-        sleep 10
-        cp /docker-entrypoint-initdb.d/pg_hba.conf /var/lib/postgresql/data/pg_hba.conf
-        chmod 600 /var/lib/postgresql/data/pg_hba.conf
-        chown postgres:postgres /var/lib/postgresql/data/pg_hba.conf
-        pg_ctl reload -D /var/lib/postgresql/data
-        wait
-      "
-
-volumes:
-  postgres_data:
 
 networks:
   meongtory-network:

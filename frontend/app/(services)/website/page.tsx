@@ -207,13 +207,13 @@ const pathname = usePathname()
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (isLoading) {
-        console.log("로딩 타임아웃, 강제 해제")
-        setIsLoading(false)
-        toast.error("서버 응답이 느립니다. 다시 시도해주세요.", { duration: 5000 })
+        console.log("로딩 타임아웃, 강제 해제");
+        setIsLoading(false);
+        toast.error("서버 응답이 느립니다. 다시 시도해주세요.", { duration: 5000 });
       }
-    }, 3000)
-    return () => clearTimeout(timeout)
-  }, [isLoading])
+    }, 3000);
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
 
   // OAuth 콜백 처리
   useEffect(() => {

@@ -20,3 +20,8 @@ pydantic
 python-dotenv
 pillow>=10.0.0
 SQLAlchemy==2.0.30
+kagglehub
+matplotlib
+seaborn
+pandas
+scikit-learn

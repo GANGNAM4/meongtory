@@ -73,13 +73,32 @@ public class WebSecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/accounts/register", "/api/accounts/login", "/api/accounts/refresh", "/error").permitAll()
-                        .requestMatchers("/api/verifyAmount", "/api/accounts/me", "/login/**", "/oauth2/**", "/file/**", "/test", "/ws/**", "/post/**").permitAll()
-                        .requestMatchers("/api/products/**", "/api/orders/**", "/api/diary/**", "/api/ai/**").permitAll()
-                        .requestMatchers("/api/naver-shopping/products/**", "/api/naver-shopping/search").permitAll()
+
+                        .requestMatchers(
+                                "/api/accounts/register",
+                                "/api/accounts/login",
+                                "/api/accounts/refresh",
+                                "/api/verifyAmount",
+                                "/api/accounts/me",
+                                "/login/**",
+                                "/oauth2/**",
+                                "/file/**",
+                                "/test",
+                                "/ws/**",
+                                "/post/**",
+                                "/api/products/**",
+                                "/api/orders/**",
+                                "/api/diary/**",
+                                "/api/ai/**",
+                                "/api/community/**",
+                                "/api/carts/**",
+                                "/error",
+                                "/actuator/**",
+                                "/api/naver-shopping/products/**"
+                        ).permitAll()
+
                         .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/carts/**", "/api/travel-plans/**", "/chat").authenticated()
-                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/api/travel-plans/**", "/chat").authenticated()
                         .anyRequest().authenticated())
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {

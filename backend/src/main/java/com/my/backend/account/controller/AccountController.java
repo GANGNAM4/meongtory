@@ -23,6 +23,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/accounts")
+@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 @Slf4j
 public class AccountController {
