@@ -21,4 +21,7 @@ public interface MyPetRepository extends JpaRepository<MyPet, Long> {
     
     // 특정 펫이 해당 사용자의 것인지 확인 (boolean)
     boolean existsByMyPetIdAndOwnerId(Long myPetId, Long ownerId);
+    
+    // 사용자의 모든 펫 조회 (간단한 버전)
+    List<MyPet> findByOwnerId(Long ownerId);
 } 

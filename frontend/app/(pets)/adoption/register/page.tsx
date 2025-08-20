@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,7 +13,7 @@ import { Search, Plus, FileText, Sparkles, Upload, X, Loader2 } from "lucide-rea
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
 import { ArrowLeft } from "lucide-react"
-import { petApi, s3Api, Pet as ApiPet, handleApiError } from "@/lib/api"
+import { petApi, s3Api, handleApiError } from "@/lib/api"
 import AnimalEditModal from "@/components/modals/animal-edit-modal"
 import axios from "axios"
 import { useToast } from "@/hooks/use-toast"
@@ -41,10 +42,10 @@ interface AnimalRegistrationPageProps {
   isAdmin: boolean
   currentUserId?: string
   onAddPet?: (pet: Pet) => void
-  onClose: () => void; // Add onClose prop
 }
 
-export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPet, onClose }: AnimalRegistrationPageProps) {
+export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPet }: AnimalRegistrationPageProps) {
+  const router = useRouter()
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [showNewRegistrationForm, setShowNewRegistrationForm] = useState(false)
@@ -69,7 +70,7 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
     specialNeeds: "",
     rescueStory: "",
     status: "보호중",
-    type: "",
+    type: "강아지", // 기본값 설정
     isNeutered: false,
     isVaccinated: false,
   })
@@ -77,7 +78,7 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
   const [imageFiles, setImageFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
 
-  const [animalRecords, setAnimalRecords] = useState<AnimalRecord[]>([])
+  const [pets, setPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedPetForEdit, setSelectedPetForEdit] = useState<Pet | null>(null)
@@ -86,28 +87,12 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
     const fetchPets = async () => {
       setLoading(true)
       try {
-        const pets = await petApi.getPets()
-        const records: AnimalRecord[] = pets.map((pet) => ({
-          id: `REG${pet.petId.toString().padStart(3, '0')}`,
-          name: pet.name,
-          breed: pet.breed,
-          age: pet.age,
-          gender: pet.gender === "MALE" ? "수컷" : "암컷",
-          weight: pet.weight || 0,
-          registrationDate: new Date(), 
-          medicalHistory: pet.medicalHistory ? [pet.medicalHistory] : [],
-          vaccinations: pet.vaccinations ? [pet.vaccinations] : [],
-          microchipId: pet.microchipId || "",
-          notes: pet.notes || "",
-          contractGenerated: true, 
-          aiBackgroundStory: pet.aiBackgroundStory || "",
-          images: pet.imageUrl ? [pet.imageUrl] : [],
-        }))
-        setAnimalRecords(records)
+        const petsData = await petApi.getPets()
+        setPets(petsData)
       } catch (error) {
         const errorMessage = handleApiError(error)
         console.error("Error fetching pets:", errorMessage)
-        setAnimalRecords([])
+        setPets([])
       } finally {
         setLoading(false)
       }
@@ -116,10 +101,10 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
     fetchPets()
   }, [])
 
-  const filteredRecords = animalRecords.filter(
-    (record) =>
-      record.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.id.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredPets = pets.filter(
+    (pet) =>
+      pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pet.petId.toString().includes(searchTerm.toLowerCase()),
   )
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,28 +127,8 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
     alert(`${animalId} 동물의 계약서가 생성되었습니다.`)
   }
 
-  const handleEditPet = (animalRecord: AnimalRecord) => {
-    // AnimalRecord를 Pet 형식으로 변환
-    const pet: Pet = {
-      id: parseInt(animalRecord.id.replace('REG', '')),
-      name: animalRecord.name,
-      breed: animalRecord.breed,
-      age: `${animalRecord.age}살`,
-      gender: animalRecord.gender,
-      size: `${animalRecord.weight}kg`,
-      personality: "온순함, 친화적",
-      healthStatus: animalRecord.medicalHistory.join(', '),
-      description: animalRecord.notes || "새로 등록된 반려동물입니다.",
-      images: animalRecord.images || [],
-      location: "서울특별시",
-      contact: "010-0000-0000",
-      adoptionFee: 0,
-      isNeutered: animalRecord.medicalHistory.some(h => h.includes("중성화")),
-      isVaccinated: animalRecord.vaccinations.length > 0,
-      specialNeeds: animalRecord.aiBackgroundStory,
-      dateRegistered: animalRecord.registrationDate.toISOString().split('T')[0],
-      adoptionStatus: "available",
-    }
+  const handleEditPet = (pet: Pet) => {
+    console.log('handleEditPet called with pet:', pet)
     setSelectedPetForEdit(pet)
     setShowEditModal(true)
   }
@@ -174,36 +139,19 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
   }
 
   const handleUpdatePet = (updatedPet: Pet) => {
-    // AnimalRecords 상태 업데이트
-    setAnimalRecords(prev => prev.map(record => {
-      if (record.id === `REG${updatedPet.id.toString().padStart(3, '0')}`) {
-        return {
-          ...record,
-          name: updatedPet.name,
-          breed: updatedPet.breed,
-          age: parseInt(updatedPet.age.replace('살', '')),
-          gender: updatedPet.gender as "수컷" | "암컷",
-          weight: parseFloat(updatedPet.size.replace('kg', '')),
-          medicalHistory: updatedPet.healthStatus ? [updatedPet.healthStatus] : [],
-          notes: updatedPet.description,
-          aiBackgroundStory: updatedPet.specialNeeds,
-          images: updatedPet.images,
-        }
-      }
-      return record
-    }))
+    // Pets 상태 업데이트
+    setPets(prev => prev.map(pet => 
+      pet.petId === updatedPet.petId ? updatedPet : pet
+    ))
     handleCloseEditModal()
   }
 
-  const handleDeletePet = async (animalId: string, petName: string) => {
+  const handleDeletePet = async (petId: number, petName: string) => {
     if (confirm(`정말로 "${petName}"을(를) 삭제하시겠습니까?`)) {
       try {
-        // REG005 -> 5로 변환
-        const petId = parseInt(animalId.replace('REG', ''))
-
         await axios.delete(`${getBackendUrl()}/api/pets/${petId}`)
 
-        setAnimalRecords(prev => prev.filter(record => record.id !== animalId))
+        setPets(prev => prev.filter(pet => pet.petId !== petId))
         toast({
           title: "성공",
           description: "동물이 삭제되었습니다.",
@@ -301,7 +249,7 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
       }
 
       // Create a new pet object for the backend API
-      const newPetData: Omit<ApiPet, 'petId'> = {
+      const newPetData: any = {
         name: newAnimal.name,
         breed: newAnimal.breed,
         age: parseInt(newAnimal.age) || 0,
@@ -321,42 +269,41 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
         rescueStory: newAnimal.rescueStory || undefined,
         aiBackgroundStory: newAnimal.aiBackgroundStory || undefined,
         status: newAnimal.status || "보호중",
-        type: newAnimal.type || (newAnimal.breed.includes("골든") ||
-              newAnimal.breed.includes("리트리버") ||
-              newAnimal.breed.includes("말티즈") ||
-              newAnimal.breed.includes("시바") ||
-              newAnimal.breed.includes("진돗개") ||
-              newAnimal.breed.includes("포메라니안") ||
-              newAnimal.breed.includes("비글") ||
-              newAnimal.breed.includes("웰시코기")
-                ? "강아지"
-                : "고양이"),
+        type: newAnimal.type || "강아지",
         neutered: newAnimal.isNeutered,
       }
 
       // Send to backend API
       const createdPet = await petApi.createPet(newPetData)
       console.log("Created pet:", createdPet)
+      console.log("Created pet type:", typeof createdPet)
+      console.log("Created pet keys:", createdPet ? Object.keys(createdPet) : 'null/undefined')
 
       // Create a new pet object for the adoption page (frontend state)
       const newPet: Pet = {
-        id: createdPet.petId,
+        petId: createdPet && typeof createdPet === 'object' ? 
+          (createdPet as any).petId || (createdPet as any).id || 0 : 0,
         name: newAnimal.name,
         breed: newAnimal.breed,
-        age: newAnimal.age + "살",
-        gender: newAnimal.gender,
-        size: newAnimal.weight && parseFloat(newAnimal.weight) > 10 ? "대형" : "소형",
-        personality: "온순함, 친화적",
-        healthStatus: "건강함",
+        age: parseInt(newAnimal.age) || 0,
+        gender: newAnimal.gender === "수컷" ? "MALE" : "FEMALE",
+        vaccinated: newPetData.vaccinated || false,
         description: newAnimal.aiBackgroundStory || "새로 등록된 반려동물입니다.",
-        images: uploadedImageUrls.length > 0 ? uploadedImageUrls : ["/placeholder.svg?height=200&width=300"],
+        imageUrl: uploadedImageUrls.length > 0 ? uploadedImageUrls[0] : "/placeholder.svg?height=200&width=300",
+        adopted: false,
+        weight: parseFloat(newAnimal.weight) || undefined,
         location: newAnimal.location || "서울특별시",
-        contact: "010-0000-0000",
-        adoptionFee: 0,
-        isNeutered: newPetData.neutered || false,
-        isVaccinated: newPetData.vaccinated || false,
-        dateRegistered: new Date().toISOString().split("T")[0],
-        adoptionStatus: "available",
+        microchipId: newAnimal.microchipId || "",
+        medicalHistory: newAnimal.medicalHistory || "",
+        vaccinations: newAnimal.vaccinations || "",
+        notes: newAnimal.notes || "",
+        specialNeeds: newAnimal.specialNeeds || "",
+        personality: newAnimal.personality || "온순함, 친화적",
+        rescueStory: "",
+        aiBackgroundStory: newAnimal.aiBackgroundStory || "",
+        status: "보호중",
+        type: newAnimal.type || "강아지",
+        neutered: newPetData.neutered || false,
       }
 
       // Add to adoption page if callback is provided
@@ -383,7 +330,7 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
         specialNeeds: "",
         rescueStory: "",
         status: "보호중",
-        type: "",
+        type: "강아지", // 기본값으로 초기화
         isNeutered: false,
         isVaccinated: false,
       })
@@ -396,7 +343,7 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
     }
   }
 
-  if (!isAdmin) {
+  if (isAdmin) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20">
         <div className="container mx-auto px-4 py-8">
@@ -417,7 +364,7 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-6">
-            <Button variant="ghost" onClick={onClose} className="hover:bg-gray-100">
+            <Button variant="ghost" onClick={() => router.push("/admin?tab=pets")} className="hover:bg-gray-100">
               <ArrowLeft className="w-4 h-4 mr-2" />
               관리자 페이지로 돌아가기
             </Button>
@@ -614,14 +561,32 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg">성격 및 소개</h3>
                 
-                <div>
-                  <Label htmlFor="personality">성격</Label>
-                  <Input
-                    id="personality"
-                    value={newAnimal.personality}
-                    onChange={(e) => setNewAnimal({ ...newAnimal, personality: e.target.value })}
-                    placeholder="예: 온순함, 친화적"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="personality">성격</Label>
+                    <Input
+                      id="personality"
+                      value={newAnimal.personality}
+                      onChange={(e) => setNewAnimal({ ...newAnimal, personality: e.target.value })}
+                      placeholder="예: 온순함, 친화적"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="type">동물 종류</Label>
+                    <Select
+                      value={newAnimal.type}
+                      onValueChange={(value) => setNewAnimal({ ...newAnimal, type: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="동물 종류 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="강아지">강아지</SelectItem>
+                        <SelectItem value="고양이">고양이</SelectItem>
+                        <SelectItem value="기타">기타</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div>
@@ -722,22 +687,22 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
                 <p className="text-gray-500">동물 목록을 불러오는 중...</p>
               </CardContent>
             </Card>
-          ) : filteredRecords.length === 0 ? (
+          ) : filteredPets.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
                 <p className="text-gray-500">등록된 동물이 없습니다.</p>
               </CardContent>
             </Card>
           ) : (
-            filteredRecords.map((animal) => (
-              <Card key={animal.id} className="overflow-hidden">
+            filteredPets.map((pet) => (
+              <Card key={pet.petId} className="overflow-hidden">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center space-x-4">
                       <div className="w-24 h-24 bg-yellow-100 rounded-xl flex items-center justify-center overflow-hidden shadow-sm">
                         <img
-                          src={animal.images?.[0] || "/placeholder-logo.png"}
-                          alt={`${animal.name} 이미지`}
+                          src={pet.imageUrl || "/placeholder-logo.png"}
+                          alt={`${pet.name} 이미지`}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
@@ -747,24 +712,24 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
                           }}
                         />
                         <span className="text-4xl hidden">
-                          {animal.breed.includes("골든") ||
-                          animal.breed.includes("리트리버") ||
-                          animal.breed.includes("말티즈") ||
-                          animal.breed.includes("시바") ||
-                          animal.breed.includes("진돗개") ||
-                          animal.breed.includes("포메라니안") ||
-                          animal.breed.includes("비글") ||
-                          animal.breed.includes("웰시코기")
+                          {pet.breed.includes("골든") ||
+                          pet.breed.includes("리트리버") ||
+                          pet.breed.includes("말티즈") ||
+                          pet.breed.includes("시바") ||
+                          pet.breed.includes("진돗개") ||
+                          pet.breed.includes("포메라니안") ||
+                          pet.breed.includes("비글") ||
+                          pet.breed.includes("웰시코기")
                             ? "🐕"
                             : "🐱"}
                         </span>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-1">{animal.name}</h3>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-1">{pet.name}</h3>
                         <p className="text-gray-600 text-lg mb-1">
-                          {animal.breed} • {animal.age}세 • {animal.gender}
+                          {pet.breed} • {pet.age}세 • {pet.gender}
                         </p>
-                        <p className="text-sm text-gray-500 font-medium">등록번호: {animal.id}</p>
+                        <p className="text-sm text-gray-500 font-medium">등록번호: {pet.petId}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -772,7 +737,7 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
                         variant="outline" 
                         size="sm" 
                         className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                        onClick={() => handleEditPet(animal)}
+                        onClick={() => handleEditPet(pet)}
                       >
                         정보 수정
                       </Button>
@@ -780,7 +745,7 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
                         variant="outline" 
                         size="sm" 
                         className="border-red-300 text-red-700 hover:bg-red-50"
-                        onClick={() => handleDeletePet(animal.id, animal.name)}
+                        onClick={() => handleDeletePet(pet.petId, pet.name)}
                       >
                         삭제
                       </Button>
@@ -793,25 +758,25 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
                       <div className="space-y-2 text-sm">
                         <p className="flex justify-between">
                           <span className="font-medium text-gray-600">체중:</span>
-                          <span className="text-gray-900">{animal.weight}kg</span>
+                          <span className="text-gray-900">{pet.weight}kg</span>
                         </p>
                         <p className="flex justify-between">
                           <span className="font-medium text-gray-600">등록일:</span>
                           <span className="text-gray-900">
-                            {format(animal.registrationDate, "yyyy년 MM월 dd일", { locale: ko })}
+                            {format(new Date(), "yyyy년 MM월 dd일", { locale: ko })}
                           </span>
                         </p>
-                        {animal.microchipId && (
+                        {pet.microchipId && (
                           <p className="flex justify-between">
                             <span className="font-medium text-gray-600">마이크로칩:</span>
-                            <span className="text-gray-900">{animal.microchipId}</span>
+                            <span className="text-gray-900">{pet.microchipId}</span>
                           </p>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {animal.aiBackgroundStory && (
+                  {pet.aiBackgroundStory && (
                     <div className="mt-6">
                       <h4 className="font-semibold mb-3 flex items-center text-gray-900">
                         <Sparkles className="w-5 h-5 mr-2 text-purple-600" />
@@ -819,43 +784,35 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
                       </h4>
                       <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
                         <p className="text-sm text-gray-700 leading-relaxed">
-                          {animal.aiBackgroundStory}
+                          {pet.aiBackgroundStory}
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {animal.medicalHistory.length > 0 && (
+                  {pet.medicalHistory && (
                     <div className="mt-6">
                       <h4 className="font-semibold mb-3 text-gray-900">의료 기록</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {animal.medicalHistory.map((record, index) => (
-                          <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                            {record}
-                          </Badge>
-                        ))}
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-700 leading-relaxed">{pet.medicalHistory}</p>
                       </div>
                     </div>
                   )}
 
-                  {animal.vaccinations.length > 0 && (
+                  {pet.vaccinations && (
                     <div className="mt-6">
                       <h4 className="font-semibold mb-3 text-gray-900">예방접종</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {animal.vaccinations.map((vaccination, index) => (
-                          <Badge key={index} variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                            {vaccination}
-                          </Badge>
-                        ))}
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-700 leading-relaxed">{pet.vaccinations}</p>
                       </div>
                     </div>
                   )}
 
-                  {animal.notes && (
+                  {pet.notes && (
                     <div className="mt-6">
                       <h4 className="font-semibold mb-3 text-gray-900">추가 메모</h4>
                       <div className="bg-gray-50 p-4 rounded-lg">
-                        <p className="text-sm text-gray-700 leading-relaxed">{animal.notes}</p>
+                        <p className="text-sm text-gray-700 leading-relaxed">{pet.notes}</p>
                       </div>
                     </div>
                   )}
@@ -873,6 +830,7 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
         isOpen={showEditModal}
         onClose={handleCloseEditModal}
         selectedPet={selectedPetForEdit}
+        petId={selectedPetForEdit?.petId || (selectedPetForEdit as any)?.id}
         onUpdatePet={handleUpdatePet}
       />
     </div>

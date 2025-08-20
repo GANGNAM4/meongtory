@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { AdminProduct, AdminPet, AdoptionRequest } from '@/types/admin'
+import { AdminProduct, AdoptionRequest } from '@/types/admin'
+import { Pet } from '@/types/pets'
 import { productApi, petApi, adoptionRequestApi } from '@/lib/api'
 
 export function useAdminDashboard() {
   const [products, setProducts] = useState<AdminProduct[]>([])
-  const [pets, setPets] = useState<AdminPet[]>([])
+  const [pets, setPets] = useState<Pet[]>([])
   const [adoptionRequests, setAdoptionRequests] = useState<AdoptionRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

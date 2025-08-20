@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { PetsTabProps, AdminPet, AdoptionRequest } from "@/types/admin"
+import { PetsTabProps, AdoptionRequest } from "@/types/admin"
+import { Pet } from "@/types/pets"
 import { petApi, adoptionRequestApi, s3Api } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,39 +11,49 @@ import { AlertCircle, Plus, Edit, Trash2, FileText } from "lucide-react"
 import { toast } from "sonner"
 
 export default function PetsTab({ onNavigateToAnimalRegistration, onUpdatePet, onViewContract }: PetsTabProps) {
-  const [pets, setPets] = useState<AdminPet[]>([])
+  const [pets, setPets] = useState<Pet[]>([])
   const [adoptionRequests, setAdoptionRequests] = useState<AdoptionRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // API 응답을 AdminPet 형태로 변환하는 함수
-  const convertApiPetToAdminPet = (apiPet: any): AdminPet => {
+  // API 응답을 Pet 형태로 변환하는 함수
+  const convertApiPetToPet = (apiPet: any): Pet => {
+    // 해당 펫의 입양신청 상태 확인
+    const petAdoptionRequests = (adoptionRequests ?? []).filter((request: AdoptionRequest) => request.petId === apiPet.petId)
+    const hasPendingRequests = petAdoptionRequests.some((request: AdoptionRequest) => request.status === "PENDING")
+    const hasApprovedRequests = petAdoptionRequests.some((request: AdoptionRequest) => request.status === "APPROVED")
+    
+    // 입양 상태 결정 (백엔드 adopted 필드 우선, 그 다음 입양신청 상태)
+    let finalAdoptedStatus = apiPet.adopted || false
+    
+    // 백엔드에서 adopted가 false이지만 승인된 입양신청이 있으면 adopted로 설정
+    if (!apiPet.adopted && hasApprovedRequests) {
+      finalAdoptedStatus = true
+    }
+    
     return {
       petId: apiPet.petId,
       name: apiPet.name,
       breed: apiPet.breed,
       age: apiPet.age,
       gender: apiPet.gender,
-      vaccinated: apiPet.vaccinated,
-      description: apiPet.description,
-      imageUrl: apiPet.imageUrl,
-      adopted: apiPet.adopted,
+      vaccinated: apiPet.vaccinated || false,
+      description: apiPet.description || '',
+      imageUrl: apiPet.imageUrl || '',
+      adopted: finalAdoptedStatus,
       weight: apiPet.weight,
-      location: apiPet.location,
-      microchipId: apiPet.microchipId,
-      medicalHistory: apiPet.medicalHistory,
-      vaccinations: apiPet.vaccinations,
-      notes: apiPet.notes,
-      personality: apiPet.personality,
-      rescueStory: apiPet.rescueStory,
-      aiBackgroundStory: apiPet.aiBackgroundStory,
-      status: apiPet.status,
-      type: apiPet.type,
-      neutered: apiPet.neutered,
-      adoptionStatus: apiPet.adopted ? "adopted" : "available",
-      contact: apiPet.contact || '',
-      adoptionFee: apiPet.adoptionFee || 0,
-      dateRegistered: apiPet.dateRegistered || new Date().toISOString()
+      location: apiPet.location || '',
+      microchipId: apiPet.microchipId || '',
+      medicalHistory: apiPet.medicalHistory || '',
+      vaccinations: apiPet.vaccinations || '',
+      notes: apiPet.notes || '',
+      specialNeeds: apiPet.specialNeeds || '',
+      personality: apiPet.personality || '',
+      rescueStory: apiPet.rescueStory || '',
+      aiBackgroundStory: apiPet.aiBackgroundStory || '',
+      status: apiPet.status || '보호중',
+      type: apiPet.type || '',
+      neutered: apiPet.neutered || false
     }
   }
 
@@ -58,8 +69,8 @@ export default function PetsTab({ onNavigateToAnimalRegistration, onUpdatePet, o
         return
       }
 
-      const adminPets = apiPets.map(convertApiPetToAdminPet)
-      setPets(adminPets)
+      const convertedPets = apiPets.map(convertApiPetToPet)
+      setPets(convertedPets)
     } catch (error) {
       console.error('반려동물 데이터 페칭 실패:', error)
       setError('반려동물 데이터를 불러오는데 실패했습니다.')
@@ -119,7 +130,7 @@ export default function PetsTab({ onNavigateToAnimalRegistration, onUpdatePet, o
 
     try {
       // 이미지가 있으면 S3에서도 삭제
-      const pet = pets.find((p: AdminPet) => p.petId === petId)
+      const pet = pets.find((p: Pet) => p.petId === petId)
       if (pet?.imageUrl) {
         try {
           await s3Api.deleteFile(pet.imageUrl)
@@ -205,12 +216,8 @@ export default function PetsTab({ onNavigateToAnimalRegistration, onUpdatePet, o
                       </p>
                       <p className="text-sm text-gray-500">{pet.location}</p>
                       <div className="flex items-center space-x-2 mt-2">
-                        <Badge className={getStatusColor(pet.adoptionStatus)}>
-                          {pet.adoptionStatus === "available"
-                            ? "입양가능"
-                            : pet.adoptionStatus === "pending"
-                              ? "입양대기"
-                              : "입양완료"}
+                        <Badge className={getStatusColor(pet.adopted ? "adopted" : "available")}>
+                          {pet.adopted ? "입양완료" : "입양가능"}
                         </Badge>
                         {/* 입양신청 현황 표시 */}
                         {(() => {
@@ -251,7 +258,7 @@ export default function PetsTab({ onNavigateToAnimalRegistration, onUpdatePet, o
                       size="sm" 
                       variant="outline"
                       onClick={() => handleUpdatePetStatus(pet.petId, "available")}
-                      disabled={pet.adoptionStatus === "available"}
+                      disabled={!pet.adopted}
                     >
                       입양가능
                     </Button>
@@ -259,7 +266,7 @@ export default function PetsTab({ onNavigateToAnimalRegistration, onUpdatePet, o
                       size="sm" 
                       variant="outline"
                       onClick={() => handleUpdatePetStatus(pet.petId, "adopted")}
-                      disabled={pet.adoptionStatus === "adopted"}
+                      disabled={pet.adopted}
                     >
                       입양완료
                     </Button>

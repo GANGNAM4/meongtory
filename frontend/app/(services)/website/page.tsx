@@ -456,6 +456,11 @@ export default function PetServiceWebsite() {
     }
   }
 
+  // handleUpdateCartQuantity 함수 추가 (CartPage에서 사용)
+  const handleUpdateCartQuantity = async (cartId: number, quantity: number) => {
+    return onUpdateQuantity(cartId, quantity)
+  }
+
   // 전체 구매
   const onPurchaseAll = async (items: CartItem[]) => {
     try {
@@ -578,17 +583,9 @@ export default function PetServiceWebsite() {
       }
       if (accessToken) headers["access_token"] = accessToken
       const orderData = {
-        userId: currentUser.id,
-        amount: cartItem.price * cartItem.quantity,
-        orderItems: [
-          {
-            productId: cartItem.product?.productId || cartItem.id,
-            productName: cartItem.product?.name || cartItem.name || cartItem.brand + " " + cartItem.category,
-            imageUrl: cartItem.product?.imageUrl || cartItem.image || "/placeholder.svg",
-            quantity: cartItem.quantity,
-            price: cartItem.product?.price || cartItem.price,
-          },
-        ],
+        accountId: currentUser.id,
+        productId: cartItem.product?.id || cartItem.id,
+        quantity: cartItem.quantity,
       }
       const response = await axios.post("http://localhost:8080/api/orders", orderData, {
         headers,
@@ -912,8 +909,7 @@ export default function PetServiceWebsite() {
 
 
 
-<<<<<<< HEAD
-=======
+
       case "product-detail":
         if (selectedNaverProduct) {
           return (
@@ -947,7 +943,6 @@ export default function PetServiceWebsite() {
             isInCart={isInCart}
           />
         )
->>>>>>> origin/develop
 
 
       case "storeRegistration":

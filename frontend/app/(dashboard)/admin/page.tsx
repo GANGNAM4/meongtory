@@ -25,10 +25,9 @@ import {
   X,
 } from "lucide-react"
 import AnimalEditModal from "@/components/modals/animal-edit-modal"
-import type { Pet as PetsTypePet } from "@/types/pets"
+import type { Pet } from "@/types/pets"
 import ProductsTab from "@/components/admin/ProductsTab"
 import PetsTab from "@/components/admin/PetsTab"
-import type { AdminPet } from "@/types/admin"
 import { petApi, handleApiError, s3Api, adoptionRequestApi, productApi } from "@/lib/api"
 import axios from "axios"
 import { formatToKST, formatToKSTWithTime, getCurrentKSTDate } from "@/lib/utils"
@@ -47,26 +46,7 @@ interface Product {
   registeredBy: string
 }
 
-interface Pet {
-  id: number
-  name: string
-  breed: string
-  age: string
-  gender: string
-  size: string
-  personality: string
-  healthStatus: string
-  description: string
-  images: string[]
-  location: string
-  contact: string
-  adoptionFee: number
-  isNeutered: boolean
-  isVaccinated: boolean
-  specialNeeds?: string
-  dateRegistered: string
-  adoptionStatus: "available" | "pending" | "adopted"
-}
+
 
 interface CommunityPost {
   id: number
@@ -160,6 +140,19 @@ interface AdoptionRequest {
   updatedAt: string
 }
 
+// 관리자 페이지에서 Pet 정보를 표시할 때 사용할 확장 정보 타입
+interface PetDisplayInfo extends Pet {
+  managementInfo: {
+    hasPendingRequests: boolean
+    hasApprovedRequests: boolean
+    totalRequests: number
+    latestRequest: AdoptionRequest | null
+    adoptionStatusText: string
+  }
+}
+
+
+
 export default function AdminPage({
   onClose,
 
@@ -231,44 +224,43 @@ export default function AdminPage({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  // ProductsTab(AdminProduct)와 동일하게, PetsTab(AdminPet) → 본 페이지 Pet 형태로 변환하는 어댑터
-  const convertAdminPetToPet = (adminPet: AdminPet): Pet => {
+
+
+  // 관리자 페이지에서 필요한 추가 정보를 계산하는 유틸리티 함수
+  const getPetManagementInfo = (pet: Pet) => {
+    const petAdoptionRequests = (adoptionRequests ?? []).filter((request: AdoptionRequest) => request.petId === pet.petId)
+    const pendingRequests = petAdoptionRequests.filter((request: AdoptionRequest) => request.status === "PENDING")
+    const approvedRequests = petAdoptionRequests.filter((request: AdoptionRequest) => request.status === "APPROVED")
+    
     return {
-      id: (adminPet as any).petId ?? (adminPet as any).id ?? 0,
-      name: String(adminPet.name ?? ""),
-      breed: String(adminPet.breed ?? ""),
-      age: String((adminPet as any).age ?? ""),
-      gender: (adminPet.gender as any) === "MALE" ? "수컷" : (adminPet.gender as any) === "FEMALE" ? "암컷" : String(adminPet.gender ?? ""),
-      size: String((adminPet as any).size ?? ""),
-      personality: Array.isArray((adminPet as any).personality) ? (adminPet as any).personality.join(", ") : String((adminPet as any).personality ?? ""),
-      healthStatus: String((adminPet as any).medicalHistory ?? (adminPet as any).healthStatus ?? ""),
-      description: String((adminPet as any).description ?? ""),
-      images: (typeof (adminPet as any).imageUrl === "string" && (adminPet as any).imageUrl)
-        ? [(adminPet as any).imageUrl]
-        : Array.isArray((adminPet as any).images)
-          ? (adminPet as any).images
-          : [],
-      location: String((adminPet as any).location ?? ""),
-      contact: String((adminPet as any).contact ?? ""),
-      adoptionFee: Number((adminPet as any).adoptionFee ?? 0),
-      isNeutered: Boolean((adminPet as any).neutered ?? (adminPet as any).isNeutered ?? false),
-      isVaccinated: Boolean((adminPet as any).vaccinated ?? (adminPet as any).isVaccinated ?? false),
-      specialNeeds: (adminPet as any).specialNeeds,
-      dateRegistered: String((adminPet as any).dateRegistered ?? new Date().toISOString()),
-      adoptionStatus: ((adminPet as any).adopted ? "adopted" : "available") as any,
+      hasPendingRequests: pendingRequests.length > 0,
+      hasApprovedRequests: approvedRequests.length > 0,
+      totalRequests: petAdoptionRequests.length,
+      latestRequest: petAdoptionRequests.length > 0 ? petAdoptionRequests[0] : null,
+      // 입양 상태 표시용 텍스트
+      adoptionStatusText: pet.adopted ? "입양완료" : 
+                         approvedRequests.length > 0 ? "입양승인" :
+                         pendingRequests.length > 0 ? "입양대기" : "입양가능"
     }
   }
 
-  const handleEditPetFromTab = (adminPet: AdminPet) => {
-    const converted = convertAdminPetToPet(adminPet)
-    setSelectedPetForEdit(converted)
+  // Pet 정보를 관리자 표시용으로 변환하는 함수
+  const getPetDisplayInfo = (pet: Pet): PetDisplayInfo => {
+    const managementInfo = getPetManagementInfo(pet)
+    return {
+      ...pet,
+      managementInfo
+    }
+  }
+
+  const handleEditPetFromTab = (pet: Pet) => {
+    setSelectedPetForEdit(pet)
     setShowEditModal(true)
   }
 
-  const handleViewContractFromTab = (adminPet: AdminPet) => {
-    const converted = convertAdminPetToPet(adminPet)
+  const handleViewContractFromTab = (pet: Pet) => {
     // 기존 계약서 보기 핸들러 재사용
-    handleViewContract(converted as any)
+    handleViewContract(pet as any)
   }
 
   // 상품 목록을 백엔드에서 가져오기
@@ -578,7 +570,7 @@ export default function AdminPage({
   const handleUpdatePet = (updatedPet: Pet) => {
     // 로컬 상태 업데이트
           setPets(prev => prev.map(pet => 
-        pet.id === updatedPet.id ? updatedPet : pet
+        pet.petId === updatedPet.petId ? updatedPet : pet
       ))
     handleCloseEditModal()
     // 페이지 새로고침으로 변경사항 반영
@@ -594,8 +586,8 @@ export default function AdminPage({
       
       // 프론트엔드 상태 업데이트
       setPets(prev => prev.map(pet => 
-        pet.id === petId 
-          ? { ...pet, adoptionStatus: newStatus }
+        pet.petId === petId 
+          ? { ...pet, adopted: newStatus === "adopted" }
           : pet
       ))
       
@@ -610,29 +602,28 @@ export default function AdminPage({
     if (confirm(`${petName}을(를) 삭제하시겠습니까?\n\n⚠️ 주의: 관련된 모든 입양신청도 함께 삭제됩니다.`)) {
       try {
         // 삭제할 동물의 정보를 찾아서 S3 이미지들도 함께 삭제
-        const petToDelete = pets.find(pet => pet.id === petId)
-        if (petToDelete && petToDelete.images) {
-          // S3 이미지들 삭제
-          for (const imageUrl of petToDelete.images) {
-            if (imageUrl && imageUrl.startsWith('https://')) {
-              try {
-                // URL에서 파일명 추출
-                const fileName = imageUrl.split('/').pop()
-                if (fileName) {
-                  await s3Api.deleteFile(fileName)
-                  console.log(`S3에서 이미지 삭제 완료: ${fileName}`)
-                }
-              } catch (error) {
-                console.error("S3 이미지 삭제 실패:", error)
-                // 삭제 실패해도 계속 진행
+        const petToDelete = pets.find(pet => pet.petId === petId)
+        if (petToDelete && petToDelete.imageUrl) {
+          // S3 이미지 삭제
+          const imageUrl = petToDelete.imageUrl
+          if (imageUrl && imageUrl.startsWith('https://')) {
+            try {
+              // URL에서 파일명 추출
+              const fileName = imageUrl.split('/').pop()
+              if (fileName) {
+                await s3Api.deleteFile(fileName)
+                console.log(`S3에서 이미지 삭제 완료: ${fileName}`)
               }
+            } catch (error) {
+              console.error("S3 이미지 삭제 실패:", error)
+              // 삭제 실패해도 계속 진행
             }
           }
         }
 
         // 동물 정보 삭제 (백엔드에서 관련 입양신청도 함께 삭제)
         await petApi.deletePet(petId)
-        setPets(prev => prev.filter(pet => pet.id !== petId))
+        setPets(prev => prev.filter(pet => pet.petId !== petId))
         alert(`${petName}이(가) 성공적으로 삭제되었습니다.\n관련된 입양신청도 함께 삭제되었습니다.`)
       } catch (error) {
         console.error("동물 삭제에 실패했습니다:", error)
@@ -641,49 +632,44 @@ export default function AdminPage({
     }
   }
 
-  // API 데이터를 프론트엔드 형식으로 변환
-  const convertApiPetToAdminPet = (apiPet: any): Pet => {
+  // API 데이터를 Pet 형식으로 변환
+  const convertApiPetToPet = (apiPet: any): Pet => {
     // 해당 펫의 입양신청 상태 확인
-    const petAdoptionRequests = adoptionRequests.filter(request => request.petId === apiPet.petId)
-    const hasPendingRequests = petAdoptionRequests.some(request => request.status === "PENDING")
-    const hasApprovedRequests = petAdoptionRequests.some(request => request.status === "APPROVED")
+    const petAdoptionRequests = (adoptionRequests ?? []).filter((request: AdoptionRequest) => request.petId === apiPet.petId)
+    const hasPendingRequests = petAdoptionRequests.some((request: AdoptionRequest) => request.status === "PENDING")
+    const hasApprovedRequests = petAdoptionRequests.some((request: AdoptionRequest) => request.status === "APPROVED")
     
-    // 입양 상태 결정 (수정된 로직)
-    let adoptionStatus: "available" | "pending" | "adopted" = "available"
+    // 입양 상태 결정 (백엔드 adopted 필드 우선, 그 다음 입양신청 상태)
+    let finalAdoptedStatus = apiPet.adopted || false
     
-    // 백엔드에서 이미 입양완료로 설정된 경우
-    if (apiPet.adopted) {
-      adoptionStatus = "adopted"
-    } 
-    // 승인된 입양신청이 있으면 입양대기로 설정 (자동)
-    else if (hasApprovedRequests) {
-      adoptionStatus = "pending"
-    } 
-    // 대기중인 입양신청이 있으면 입양대기
-    else if (hasPendingRequests) {
-      adoptionStatus = "pending"
+    // 백엔드에서 adopted가 false이지만 승인된 입양신청이 있으면 adopted로 설정
+    if (!apiPet.adopted && hasApprovedRequests) {
+      finalAdoptedStatus = true
     }
-    // 그 외에는 입양가능 (기본값)
     
     return {
-      id: apiPet.petId,
+      petId: apiPet.petId,
       name: apiPet.name,
       breed: apiPet.breed,
-      age: `${apiPet.age}살`,
-      gender: apiPet.gender === 'MALE' ? '수컷' : '암컷',
-      size: apiPet.weight ? `${apiPet.weight}kg` : '',
-      personality: apiPet.personality ? apiPet.personality.split(',').map((p: string) => p.trim()) : [],
-      healthStatus: apiPet.medicalHistory || '',
+      age: apiPet.age,
+      gender: apiPet.gender,
+      vaccinated: apiPet.vaccinated || false,
       description: apiPet.description || '',
-      images: apiPet.imageUrl ? [apiPet.imageUrl] : [],
+      imageUrl: apiPet.imageUrl || '',
+      adopted: finalAdoptedStatus,
+      weight: apiPet.weight,
       location: apiPet.location || '',
-      contact: '',
-      adoptionFee: 0,
-      isNeutered: apiPet.neutered || false,
-      isVaccinated: apiPet.vaccinated || false,
-      specialNeeds: apiPet.rescueStory || '',
-      dateRegistered: getCurrentKSTDate(),
-      adoptionStatus: adoptionStatus
+      microchipId: apiPet.microchipId || '',
+      medicalHistory: apiPet.medicalHistory || '',
+      vaccinations: apiPet.vaccinations || '',
+      notes: apiPet.notes || '',
+      specialNeeds: apiPet.specialNeeds || '',
+      personality: apiPet.personality || '',
+      rescueStory: apiPet.rescueStory || '',
+      aiBackgroundStory: apiPet.aiBackgroundStory || '',
+      status: apiPet.status || '보호중',
+      type: apiPet.type || '',
+      neutered: apiPet.neutered || false
     }
   }
 
@@ -692,7 +678,7 @@ export default function AdminPage({
     setLoading(true)
     try {
       const apiPets = await petApi.getPets()
-      const convertedPets = apiPets.map(convertApiPetToAdminPet)
+      const convertedPets = apiPets.map(convertApiPetToPet)
       setPets(convertedPets)
     } catch (error) {
       console.error("펫 데이터를 가져오는데 실패했습니다:", error)
@@ -844,7 +830,7 @@ export default function AdminPage({
         fetchPets()
       }, 100)
       
-      const statusMessage = status === 'APPROVED' ? '승인 (입양관리에서 상태를 확인하세요)' : 
+      const statusMessage = status === 'APPROVED' ? '승인 (MyPet에 자동 등록되었습니다)' : 
                            status === 'REJECTED' ? '거절' : 
                            status === 'CONTACTED' ? '연락완료' : '대기중'
       alert(`입양 신청 상태가 ${statusMessage}로 변경되었습니다.`);
@@ -908,7 +894,7 @@ export default function AdminPage({
       }
 
       // 해당 동물의 실제 정보 가져오기 (petId로 조인)
-      const actualPet = pets.find(p => p.id === request.petId)
+      const actualPet = pets.find(p => p.petId === request.petId)
       if (!actualPet) {
         alert("동물 정보를 찾을 수 없습니다.")
         return
@@ -987,9 +973,9 @@ export default function AdminPage({
       await fetchGeneratedContracts()
       
       // 해당 동물의 상태를 입양완료로 변경
-      const pet = pets.find(p => p.id === request.petId)
+      const pet = pets.find(p => p.petId === request.petId)
       if (pet) {
-        await handleUpdatePetStatus(pet.id, "adopted")
+        await handleUpdatePetStatus(pet.petId, "adopted")
       }
       
       alert("계약서가 생성되었습니다. 입양관리 탭에서 계약서를 확인할 수 있습니다.")
@@ -2186,6 +2172,7 @@ export default function AdminPage({
         isOpen={showEditModal}
         onClose={handleCloseEditModal}
         selectedPet={selectedPetForEdit as unknown as PetsTypePet | null}
+        petId={selectedPetForEdit?.petId || (selectedPetForEdit as any)?.id || (selectedPetForEdit as any)?.petId}
         onUpdatePet={() => {
           // 모달 내부에서 직접 처리하므로 여기서는 아무것도 하지 않음
           handleCloseEditModal()

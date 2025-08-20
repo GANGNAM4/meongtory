@@ -2,7 +2,8 @@ package com.my.backend.visitReservation.service;
 
 import com.my.backend.account.entity.Account;
 import com.my.backend.account.repository.AccountRepository;
-import com.my.backend.global.dto.ResponseDto;
+import com.my.backend.pet.entity.MyPet;
+import com.my.backend.pet.repository.MyPetRepository;
 import com.my.backend.pet.entity.Pet;
 import com.my.backend.pet.repository.PetRepository;
 import com.my.backend.visitReservation.dto.AdoptionRequestDto;
@@ -25,6 +26,7 @@ public class AdoptionRequestService {
     private final AdoptionRequestRepository adoptionRequestRepository;
     private final PetRepository petRepository;
     private final AccountRepository accountRepository;
+    private final MyPetRepository myPetRepository;
 
     // 입양신청 생성
     @Transactional
@@ -79,6 +81,43 @@ public class AdoptionRequestService {
 
         request.setStatus(status);
         AdoptionRequest updatedRequest = adoptionRequestRepository.save(request);
+        
+        // 입양 승인 시 MyPet 자동 등록
+        if (status == AdoptionRequest.AdoptionStatus.APPROVED) {
+            try {
+                // 기존 MyPet 등록 여부 확인 (동일한 이름의 펫이 있는지 확인)
+                List<MyPet> existingPets = myPetRepository.findByOwnerId(request.getUser().getId());
+                boolean alreadyRegistered = existingPets.stream()
+                    .anyMatch(pet -> pet.getName().equals(request.getPet().getName()));
+                
+                if (!alreadyRegistered) {
+                    // MyPet 등록
+                    MyPet myPet = MyPet.builder()
+                            .owner(request.getUser())
+                            .name(request.getPet().getName())
+                            .breed(request.getPet().getBreed())
+                            .age(request.getPet().getAge())
+                            .gender(convertPetGenderToMyPetGender(request.getPet().getGender()))
+                            .type(request.getPet().getType())
+                            .weight(request.getPet().getWeight())
+                            .imageUrl(request.getPet().getImageUrl())
+                            .vaccinated(request.getPet().getVaccinated())
+                            .neutered(request.getPet().getNeutered())
+                            .build();
+                    
+                    myPetRepository.save(myPet);
+                    log.info("입양 승인으로 인한 MyPet 자동 등록 완료: userId={}, petName={}", 
+                            request.getUser().getId(), request.getPet().getName());
+                } else {
+                    log.info("이미 등록된 MyPet이 존재합니다: userId={}, petName={}", 
+                            request.getUser().getId(), request.getPet().getName());
+                }
+            } catch (Exception e) {
+                log.error("MyPet 자동 등록 실패: {}", e.getMessage());
+                // MyPet 등록 실패해도 입양 승인은 진행
+            }
+        }
+        
         return convertToResponse(updatedRequest);
     }
 
@@ -123,6 +162,17 @@ public class AdoptionRequestService {
         return convertToResponse(updatedRequest);
     }
 
+    // Pet의 Gender를 MyPet의 Gender로 변환
+    private MyPet.Gender convertPetGenderToMyPetGender(Pet.Gender petGender) {
+        switch (petGender) {
+            case MALE:
+                return MyPet.Gender.MALE;
+            case FEMALE:
+                return MyPet.Gender.FEMALE;
+            default:
+                return MyPet.Gender.UNKNOWN;
+        }
+    }
     // DTO 변환 메서드들
     private AdoptionRequestDto.Response convertToResponse(AdoptionRequest request) {
         return new AdoptionRequestDto.Response(

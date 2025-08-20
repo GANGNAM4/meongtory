@@ -20,6 +20,7 @@ interface AnimalEditModalProps {
   isOpen: boolean
   onClose: () => void
   selectedPet: Pet | null
+  petId?: number  // petId를 별도로 받을 수 있도록 추가
   onUpdatePet: (pet: Pet) => void
 }
 
@@ -27,6 +28,7 @@ export default function AnimalEditModal({
   isOpen,
   onClose,
   selectedPet,
+  petId,
   onUpdatePet,
 }: AnimalEditModalProps) {
   const [editAnimal, setEditAnimal] = useState<Partial<Pet>>({})
@@ -38,7 +40,9 @@ export default function AnimalEditModal({
   const [deletedImages, setDeletedImages] = useState<string[]>([])
 
   useEffect(() => {
+    console.log("AnimalEditModal useEffect - selectedPet:", selectedPet)
     if (selectedPet) {
+      console.log("selectedPet.petId:", selectedPet.petId, "타입:", typeof selectedPet.petId)
       setEditAnimal({
         name: selectedPet.name,
         breed: selectedPet.breed,
@@ -139,7 +143,19 @@ export default function AnimalEditModal({
   }
 
   const handleSubmitEdit = async () => {
-    if (!selectedPet) return
+    if (!selectedPet) {
+      console.error("selectedPet이 null입니다.")
+      alert("펫 정보를 찾을 수 없습니다.")
+      return
+    }
+
+    // petId가 유효한지 확인 (props로 받은 petId를 우선 사용)
+    const finalPetId = petId || selectedPet?.petId
+    if (!finalPetId || finalPetId === 0) {
+      console.error("펫 ID가 유효하지 않습니다:", { finalPetId, petId, selectedPet })
+      alert("펫 ID가 유효하지 않습니다. 페이지를 새로고침하고 다시 시도해주세요.")
+      return
+    }
 
     setIsSaving(true)
     try {
@@ -212,10 +228,21 @@ export default function AnimalEditModal({
       } as any
 
       console.log('전송할 데이터:', updateData)
-      console.log('Pet ID:', selectedPet.petId)
+      console.log('Props petId:', petId, '타입:', typeof petId)
+      console.log('selectedPet.petId:', selectedPet?.petId, '타입:', typeof selectedPet?.petId)
       console.log('API 호출 시작...')
       
-      const updatedPet = await petApi.updatePet(selectedPet.petId, updateData)
+      // petId가 유효한지 확인 (props로 받은 petId를 우선 사용, id 필드도 확인)
+      const finalPetId = petId || selectedPet?.petId || (selectedPet as any)?.id
+      console.log('최종 사용할 petId:', finalPetId)
+      
+      if (!finalPetId || finalPetId === 0) {
+        console.error("펫 ID가 유효하지 않습니다:", { finalPetId, petId, selectedPet })
+        alert("펫 ID가 유효하지 않습니다. 페이지를 새로고침하고 다시 시도해주세요.")
+        return
+      }
+      
+      const updatedPet = await petApi.updatePet(finalPetId, updateData)
       console.log('API 호출 성공:', updatedPet)
       
       // 프론트엔드 상태 업데이트

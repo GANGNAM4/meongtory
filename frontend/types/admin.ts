@@ -16,16 +16,6 @@ export interface User {
   updatedAt?: string
 }
 
-// 관리자 페이지에서 사용하는 Pet 확장 타입
-export interface AdminPet extends Pet {
-  // Pet 인터페이스에서 이미 있는 필드들은 제거하고 추가 필드만 정의
-  adoptionStatus: "available" | "pending" | "adopted"
-  contact: string
-  adoptionFee: number
-  dateRegistered: string
-  // Pet에서 이미 있는 필드들: id(petId), name, breed, age, gender, description, imageUrl, adopted 등
-}
-
 // 관리자 페이지에서 사용하는 Product 확장 타입
 export interface AdminProduct extends Product {
   tags: string[]
@@ -178,14 +168,14 @@ export interface AdminPageProps {
   onNavigateToStoreRegistration: () => void
   onNavigateToAnimalRegistration: () => void
   onNavigateToCommunity: () => void
-  onUpdatePet: (pet: AdminPet) => void
+  onUpdatePet: (pet: Pet) => void
   onAdminLogout: () => void
 }
 
 // 탭별 Props 인터페이스들
 export interface DashboardTabProps {
   products: AdminProduct[]
-  pets: AdminPet[]
+  pets: Pet[]
   adoptionRequests: AdoptionRequest[]
   onNavigateToStoreRegistration: () => void
   onNavigateToAnimalRegistration: () => void
@@ -199,8 +189,8 @@ export interface ProductsTabProps {
 
 export interface PetsTabProps {
   onNavigateToAnimalRegistration: () => void
-  onUpdatePet: (pet: AdminPet) => void
-  onViewContract: (pet: AdminPet) => void
+  onUpdatePet: (pet: Pet) => void
+  onViewContract: (pet: Pet) => void
 }
 
 export interface AdoptionRequestsTabProps {
