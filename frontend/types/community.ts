@@ -12,6 +12,7 @@ export interface CommunityPost {
   likes: number
   comments: number
   tags: string[]
+  ownerEmail?: string  
 }
 
 export interface Comment {

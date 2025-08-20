@@ -375,28 +375,35 @@ public class S3Service {
         return "products/" + UUID.randomUUID().toString() + extension;
     }
 
-    // S3 파일 삭제 메서드
-    public void deleteFile(String fileName) {
+    // S3 파일 삭제 메서드 (URL이든 Key든 모두 지원)
+    public void deleteFile(String filePathOrUrl) {
         try {
             if (s3Client == null) {
                 log.warn("S3Client is null - delete operation skipped");
                 return;
             }
 
-            log.info("Deleting file: {} from S3 bucket: {}", fileName, bucketName);
+            // 전체 URL이면 key 부분만 추출
+            String key = filePathOrUrl;
+            if (filePathOrUrl.startsWith("http")) {
+                key = filePathOrUrl.substring(filePathOrUrl.indexOf(".com/") + 5);
+            }
+
+            log.info("Deleting file from S3: bucket={}, key={}", bucketName, key);
 
             DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
                     .bucket(bucketName)
-                    .key(fileName)
+                    .key(key)
                     .build();
 
             s3Client.deleteObject(deleteObjectRequest);
-            log.info("File deleted successfully: {}", fileName);
+            log.info("File deleted successfully from S3: {}", key);
         } catch (Exception e) {
             log.error("Failed to delete file from S3: {}", e.getMessage());
             throw new RuntimeException("S3 delete failed", e);
         }
     }
+
 
     // 입양 펫 이미지 삭제 메서드 (/adoption 폴더에서 삭제)
     public void deleteAdoptionPetImage(String fileName) {

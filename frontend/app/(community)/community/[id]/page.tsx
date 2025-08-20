@@ -1,253 +1,349 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { MessageSquare, Heart, Eye, ChevronLeft, Edit, Trash2 } from "lucide-react"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { getApiBaseUrl } from "@/lib/utils/apiBaseUrl";
+import { Edit, Trash2, X, ChevronLeft, Check } from "lucide-react";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
 
 interface CommunityPost {
-  id: number
-  title: string
-  content: string
-  author: string
-  date: string
-  category: string
-  boardType: "Q&A" | "자유게시판"
-  views: number
-  likes: number
-  comments: number
-  tags: string[]
-  images?: string[] // Optional array of image URLs
-  ownerEmail?: string; // Add ownerEmail to CommunityPost
-}
-
-interface Comment {
-  id: number
-  postId: number
-  author: string
-  content: string
-  date: string
+  id: number;
+  title: string;
+  content: string;
+  author: string;
+  date: string;
+  category: string;
+  boardType: "Q&A" | "자유게시판";
+  views: number;
+  likes: number;
+  comments: number;
+  tags: string[];
+  images?: string[];
+  ownerEmail: string;
 }
 
 interface CommunityDetailPageProps {
-  post: CommunityPost
-  onBack: () => void
-  isLoggedIn: boolean
-  onShowLogin: () => void
-  onUpdatePost: (updatedPost: CommunityPost) => void
-  onDeletePost: (postId: number) => void; // Added onDeletePost prop
-  currentUserEmail?: string; // Add currentUserEmail prop
+  post?: CommunityPost | null;
+  onBack: () => void;
+  onUpdatePost: (updatedPost: CommunityPost) => void;
+  onDeletePost: (postId: number) => void;
+  currentUserEmail?: string;
+  currentUserRole?: string;
 }
 
 export default function CommunityDetailPage({
-  post,
+  post: initialPost,
   onBack,
-  isLoggedIn,
-  onShowLogin,
   onUpdatePost,
   onDeletePost,
-  currentUserEmail,
+  currentUserEmail: propUserEmail,
+  currentUserRole: propUserRole,
 }: CommunityDetailPageProps) {
-  const [newComment, setNewComment] = useState("")
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: 1,
-      postId: post.id,
-      author: "댓글러1",
-      content: "좋은 정보 감사합니다!",
-      date: "2024-01-21",
-    },
-    {
-      id: 2,
-      postId: post.id,
-      author: "댓글러2",
-      content: "저도 같은 고민이었는데 도움이 됐어요.",
-      date: "2024-01-22",
-    },
-  ])
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedTitle, setEditedTitle] = useState(post.title)
-  const [editedContent, setEditedContent] = useState(post.content)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // State for delete confirmation
+  const API_BASE_URL = getApiBaseUrl();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const params = useParams();
+  const isEditingFromQuery = searchParams.get("edit") === "true";
+  const postId = params.id as string;
 
-  const handleAddComment = () => {
-    if (!isLoggedIn) {
-      onShowLogin()
-      return
-    }
-    if (newComment.trim()) {
-      const commentToAdd: Comment = {
-        id: comments.length + 1,
-        postId: post.id,
-        author: "현재사용자", // Replace with actual logged-in user
-        content: newComment.trim(),
-        date: new Date().toISOString().split("T")[0],
+  const [post, setPost] = useState<CommunityPost | null>(initialPost || null);
+  const [isLoading, setIsLoading] = useState(!initialPost);
+  const [isEditing, setIsEditing] = useState(isEditingFromQuery);
+  const [editedTitle, setEditedTitle] = useState("");
+  const [editedContent, setEditedContent] = useState("");
+  const [editedImages, setEditedImages] = useState<File[]>([]);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | undefined>(propUserEmail);
+  const [currentUserRole, setCurrentUserRole] = useState<string | undefined>(propUserRole);
+
+  // 사용자 정보 가져오기
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+          console.log("No access token found");
+          setCurrentUserEmail(undefined);
+          setCurrentUserRole(undefined);
+          return;
+        }
+        const res = await fetch(`${API_BASE_URL}/api/accounts/me`, {
+          headers: { Access_Token: token },
+        });
+        if (!res.ok) throw new Error(`사용자 정보 로드 실패 (${res.status})`);
+        const response = await res.json();
+        console.log("Fetched User Data:", response);
+        if (response.status === "success" && response.data) {
+          setCurrentUserEmail(response.data.email);
+          setCurrentUserRole(response.data.role);
+        } else {
+          throw new Error("Invalid response format");
+        }
+      } catch (err: any) {
+        console.error("사용자 정보 로드 에러:", err.message);
+        setCurrentUserEmail(undefined);
+        setCurrentUserRole(undefined);
       }
-      setComments([...comments, commentToAdd])
-      setNewComment("")
-      onUpdatePost({ ...post, comments: post.comments + 1 }) // Update comment count in parent
+    };
+
+    if (!propUserEmail && !propUserRole) {
+      fetchUserInfo();
     }
-  }
+  }, [propUserEmail, propUserRole]);
 
-  const handleEditSave = () => {
-    onUpdatePost({ ...post, title: editedTitle, content: editedContent })
-    setIsEditing(false)
-  }
+  // 게시글 데이터 가져오기
+  useEffect(() => {
+    if (!initialPost && postId) {
+      const fetchPost = async () => {
+        try {
+          setIsLoading(true);
+          setError(null);
+          const res = await fetch(`${API_BASE_URL}/api/community/posts/${postId}`, {
+            headers: getAuthHeaders(),
+          });
+          console.log("API Response Status:", res.status);
+          if (!res.ok) throw new Error(`게시글 로드 실패 (${res.status})`);
+          const data: CommunityPost = await res.json();
+          console.log("Fetched Post:", data);
+          setPost(data);
+          setEditedTitle(data.title);
+          setEditedContent(data.content);
+          setPreviewImages(data.images || []);
+        } catch (err: any) {
+          console.error("게시글 로드 에러:", err.message);
+          setError(err.message || "게시글을 불러오는 중 오류가 발생했습니다.");
+          setPost(null);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchPost();
+    } else if (initialPost) {
+      setEditedTitle(initialPost.title);
+      setEditedContent(initialPost.content);
+      setPreviewImages(initialPost.images || []);
+    }
+  }, [initialPost, postId]);
 
-  const handleDelete = () => {
-    onDeletePost(post.id);
-    onBack(); // Go back to community list after deletion
+  const getAuthHeaders = (): HeadersInit => {
+    const token = localStorage.getItem("accessToken");
+    console.log("Access Token:", token);
+    return token ? { Access_Token: token } : {};
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      setEditedImages((prev) => [...prev, ...filesArray]);
+      const newPreviews = filesArray.map((file) => URL.createObjectURL(file));
+      setPreviewImages((prev) => [...prev, ...newPreviews]);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    const removedImage = previewImages[index];
+    if (removedImage.startsWith("http")) {
+      const fileName = removedImage.split("/").pop() || "";
+      setImagesToDelete((prev) => [...prev, fileName]);
+    }
+    setPreviewImages((prev) => prev.filter((_, i) => i !== index));
+    setEditedImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleEditSave = async () => {
+    if (!post) {
+      alert("게시글 데이터가 없습니다.");
+      return;
+    }
+    try {
+      const formData = new FormData();
+      const dto = {
+        title: editedTitle,
+        content: editedContent,
+        category: post.category,
+        boardType: post.boardType,
+        tags: post.tags,
+        imagesToDelete,
+        ownerEmail: post.ownerEmail,
+      };
+      formData.append("dto", new Blob([JSON.stringify(dto)], { type: "application/json" }));
+
+      editedImages.forEach((file) => {
+        formData.append("postImg", file);
+      });
+
+      const res = await fetch(`${API_BASE_URL}/api/community/posts/${post.id}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error(`게시글 수정 실패 (${res.status})`);
+
+      const updatedPost = await res.json();
+      onUpdatePost({
+        ...post,
+        title: updatedPost.title,
+        content: updatedPost.content,
+        images: updatedPost.images || [],
+      });
+      setIsEditing(false);
+      setImagesToDelete([]);
+      router.push(`/community/${post.id}`); // 수정 후 쿼리 파라미터 제거
+    } catch (err: any) {
+      console.error("게시글 수정 에러:", err.message);
+      alert("게시글 수정 중 오류가 발생했습니다: " + err.message);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!post) {
+      alert("게시글 데이터가 없습니다.");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/community/posts/${post.id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) throw new Error(`게시글 삭제 실패 (${res.status})`);
+
+      onDeletePost(post.id);
+      onBack();
+    } catch (err: any) {
+      console.error("게시글 삭제 에러:", err.message);
+      alert("게시글 삭제 중 오류가 발생했습니다: " + err.message);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        <p>게시글을 불러오는 중...</p>
+      </div>
+    );
+  }
+
+  if (!post || error) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        <p>{error || "게시글을 불러올 수 없습니다."}</p>
+        <Button variant="outline" onClick={onBack} className="mt-4">
+          <ChevronLeft className="h-4 w-4 mr-2" /> 뒤로가기
+        </Button>
+      </div>
+    );
+  }
+
+  const canEditOrDelete =
+    currentUserEmail &&
+    post.ownerEmail &&
+    (currentUserEmail === post.ownerEmail || currentUserRole === "ADMIN");
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4">
-        {/* Back Button */}
-        <Button onClick={onBack} variant="outline" className="mb-6 bg-transparent">
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          목록으로
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-4">
+        <Button variant="outline" onClick={onBack}>
+          <ChevronLeft className="h-4 w-4 mr-2" /> 뒤로가기
         </Button>
 
-        {/* Post Detail Card */}
-        <Card className="mb-8">
-          <CardHeader>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <Badge variant={post.boardType === "Q&A" ? "default" : "secondary"}>{post.boardType}</Badge>
-                <span className="text-sm text-gray-500">{post.author}</span>
-                <span className="text-sm text-gray-500">{post.date}</span>
-              </div>
-              {/* Edit/Delete Buttons (Example: only for author or admin) */}
-              {isLoggedIn && currentUserEmail === post.ownerEmail && ( // Only show edit/delete if current user is the owner
-                <div className="flex space-x-2">
-                  <Button size="sm" variant="outline" onClick={() => setIsEditing(!isEditing)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button size="sm" variant="outline" className="text-red-500 hover:text-red-600 bg-transparent"
-                    onClick={() => setShowDeleteConfirm(true)} // Show confirmation on click
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-            {isEditing ? (
-              <Input
-                value={editedTitle}
-                onChange={(e) => setEditedTitle(e.target.value)}
-                className="text-2xl font-bold"
-              />
-            ) : (
-              <CardTitle className="text-2xl font-bold">{post.title}</CardTitle>
-            )}
-          </CardHeader>
-          <CardContent>
-            {isEditing ? (
-              <Textarea value={editedContent} onChange={(e) => setEditedContent(e.target.value)} rows={10} />
-            ) : (
-              <p className="text-gray-800 leading-relaxed mb-6">{post.content}</p>
-            )}
-
-            {post.images && post.images.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                {post.images.map((image, index) => (
-                  <div key={index} className="relative w-full h-48 rounded-md overflow-hidden">
-                    <Image
-                      src={image || "/placeholder.svg"}
-                      alt={`Post image ${index + 1}`}
-                      layout="fill"
-                      objectFit="cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {isEditing && (
-              <Button onClick={handleEditSave} className="mt-4 bg-yellow-400 hover:bg-yellow-500 text-black">
-                수정 완료
+        {canEditOrDelete && (
+          <div className="flex gap-2">
+            {!isEditing && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => router.push(`/community/${post.id}?edit=true`)}
+              >
+                <Edit className="h-4 w-4" />
               </Button>
             )}
-
-            <div className="flex items-center space-x-6 text-sm text-gray-500 mt-4 pt-4 border-t">
-              <span className="flex items-center">
-                <Eye className="h-4 w-4 mr-1" />
-                {post.views}
-              </span>
-              <span className="flex items-center">
-                <MessageSquare className="h-4 w-4 mr-1" />
-                {post.comments}
-              </span>
-              <span className="flex items-center">
-                <Heart className="h-4 w-4 mr-1" />
-                {post.likes}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Comments Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl font-bold">댓글 ({comments.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4 mb-6">
-              {comments.map((comment) => (
-                <div key={comment.id} className="border-b pb-4 last:border-b-0 last:pb-0">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className="font-semibold text-gray-800">{comment.author}</span>
-                    <span className="text-xs text-gray-500">{comment.date}</span>
-                  </div>
-                  <p className="text-gray-700">{comment.content}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Comment Input */}
-            <div className="space-y-2">
-              <Textarea
-                placeholder={isLoggedIn ? "댓글을 입력하세요..." : "로그인 후 댓글을 작성할 수 있습니다."}
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                disabled={!isLoggedIn}
-                rows={3}
-              />
-              <Button onClick={handleAddComment} disabled={!isLoggedIn || !newComment.trim()} className="bg-yellow-400 hover:bg-yellow-500 text-black">
-                댓글 작성
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-md mx-4">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold mb-4">게시글 삭제</h3>
-                <p className="text-gray-600 mb-6">
-                  정말로 이 게시글을 삭제하시겠습니까?
-                  <br />
-                  삭제된 게시글은 복구할 수 없습니다.
-                </p>
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
-                    취소
-                  </Button>
-                  <Button onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">
-                    삭제
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <Button
+              variant="destructive"
+              size="icon"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         )}
+      </div>
 
+      {isEditing ? (
+        <div className="space-y-4">
+          <Input value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} />
+          <Textarea
+            value={editedContent}
+            onChange={(e) => setEditedContent(e.target.value)}
+            rows={6}
+          />
+          <Input type="file" multiple accept="image/*" onChange={handleImageUpload} />
+          <div className="flex flex-wrap gap-2 mt-2">
+            {previewImages.map((src, idx) => (
+              <div key={idx} className="relative w-24 h-24">
+                <Image src={src} alt={`preview-${idx}`} fill className="object-cover rounded" />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-1 right-1"
+                  onClick={() => handleRemoveImage(idx)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleEditSave} className="bg-green-500 text-white">
+              <Check className="h-4 w-4 mr-1" /> 저장
+            </Button>
+            <Button variant="outline" onClick={() => setIsEditing(false)}>
+              취소
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <h1 className="text-2xl font-bold">{post.title}</h1>
+          <p className="mt-2">{post.content}</p>
+          {post.images && post.images.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {post.images.map((src, idx) => (
+                <Image
+                  key={idx}
+                  src={src}
+                  alt={`post-img-${idx}`}
+                  width={200}
+                  height={150}
+                  className="rounded"
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="mt-4 p-4 border rounded bg-red-50">
+          <p>정말로 삭제하시겠습니까?</p>
+          <div className="flex gap-2 mt-2">
+            <Button variant="destructive" onClick={handleDelete}>
+              삭제
+            </Button>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              취소
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }

@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Edit, Trash2, Save, X, Mic, MicOff, Play, Pause, Camera } from "lucide-react"
 import Image from "next/image"
-import type { DiaryEntry } from "./diary";
+import type { DiaryEntry } from "./diary";   
+
 
 
 interface DiaryEntryDetailProps {

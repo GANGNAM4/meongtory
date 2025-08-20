@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Heart, Eye, Plus, Search } from "lucide-react";
+import { MessageSquare, Heart, Eye, Plus, Search, Edit, Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface CommunityPost {
@@ -59,6 +59,24 @@ export default function CommunityPage({
     onUpdatePosts(posts?.map((post) => (post.id === postId ? { ...post, likes: post.likes + 1 } : post)) || []);
   };
 
+  const handleEdit = (post: CommunityPost) => {
+    if (!isLoggedIn) {
+      onShowLogin();
+      return;
+    }
+    router.push(`/community/${post.id}?edit=true`);
+  };
+
+  const handleDelete = (postId: number) => {
+    if (!isLoggedIn) {
+      onShowLogin();
+      return;
+    }
+    if (confirm("정말로 이 게시글을 삭제하시겠습니까?")) {
+      onUpdatePosts(posts?.filter((post) => post.id !== postId) || []);
+    }
+  };
+
   const handleNavigateToWrite = () => {
     if (!isLoggedIn) {
       onShowLogin();
@@ -68,7 +86,7 @@ export default function CommunityPage({
   };
 
   const handleViewPost = (post: CommunityPost) => {
-    window.location.href = `/community/${post.id}`;
+    router.push(`/community/${post.id}`);
   };
 
   return (
@@ -130,6 +148,30 @@ export default function CommunityPage({
                             <Heart className="h-4 w-4 mr-1" />
                             {post.likes}
                           </button>
+                          {isLoggedIn && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEdit(post);
+                                }}
+                                className="flex items-center hover:text-blue-500 transition-colors"
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                수정
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(post.id);
+                                }}
+                                className="flex items-center hover:text-red-500 transition-colors"
+                              >
+                                <Trash className="h-4 w-4 mr-1" />
+                                삭제
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                       {post.images && post.images.length > 0 && (
