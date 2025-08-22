@@ -34,10 +34,9 @@ import OrdersTab from "@/components/admin/OrdersTab"
 import ContractsTab from "@/components/admin/ContractsTab"
 
 
-import { petApi, handleApiError, s3Api, adoptionRequestApi, productApi } from "@/lib/api"
+import { petApi, handleApiError, s3Api, adoptionRequestApi, productApi, getBackendUrl } from "@/lib/api"
 import axios from "axios"
 import { formatToKST, formatToKSTWithTime, getCurrentKSTDate } from "@/lib/utils"
-import { getBackendUrl } from "@/lib/api"
 import { toast } from "sonner"
 
 interface Product {
@@ -836,7 +835,6 @@ export default function AdminPage({
         selectedPet={selectedPetForEdit}
         petId={selectedPetForEdit?.petId || (selectedPetForEdit as any)?.id || (selectedPetForEdit as any)?.petId}
         onUpdatePet={() => {
-          // 모달 내부에서 직접 처리하므로 여기서는 아무것도 하지 않음
           handleCloseEditModal()
           window.location.reload()
         }}
