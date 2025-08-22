@@ -287,6 +287,19 @@ export const adoptionRequestApi = {
   },
 };
 
+// 보험 API 함수들
+export const insuranceApi = {
+  getProducts: async (): Promise<any[]> => {
+    const response = await axios.get(`${getBackendUrl()}/api/insurance`)
+    // ResponseDto 형태 가정
+    return Array.isArray(response.data) ? response.data : response.data.data
+  },
+  getProduct: async (id: number): Promise<any> => {
+    const response = await axios.get(`${getBackendUrl()}/api/insurance/${id}`)
+    return response.data.data
+  },
+}
+
 // 상품 API 함수들
 export const productApi = {
   getProducts: async (): Promise<any[]> => {

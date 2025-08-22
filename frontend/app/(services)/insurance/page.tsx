@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ChevronDown, ChevronUp, Heart } from "lucide-react"
+import { insuranceApi } from "@/lib/api"
 
 interface InsuranceProduct {
   id: number
@@ -14,6 +15,7 @@ interface InsuranceProduct {
   description: string
   features: string[]
   logo: string
+  redirectUrl?: string
 }
 
 interface PetInsurancePageProps {
@@ -106,6 +108,36 @@ export default function PetInsurancePage({
   const [showInsuranceDropdown, setShowInsuranceDropdown] = useState(false)
   const [showCoverageDropdown, setShowCoverageDropdown] = useState(false)
   const [selectedPetType, setSelectedPetType] = useState<"dog" | "cat">("dog")
+
+  // 백엔드 보험 상품 목록 연동
+  const [products, setProducts] = useState<InsuranceProduct[]>([])
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const data = await insuranceApi.getProducts()
+        const mapped: InsuranceProduct[] = (data || []).map((d: any) => ({
+          id: d.id,
+          company: d.company,
+          productName: d.productName,
+          description: d.description,
+          features: d.features || [],
+          logo: d.logoUrl || "/placeholder.svg?height=40&width=40",
+          redirectUrl: d.redirectUrl,
+        }))
+        setProducts(mapped)
+      } catch (e) {
+        setError("보험 상품을 불러오지 못했습니다.")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
 
   const handleCoverageChange = (coverageId: string, checked: boolean) => {
     if (checked) {
@@ -264,8 +296,13 @@ export default function PetInsurancePage({
         </div>
 
         {/* Insurance Products Grid */}
+        {loading ? (
+          <div className="text-center text-gray-600">불러오는 중...</div>
+        ) : error ? (
+          <div className="text-center text-red-500">{error}</div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockInsuranceProducts.map((product) => (
+          {(products.length ? products : mockInsuranceProducts).map((product) => (
             <Card key={product.id} className="bg-white shadow-lg hover:shadow-xl transition-shadow h-full">
               <CardContent className="p-6 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-4">
@@ -292,7 +329,7 @@ export default function PetInsurancePage({
                   <div className="mb-6 flex-1">
                     <h4 className="font-semibold text-sm mb-2 text-yellow-600">비마이펫 TIP</h4>
                     <ul className="space-y-1">
-                      {product.features.map((feature, index) => (
+                      {(product.features || []).map((feature, index) => (
                         <li key={index} className="text-xs text-gray-600 flex items-start">
                           <span className="text-yellow-500 mr-2">•</span>
                           {feature}
@@ -302,8 +339,17 @@ export default function PetInsurancePage({
                   </div>
 
                   <div className="mt-auto">
+                    <div className="text-xs text-gray-500 mb-2">
+                      해당 상품은 공식 보험사 페이지에서 확인 가능합니다.
+                    </div>
                     <Button
-                      onClick={() => onViewDetails?.(product)}
+                      onClick={() => {
+                        if (product.redirectUrl) {
+                          window.open(product.redirectUrl, '_blank', 'noopener,noreferrer')
+                        } else {
+                          onViewDetails?.(product)
+                        }
+                      }}
                       className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-medium h-10"
                     >
                       자세히 보기
@@ -314,6 +360,7 @@ export default function PetInsurancePage({
             </Card>
           ))}
         </div>
+        )}
       </div>
     </div>
   )
