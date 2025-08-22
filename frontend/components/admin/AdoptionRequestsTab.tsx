@@ -32,7 +32,6 @@ export default function AdoptionRequestsTab({
       setError(null)
       
       const response = await adoptionRequestApi.getAdoptionRequests()
-      console.log('Adoption requests response:', response)
       
       // response가 배열인지 확인
       if (!response || !Array.isArray(response)) {
@@ -53,10 +52,7 @@ export default function AdoptionRequestsTab({
   // 입양신청 상태 업데이트
   const handleUpdateAdoptionRequestStatus = async (requestId: number, status: "PENDING" | "CONTACTED" | "APPROVED" | "REJECTED") => {
     try {
-      console.log(`입양 신청 상태 변경 요청: 신청ID ${requestId}, 상태 ${status}`);
-      
       const response = await adoptionRequestApi.updateAdoptionRequestStatus(requestId, status);
-      console.log('업데이트된 입양 신청:', response);
       
       // 현재 입양 신청 목록에서 해당 신청만 업데이트
       setAdoptionRequests(prev => prev.map(request => 
@@ -72,7 +68,6 @@ export default function AdoptionRequestsTab({
           try {
             // 펫의 adopted 상태를 true로 업데이트
             await petApi.updateAdoptionStatus(approvedRequest.petId, true);
-            console.log(`펫 ${approvedRequest.petId}의 입양 상태를 완료로 업데이트했습니다.`);
           } catch (error) {
             console.error('펫 상태 업데이트 실패:', error);
           }

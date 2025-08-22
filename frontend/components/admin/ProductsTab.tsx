@@ -47,8 +47,6 @@ export default function ProductsTab({
       setLoading(true)
       setError(null)
       
-      const API_BASE_URL = `${getBackendUrl()}/api`
-      
       // 기존 상품들 가져오기
       const apiProducts = await productApi.getProducts()
       console.log('API Products response:', apiProducts)
@@ -83,7 +81,7 @@ export default function ProductsTab({
 
       // 네이버 상품들 가져오기
       try {
-        const naverResponse = await axios.get(`${API_BASE_URL}/naver-shopping/products/popular`, {
+        const naverResponse = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/popular`, {
           params: { page: 0, size: 50 }
         })
         
@@ -154,8 +152,7 @@ export default function ProductsTab({
       
       if (isNaverProduct) {
         // 네이버 상품 삭제
-        const API_BASE_URL = `${getBackendUrl()}/api`
-        await axios.delete(`${API_BASE_URL}/naver-shopping/products/${productId}`)
+        await axios.delete(`${getBackendUrl()}/api/naver-shopping/products/${productId}`)
         console.log('네이버 상품 삭제 완료')
       } else {
         // 기존 상품 삭제
@@ -195,8 +192,6 @@ export default function ProductsTab({
     setNaverError(null)
     
     try {
-      const API_BASE_URL = `${getBackendUrl()}/api`
-      
       // 다양한 펫 용품 검색어들
       const searchTerms = [
         "강아지 사료",
@@ -215,7 +210,7 @@ export default function ProductsTab({
           console.log(`${term} 검색 중...`)
           
           // 네이버 쇼핑 API 호출
-          const searchResponse = await axios.post(`${API_BASE_URL}/naver-shopping/search`, {
+          const searchResponse = await axios.post(`${getBackendUrl()}/api/naver-shopping/search`, {
             query: term,
             display: 10,
             start: 1,
@@ -228,7 +223,7 @@ export default function ProductsTab({
             // 각 상품을 DB에 저장
             for (const item of items) {
               try {
-                const saveResponse = await axios.post(`${API_BASE_URL}/naver-shopping/save`, {
+                const saveResponse = await axios.post(`${getBackendUrl()}/api/naver-shopping/save`, {
                   productId: item.productId || '',
                   title: item.title || '제목 없음',
                   description: item.description || '',

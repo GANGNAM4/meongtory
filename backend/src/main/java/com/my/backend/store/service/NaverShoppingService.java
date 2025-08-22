@@ -162,23 +162,7 @@ public class NaverShoppingService {
         return naverProducts.map(this::convertToDto);
     }
 
-    /**
-     * 인기 상품 조회
-     */
-    public Page<NaverProductDto> getPopularProducts(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<NaverProduct> naverProducts = naverProductRepository.findPopularProducts(pageable);
-        return naverProducts.map(this::convertToDto);
-    }
 
-    /**
-     * 높은 평점 상품 조회
-     */
-    public Page<NaverProductDto> getTopRatedProducts(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<NaverProduct> naverProducts = naverProductRepository.findTopRatedProducts(pageable);
-        return naverProducts.map(this::convertToDto);
-    }
 
     /**
      * 특정 상품과 관련된 네이버 상품 조회
@@ -365,6 +349,27 @@ public class NaverShoppingService {
             return Double.parseDouble(str);
         } catch (Exception e) {
             return 0.0;
+        }
+    }
+
+    /**
+     * 인기 네이버 상품 조회
+     */
+    public Page<NaverProductDto> getPopularProducts(int page, int size) {
+        try {
+            log.info("인기 네이버 상품 조회 시작: page={}, size={}", page, size);
+            
+            Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "searchCount", "reviewCount"));
+            Page<NaverProduct> products = naverProductRepository.findPopularProducts(pageable);
+            
+            Page<NaverProductDto> productDtos = products.map(this::convertToDto);
+            
+            log.info("인기 네이버 상품 조회 완료: 총 {}개 상품", productDtos.getTotalElements());
+            return productDtos;
+            
+        } catch (Exception e) {
+            log.error("인기 네이버 상품 조회 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("인기 네이버 상품 조회에 실패했습니다: " + e.getMessage());
         }
     }
 

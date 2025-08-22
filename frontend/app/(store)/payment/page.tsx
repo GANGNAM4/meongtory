@@ -11,6 +11,7 @@ interface PaymentItem {
   price: number;
   quantity: number;
   image: string;
+  isNaverProduct?: boolean; // 네이버 상품 여부 추가
 }
 
 function PaymentContent() {
@@ -27,13 +28,15 @@ function PaymentContent() {
     const price = searchParams.get('price');
     const quantity = searchParams.get('quantity');
     const imageUrl = searchParams.get('imageUrl');
+    const isNaverProduct = searchParams.get('isNaverProduct'); // 네이버 상품 여부 추가
 
     console.log('URL 파라미터 확인:', {
       productId,
       productName,
       price,
       quantity,
-      imageUrl
+      imageUrl,
+      isNaverProduct
     });
 
     if (productId && productName && price && quantity && imageUrl) {
@@ -44,10 +47,13 @@ function PaymentContent() {
           name: decodeURIComponent(productName),
           price: parseInt(price),
           quantity: parseInt(quantity),
-          image: decodeURIComponent(imageUrl)
+          image: decodeURIComponent(imageUrl),
+          isNaverProduct: isNaverProduct === 'true' // 네이버 상품 여부 설정
         }
       ];
       console.log('실제 상품 정보로 설정:', items);
+      console.log('isNaverProduct 값:', isNaverProduct);
+      console.log('isNaverProduct === "true":', isNaverProduct === 'true');
       setPaymentItems(items);
     } else {
       // 파라미터가 없으면 테스트용 상품 데이터 사용
@@ -57,7 +63,8 @@ function PaymentContent() {
           name: '테스트 상품',
           price: 1000,
           quantity: 1,
-          image: 'https://via.placeholder.com/150x150?text=Test+Product'
+          image: 'https://via.placeholder.com/150x150?text=Test+Product',
+          isNaverProduct: false
         }
       ];
       console.log('테스트 상품 정보로 설정:', testItems);
@@ -71,7 +78,6 @@ function PaymentContent() {
   };
 
   const handleSuccess = (paymentInfo: any) => {
-    console.log('결제 성공:', paymentInfo);
     alert('결제가 성공했습니다!');
     router.push('/');
   };

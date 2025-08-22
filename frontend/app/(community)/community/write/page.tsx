@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, ImageIcon, X } from "lucide-react";
 import axios from "axios";
+import { getBackendUrl } from "@/lib/api";
 import { toast } from "react-hot-toast";
 
 export const dynamic = "force-dynamic";
@@ -41,13 +42,12 @@ const refreshAccessToken = async () => {
       return null;
     }
     const response = await axios.post(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080"}/api/accounts/refresh`,
+      `${getBackendUrl()}/api/accounts/refresh`,
       { refreshToken },
       { headers: { "Content-Type": "application/json" } }
     );
     const { accessToken } = response.data.data;
     localStorage.setItem("accessToken", accessToken);
-    console.log("토큰 갱신 성공");
     return accessToken;
   } catch (err) {
     console.error("토큰 갱신 실패:", err);
@@ -66,10 +66,8 @@ export default function CommunityWritePage({ onShowLogin }: CommunityWritePagePr
   const [error, setError] = useState("");
   const [currentUserEmail, setCurrentUserEmail] = useState("");
   const router = useRouter();
-  const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
 
   useEffect(() => {
-    console.log("CommunityWritePage mounted, API_BASE_URL:", API_BASE_URL);
     const fetchUserInfo = async () => {
       try {
         if (typeof window === "undefined") {
@@ -88,7 +86,7 @@ export default function CommunityWritePage({ onShowLogin }: CommunityWritePagePr
           }
           return;
         }
-        const res = await axios.get(`${API_BASE_URL}/api/accounts/me`, {
+        const res = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
           headers: {
             Access_Token: token, // Authorization -> Access_Token
           },
@@ -108,7 +106,7 @@ export default function CommunityWritePage({ onShowLogin }: CommunityWritePagePr
           const newToken = await refreshAccessToken();
           if (newToken) {
             try {
-              const res = await axios.get(`${API_BASE_URL}/api/accounts/me`, {
+              const res = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
                 headers: {
                   Access_Token: newToken,
                 },
@@ -215,7 +213,7 @@ export default function CommunityWritePage({ onShowLogin }: CommunityWritePagePr
         formData.append("postImg", file);
       });
 
-      const res = await axios.post(`${API_BASE_URL}/api/community/posts/create`, formData, {
+      const res = await axios.post(`${getBackendUrl()}/api/community/posts/create`, formData, {
         headers: {
           Access_Token: token, // Authorization -> Access_Token
         },
@@ -268,7 +266,7 @@ export default function CommunityWritePage({ onShowLogin }: CommunityWritePagePr
             imageFiles.forEach((file) => {
               formData.append("postImg", file);
             });
-            const res = await axios.post(`${API_BASE_URL}/api/community/posts/create`, formData, {
+            const res = await axios.post(`${getBackendUrl()}/api/community/posts/create`, formData, {
               headers: {
                 Access_Token: newToken,
               },

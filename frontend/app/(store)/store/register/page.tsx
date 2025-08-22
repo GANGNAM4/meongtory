@@ -24,7 +24,6 @@ interface Product {
   stock: number
   registrationDate: string
   registeredBy: string
-  petType: "all"
 }
 
 interface StoreProductRegistrationPageProps {
@@ -53,7 +52,6 @@ function StoreProductRegistrationPageContent({
     category: "",
     description: "",
     stock: "",
-    petType: "all", // Add petType to form data
   })
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -149,7 +147,6 @@ function StoreProductRegistrationPageContent({
         category: "",
         description: "",
         stock: "",
-        petType: "all", // Reset petType
       })
       setImageFile(null); // Reset image file
       setImagePreview(null); // Reset image preview
@@ -238,13 +235,7 @@ function StoreProductRegistrationPageContent({
                 </Select>
               </div>
 
-              {/* Pet Type */}
-              <div className="space-y-2">
-                <Label htmlFor="petType">대상 동물 *</Label>
-                <div className="p-3 bg-gray-50 rounded-md border">
-                  <span className="text-sm text-gray-700">강아지/고양이 (모두)</span>
-                </div>
-              </div>
+
 
               {/* Price and Stock */}
               <div className="grid grid-cols-2 gap-4">

@@ -62,19 +62,10 @@ public class DiaryController {
         Long currentUserId = userDetails.getAccount().getId();
         String userRole = userDetails.getAccount().getRole();
         
-        System.out.println("🔍 === Backend PUT Request Debug ===");
-        System.out.println("🔍 Updating diary with ID: " + id);
-        System.out.println("🔍 Current user ID: " + currentUserId);
-        System.out.println("🔍 Current user role: " + userRole);
-        System.out.println("🔍 Update data: title = " + dto.getTitle() + ", text = " + dto.getText() + ", imageUrl = " + dto.getImageUrl() + ", audioUrl = " + dto.getAudioUrl());
-        System.out.println("🔍 Request body: " + dto);
-        
         try {
             DiaryResponseDto result = diaryService.updateDiary(id, dto, currentUserId, userRole);
-            System.out.println("🔍 Update successful: " + result);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            System.out.println("🔍 Update failed with error: " + e.getMessage());
             e.printStackTrace();
             throw e;
         }

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { X, Send } from "lucide-react"
 import axios from "axios"
-import { getApiBaseUrl, getBackendUrl } from "@/lib/api";
+import { getBackendUrl } from "@/lib/api";
 
 interface ChatMessage {
   id: number
@@ -48,9 +48,7 @@ export default function Chatbot() {
       // 비동기적으로 챗봇 응답 처리
       try {
 
-        const apiUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/chatbot/query`;
-        const response = await axios.post(
-          `${getBackendUrl()}/api/chatbot/query`,
+        const response = await axios.post(`${getBackendUrl()}/api/chatbot/query`,
           { query: inputMessage },
           { headers: { "Content-Type": "application/json" } }
         )

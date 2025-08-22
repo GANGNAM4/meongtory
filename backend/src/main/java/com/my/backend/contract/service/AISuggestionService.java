@@ -38,24 +38,13 @@ public class AISuggestionService {
     @Value("${AI_SERVICE_URL:http://localhost:9000}")
     private String aiServiceUrl;
     
-    @PostConstruct
-    public void init() {
-        System.out.println("=== AISuggestionService 초기화 ===");
-        System.out.println("AI Service URL: " + aiServiceUrl);
-    }
-    
     public List<AISuggestionDto> getClauseSuggestions(Long templateId, List<String> currentClauses,
                                                      ContractGenerationRequestDto.PetInfoDto petInfo,
                                                      ContractGenerationRequestDto.UserInfoDto userInfo,
                                                      String requestedBy) {
         
-
-        
         // AI 조항 추천 생성
-        System.out.println("=== generateClauseSuggestions 호출 시작 ===");
         List<AISuggestionDto> suggestions = generateClauseSuggestions(templateId, currentClauses, petInfo, userInfo);
-        System.out.println("=== generateClauseSuggestions 호출 완료 ===");
-        System.out.println("생성된 suggestions 개수: " + suggestions.size());
         
         // 추천 내용 저장
         for (AISuggestionDto suggestion : suggestions) {
@@ -81,7 +70,14 @@ public class AISuggestionService {
             requestBody.put("templateSections", requestDto.getTemplateSections()); // 템플릿의 실제 조항들
             requestBody.put("customSections", requestDto.getCustomSections()); // 추가할 커스텀 조항들
             requestBody.put("removedSections", requestDto.getRemovedSections());
-            requestBody.put("petInfo", createPetInfoMap(requestDto.getPetInfo()));
+            Map<String, Object> petInfoMap = new HashMap<>();
+            if (requestDto.getPetInfo() != null) {
+                petInfoMap.put("name", requestDto.getPetInfo().getName() != null ? requestDto.getPetInfo().getName() : "");
+                petInfoMap.put("breed", requestDto.getPetInfo().getBreed() != null ? requestDto.getPetInfo().getBreed() : "");
+                petInfoMap.put("age", requestDto.getPetInfo().getAge() != null ? requestDto.getPetInfo().getAge() : 0);
+                petInfoMap.put("healthStatus", requestDto.getPetInfo().getHealthStatus() != null ? requestDto.getPetInfo().getHealthStatus() : "");
+            }
+            requestBody.put("petInfo", petInfoMap);
             
             Map<String, Object> userInfoMap = new HashMap<>();
             if (requestDto.getUserInfo() != null) {
@@ -91,10 +87,6 @@ public class AISuggestionService {
             }
             requestBody.put("userInfo", userInfoMap);
             requestBody.put("additionalInfo", requestDto.getAdditionalInfo());
-            
-            System.out.println("=== AI 서비스 요청 데이터 ===");
-            System.out.println("URL: " + aiServiceUrl + "/generate-contract");
-            System.out.println("Request Body: " + requestBody);
             
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -106,32 +98,20 @@ public class AISuggestionService {
                 Map.class
             );
             
-            System.out.println("=== AI 서비스 응답 데이터 ===");
-            System.out.println("Status Code: " + response.getStatusCode());
-            System.out.println("Response Body: " + response.getBody());
-            
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                System.out.println("=== AI 서비스 응답 성공, 반환 ===");
-                System.out.println("Returning: " + response.getBody());
                 return response.getBody();
             } else {
-                System.out.println("=== AI 서비스 응답 실패, 기본 응답 반환 ===");
                 return getDefaultContractResponse();
             }
             
         } catch (Exception e) {
             // 에러 발생 시 기본 응답 반환
-            System.out.println("=== AI 서비스 호출 중 예외 발생 ===");
-            System.out.println("Exception: " + e.getMessage());
             e.printStackTrace();
             return getDefaultContractResponse();
         }
     }
     
     public Map<String, Object> getContractSuggestions(ContractSuggestionRequestDto requestDto, String requestedBy) {
-        System.out.println("=== getContractSuggestions 메서드 시작 ===");
-        System.out.println("requestDto: " + requestDto);
-        System.out.println("requestedBy: " + requestedBy);
         
         try {
             // AI 서비스에 요청
@@ -139,7 +119,14 @@ public class AISuggestionService {
             requestBody.put("templateId", requestDto.getTemplateId());
             requestBody.put("currentContent", requestDto.getCurrentContent());
             
-            requestBody.put("petInfo", createPetInfoMap(requestDto.getPetInfo()));
+            Map<String, Object> petInfoMap = new HashMap<>();
+            if (requestDto.getPetInfo() != null) {
+                petInfoMap.put("name", requestDto.getPetInfo().getName() != null ? requestDto.getPetInfo().getName() : "");
+                petInfoMap.put("breed", requestDto.getPetInfo().getBreed() != null ? requestDto.getPetInfo().getBreed() : "");
+                petInfoMap.put("age", requestDto.getPetInfo().getAge() != null ? requestDto.getPetInfo().getAge() : 0);
+                petInfoMap.put("healthStatus", requestDto.getPetInfo().getHealthStatus() != null ? requestDto.getPetInfo().getHealthStatus() : "");
+            }
+            requestBody.put("petInfo", petInfoMap);
             
             Map<String, Object> userInfoMap = new HashMap<>();
             if (requestDto.getUserInfo() != null) {
@@ -148,10 +135,6 @@ public class AISuggestionService {
                 userInfoMap.put("email", requestDto.getUserInfo().getEmail() != null ? requestDto.getUserInfo().getEmail() : "");
             }
             requestBody.put("userInfo", userInfoMap);
-            
-            System.out.println("=== AI 서비스 계약서 추천 요청 ===");
-            System.out.println("URL: " + aiServiceUrl + "/contract-suggestions");
-            System.out.println("Request Body: " + requestBody);
             
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -162,10 +145,6 @@ public class AISuggestionService {
                 request, 
                 Map.class
             );
-            
-            System.out.println("=== AI 서비스 계약서 추천 응답 ===");
-            System.out.println("Status Code: " + response.getStatusCode());
-            System.out.println("Response Body: " + response.getBody());
             
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return response.getBody();
@@ -179,33 +158,22 @@ public class AISuggestionService {
         }
     }
     
-    // 공통 petInfoMap 생성 메서드
-    private Map<String, Object> createPetInfoMap(ContractGenerationRequestDto.PetInfoDto petInfo) {
-        Map<String, Object> petInfoMap = new HashMap<>();
-        if (petInfo != null) {
-            petInfoMap.put("petId", petInfo.getPetId());
-            petInfoMap.put("name", petInfo.getName() != null ? petInfo.getName() : "");
-            petInfoMap.put("breed", petInfo.getBreed() != null ? petInfo.getBreed() : "");
-            petInfoMap.put("age", petInfo.getAge() != null ? petInfo.getAge() : "알 수 없음");
-            petInfoMap.put("gender", petInfo.getGender() != null ? petInfo.getGender() : "UNKNOWN");
-            petInfoMap.put("healthStatus", petInfo.getHealthStatus() != null ? petInfo.getHealthStatus() : "건강상태 정보 없음");
-            petInfoMap.put("weight", petInfo.getWeight());
-            petInfoMap.put("vaccinated", petInfo.getVaccinated() != null ? petInfo.getVaccinated() : false);
-            petInfoMap.put("neutered", petInfo.getNeutered() != null ? petInfo.getNeutered() : false);
-        }
-        return petInfoMap;
-    }
-
     private List<AISuggestionDto> generateClauseSuggestions(Long templateId, List<String> currentClauses,
                                                            ContractGenerationRequestDto.PetInfoDto petInfo,
                                                            ContractGenerationRequestDto.UserInfoDto userInfo) {
-        System.out.println("=== 조항 추천 요청 시작 ===");
         try {
             // AI 서비스에 요청
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("templateId", templateId);
             requestBody.put("currentClauses", currentClauses);
-            requestBody.put("petInfo", createPetInfoMap(petInfo));
+            Map<String, Object> petInfoMap = new HashMap<>();
+            if (petInfo != null) {
+                petInfoMap.put("name", petInfo.getName() != null ? petInfo.getName() : "");
+                petInfoMap.put("breed", petInfo.getBreed() != null ? petInfo.getBreed() : "");
+                petInfoMap.put("age", petInfo.getAge() != null ? petInfo.getAge() : 0);
+                petInfoMap.put("healthStatus", petInfo.getHealthStatus() != null ? petInfo.getHealthStatus() : "");
+            }
+            requestBody.put("petInfo", petInfoMap);
             
             Map<String, Object> userInfoMap = new HashMap<>();
             if (userInfo != null) {
@@ -215,14 +183,8 @@ public class AISuggestionService {
             }
             requestBody.put("userInfo", userInfoMap);
             
-            System.out.println("=== AI 서비스 조항 추천 요청 ===");
-            System.out.println("URL: " + aiServiceUrl + "/clause-suggestions");
-            System.out.println("Request Body: " + requestBody);
-            System.out.println("RestTemplate: " + restTemplate);
-            
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            System.out.println("Headers: " + headers);
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             
             ResponseEntity<Map> response = restTemplate.postForEntity(
@@ -231,26 +193,16 @@ public class AISuggestionService {
                 Map.class
             );
             
-            System.out.println("=== AI 서비스 조항 추천 응답 ===");
-            System.out.println("Status Code: " + response.getStatusCode());
-            System.out.println("Response Body: " + response.getBody());
-            
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                System.out.println("=== AI 조항 추천 성공 ===");
                 List<Map<String, Object>> suggestions = (List<Map<String, Object>>) response.getBody().get("suggestions");
                 return convertToAISuggestionDtos(suggestions);
             } else {
-                System.out.println("=== AI 조항 추천 실패, 기본 추천 반환 ===");
                 return getDefaultClauseSuggestions();
             }
             
         } catch (Exception e) {
             // 에러 발생 시 기본 추천 반환
-            System.out.println("=== AI 조항 추천 예외 발생 ===");
-            System.out.println("Exception: " + e.getMessage());
-            System.out.println("Exception Type: " + e.getClass().getName());
             e.printStackTrace();
-            System.out.println("=== 기본 추천 반환 ===");
             return getDefaultClauseSuggestions();
         }
     }

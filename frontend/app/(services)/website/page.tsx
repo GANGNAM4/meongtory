@@ -37,6 +37,7 @@ import MyPage from "../../(dashboard)/my/page";
 import axios from "axios"
 import { Toaster, toast } from "react-hot-toast"
 import { getCurrentKSTDate } from "@/lib/utils"
+import { getBackendUrl } from "@/lib/api";
 
 // Types
 import type { Pet } from "@/types/pets"
@@ -188,7 +189,7 @@ export default function PetServiceWebsite() {
         return;
       }
       try {
-        const response = await axios.get("http://localhost:8080/api/accounts/me", {
+        const response = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
           headers: { "Access_Token": accessToken },
           timeout: 5000,
         });
@@ -214,7 +215,7 @@ export default function PetServiceWebsite() {
           accessToken = await refreshAccessToken();
           if (accessToken) {
             try {
-              const response = await axios.get("http://localhost:8080/api/accounts/me", {
+              const response = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
                 headers: { "Access_Token": accessToken },
                 timeout: 5000,
               });
@@ -267,15 +268,15 @@ export default function PetServiceWebsite() {
       localStorage.setItem("refreshToken", refreshToken);
       const fetchUserInfo = async () => {
         try {
-          const response = await axios.get("http://localhost:8080/api/accounts/me");
-          const userData = response.data?.data;
-          if (!userData) throw new Error("사용자 데이터가 없습니다");
-          const { id, email, name, role } = userData;
-          setCurrentUser({ id, email, name });
-          setIsLoggedIn(true);
-          setIsAdmin(role === "ADMIN");
-          toast.success("OAuth 로그인 되었습니다", { duration: 5000 });
-          router.push("/");
+          const response = await axios.get(`${getBackendUrl()}/api/accounts/me`)
+          const userData = response.data?.data
+          if (!userData) throw new Error("사용자 데이터가 없습니다")
+          const { id, email, name, role } = userData
+          setCurrentUser({ id, email, name })
+          setIsLoggedIn(true)
+          setIsAdmin(role === "ADMIN")
+          toast.success("OAuth 로그인 되었습니다", { duration: 5000 })
+          router.push("/")
         } catch (err: any) {
           console.error("사용자 정보 조회 실패:", err);
           let errorMessage = "사용자 정보 조회 실패";
@@ -343,7 +344,7 @@ export default function PetServiceWebsite() {
         console.log("네이버 상품 추가할 수량:", quantity)
 
         // 네이버 상품을 백엔드 cart에 추가 (올바른 API 사용)
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/naver-shopping/cart/add`, {
+        const response = await axios.post(`${getBackendUrl()}/api/naver-shopping/cart/add`, {
           productId: (product as any).productId || product.id,
           title: product.name,
           description: product.description || product.name,
@@ -388,13 +389,8 @@ export default function PetServiceWebsite() {
 
     // 일반 상품 처리
     try {
-      console.log('일반 상품 장바구니 추가 시작...')
       const accessToken = localStorage.getItem("accessToken")
       const refreshToken = localStorage.getItem("refreshToken")
-      console.log("Access Token 존재 여부:", !!accessToken)
-      console.log("Refresh Token 존재 여부:", !!refreshToken)
-      console.log("Access Token 길이:", accessToken?.length)
-      console.log("Access Token 내용 (처음 20자):", accessToken?.substring(0, 20))
       
       if (!accessToken || accessToken.trim() === '') {
         console.error("Access Token이 없거나 비어있습니다!")
@@ -414,9 +410,7 @@ export default function PetServiceWebsite() {
       }
 
       // 장바구니 추가 API (수량 포함)
-      const url = `http://localhost:8080/api/carts?productId=${product.productId}&quantity=${quantity}`
-
-      const response = await axios.post(url, null, {
+      const response = await axios.post(`${getBackendUrl()}/api/carts?productId=${product.productId}&quantity=${quantity}`, null, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         timeout: 5000,
       })
@@ -444,7 +438,7 @@ export default function PetServiceWebsite() {
         console.log("Access token이 없습니다.");
         return;
       }
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/carts`, {
+      const response = await axios.get(`${getBackendUrl()}/api/carts`, {
         headers: { "Access_Token": accessToken },
         timeout: 5000,
       });
@@ -531,7 +525,8 @@ export default function PetServiceWebsite() {
         return
       }
 
-      const response = await axios.delete(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/carts/${cartId}`, {
+      const response = await axios.delete(`${getBackendUrl()}/api/carts/${cartId}`, 
+      {
         headers: { "Access_Token": accessToken }
       })
       
@@ -556,7 +551,7 @@ export default function PetServiceWebsite() {
         return
       }
 
-      const response = await axios.put(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/carts/${cartId}?quantity=${quantity}`, null, {
+      const response = await axios.put(`${getBackendUrl()}/api/carts/${cartId}?quantity=${quantity}`, null, {
         headers: { "Access_Token": accessToken }
       })
       
@@ -586,25 +581,78 @@ export default function PetServiceWebsite() {
         return
       }
 
-      // 각 상품을 개별적으로 주문
-      for (const item of items) {
-        const orderData = {
-          accountId: currentUser?.id || 1,
-          productId: item.product?.id || item.id,
-          quantity: item.quantity,
-        }
-
-        await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/orders`, orderData, {
-          headers: { "Access_Token": accessToken }
-        })
+      // 현재 사용자 정보 확인
+      if (!currentUser?.id) {
+        toast.error("사용자 정보를 가져올 수 없습니다")
+        return
       }
 
-      // 장바구니 비우기
+      // 백엔드 장바구니에 있는 상품들만 필터링 (네이버 상품 제외)
+      const backendCartItems = items.filter(item => 
+        !item.isNaverProduct && 
+        !item.id.toString().startsWith('naver-') && 
+        !item.id.toString().startsWith('backend-naver-')
+      )
+
+      // 네이버 상품들
+      const naverItems = items.filter(item => 
+        item.isNaverProduct || 
+        item.id.toString().startsWith('naver-') || 
+        item.id.toString().startsWith('backend-naver-')
+      )
+
+      const createdOrders: any[] = []
+
+      // 1. 백엔드 장바구니 상품들은 bulk API 사용
+      if (backendCartItems.length > 0) {
+        try {
+          const bulkOrderData = {
+            accountId: currentUser.id
+          }
+
+          const bulkResponse = await axios.post(`${getBackendUrl()}/api/orders/bulk`, bulkOrderData, {
+            headers: { "Access_Token": accessToken }
+          })
+
+          if (bulkResponse.data && Array.isArray(bulkResponse.data)) {
+            createdOrders.push(...bulkResponse.data)
+            console.log("Bulk 주문 생성 성공:", bulkResponse.data.length, "개")
+          }
+        } catch (error) {
+          console.error("Bulk 주문 생성 실패:", error)
+          toast.error("일부 상품 주문에 실패했습니다")
+          return
+        }
+      }
+
+      // 2. 네이버 상품들은 개별 주문
+      for (const item of naverItems) {
+        try {
+          const orderData = {
+            accountId: currentUser.id,
+            naverProductId: item.product?.id || item.id,
+            quantity: item.quantity,
+          }
+
+          const response = await axios.post(`${getBackendUrl()}/api/orders/naver-product`, orderData, {
+            headers: { "Access_Token": accessToken }
+          })
+
+          if (response.data) {
+            createdOrders.push(response.data)
+          }
+        } catch (error) {
+          console.error("네이버 상품 주문 실패:", error)
+          toast.error(`${item.name} 주문에 실패했습니다`)
+        }
+      }
+
+      // 3. 장바구니 비우기
       for (const item of items) {
         await onRemoveFromCart(item.id)
       }
 
-      toast.success("전체 구매가 완료되었습니다")
+      toast.success(`전체 구매가 완료되었습니다. (${createdOrders.length}개 주문)`)
       router.push("/my")
     } catch (error: any) {
       console.error("전체 구매 오류:", error)
@@ -627,7 +675,7 @@ export default function PetServiceWebsite() {
         quantity: item.quantity,
       }
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/orders`, orderData, {
+      const response = await axios.post(`${getBackendUrl()}/api/orders`, orderData, {
         headers: { "Access_Token": accessToken }
       })
 
@@ -646,7 +694,7 @@ export default function PetServiceWebsite() {
 
   const createOrder = async (orderData: { userId: number; amount: number }) => {
     try {
-      const response = await axios.post("http://localhost:8080/api/orders", orderData, {
+      const response = await axios.post(`${getBackendUrl()}/api/orders`, orderData, {
         headers: { "Content-Type": "application/json" },
       });
       if (response.status !== 200) {
@@ -670,7 +718,7 @@ export default function PetServiceWebsite() {
       return
     }
     try {
-      const response = await axios.post(`http://localhost:8080/api/orders/purchase-all/${currentUser.id}`)
+      const response = await axios.post(`${getBackendUrl()}/api/orders/purchase-all/${currentUser.id}`)
       if (response.status !== 200) {
         throw new Error("전체 구매에 실패했습니다.")
       }
@@ -703,7 +751,7 @@ export default function PetServiceWebsite() {
         productId: cartItem.product?.id || cartItem.id,
         quantity: cartItem.quantity,
       }
-      const response = await axios.post("http://localhost:8080/api/orders", orderData, {
+      const response = await axios.post(`${getBackendUrl()}/api/orders`, orderData, {
         headers,
         timeout: 10000,
       })
@@ -723,7 +771,7 @@ export default function PetServiceWebsite() {
   const fetchUserOrders = useCallback(async () => {
     if (!isLoggedIn || !currentUser) return;
     try {
-      const response = await axios.get(`http://localhost:8080/api/orders/user/${currentUser.id}`);
+      const response = await axios.get(`${getBackendUrl()}/api/orders/user/${currentUser.id}`)
       if (response.status !== 200) {
         throw new Error("주문 조회에 실패했습니다.");
       }
@@ -769,7 +817,7 @@ export default function PetServiceWebsite() {
 
   const deleteOrder = async (orderId: number) => {
     try {
-      const response = await axios.delete(`http://localhost:8080/api/orders/${orderId}`);
+      const response = await axios.delete(`${getBackendUrl()}/api/orders/${orderId}`)
       if (response.status !== 200) {
         throw new Error("주문 삭제에 실패했습니다.");
       }
@@ -783,7 +831,7 @@ export default function PetServiceWebsite() {
 
   const updatePaymentStatus = async (orderId: number, status: "PENDING" | "COMPLETED" | "CANCELLED") => {
     try {
-      const response = await axios.put(`http://localhost:8080/api/orders/${orderId}/status?status=${status}`);
+      const response = await axios.put(`${getBackendUrl()}/api/orders/${orderId}/status?status=${status}`)
       if (response.status !== 200) {
         throw new Error("결제 상태 업데이트에 실패했습니다.");
       }
@@ -821,7 +869,7 @@ export default function PetServiceWebsite() {
         Accept: "application/json",
       };
       if (accessToken) headers["access_token"] = accessToken;
-      const response = await axios.get("http://localhost:8080/api/products", {
+      const response = await axios.get(`${getBackendUrl()}/api/products`, {
         timeout: 10000,
         headers,
       });
@@ -957,8 +1005,8 @@ export default function PetServiceWebsite() {
             price: product.price,
           },
         ],
-      };
-      const response = await axios.post("http://localhost:8080/api/orders", orderData, {
+      }
+      const response = await axios.post(`${getBackendUrl()}/api/orders`, orderData, {
         headers,
         timeout: 10000,
       });

@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
+import { getBackendUrl } from "@/lib/api";
 
 // DTO 인터페이스
 export interface MyPetRequestDto {
@@ -35,7 +34,7 @@ export interface MyPetListResponseDto {
 export const myPetApi = {
   // 펫 등록
   registerMyPet: async (data: MyPetRequestDto): Promise<MyPetResponseDto> => {
-    const response = await axios.post(`${API_BASE_URL}/api/mypet`, data, {
+    const response = await axios.post(`${getBackendUrl()}/api/mypet`, data, {
       withCredentials: true
     });
     return response.data.data;
@@ -43,7 +42,7 @@ export const myPetApi = {
 
   // 펫 수정
   updateMyPet: async (myPetId: number, data: MyPetRequestDto): Promise<MyPetResponseDto> => {
-    const response = await axios.put(`${API_BASE_URL}/api/mypet/${myPetId}`, data, {
+    const response = await axios.put(`${getBackendUrl()}/api/mypet/${myPetId}`, data, {
       withCredentials: true
     });
     return response.data.data;
@@ -51,14 +50,14 @@ export const myPetApi = {
 
   // 펫 삭제
   deleteMyPet: async (myPetId: number): Promise<void> => {
-    await axios.delete(`${API_BASE_URL}/api/mypet/${myPetId}`, {
+    await axios.delete(`${getBackendUrl()}/api/mypet/${myPetId}`, {
       withCredentials: true
     });
   },
 
   // 사용자의 모든 펫 조회
   getMyPets: async (): Promise<MyPetListResponseDto> => {
-    const response = await axios.get(`${API_BASE_URL}/api/mypet`, {
+    const response = await axios.get(`${getBackendUrl()}/api/mypet`, {
       withCredentials: true
     });
     return response.data.data;
@@ -66,7 +65,7 @@ export const myPetApi = {
 
   // 특정 펫 조회
   getMyPet: async (myPetId: number): Promise<MyPetResponseDto> => {
-    const response = await axios.get(`${API_BASE_URL}/api/mypet/${myPetId}`, {
+    const response = await axios.get(`${getBackendUrl()}/api/mypet/${myPetId}`, {
       withCredentials: true
     });
     return response.data.data;
@@ -77,7 +76,7 @@ export const myPetApi = {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await axios.post(`${API_BASE_URL}/api/mypet/upload-image`, formData, {
+    const response = await axios.post(`${getBackendUrl()}/api/mypet/upload-image`, formData, {
       withCredentials: true,
       headers: {
         'Content-Type': 'multipart/form-data'

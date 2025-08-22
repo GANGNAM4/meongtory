@@ -8,10 +8,7 @@ import axios from 'axios';
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk';
 import { getBackendUrl } from '@/lib/api';
 
-const API_BASE_URL = `${getBackendUrl()}/api`;
 const CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ;
-console.log("CLIENT_KEY:", CLIENT_KEY);
-
 
 interface PaymentItem {
   id: number;
@@ -20,6 +17,18 @@ interface PaymentItem {
   quantity: number;
   image: string;
   isNaverProduct?: boolean; // 네이버 상품 여부
+  naverProduct?: any; // 네이버 상품 원본 데이터
+  product?: {
+    id: number;
+    name: string;
+    description: string;
+    price: number;
+    stock: number;
+    imageUrl: string;
+    category: string;
+    registrationDate: string;
+    registeredBy: string;
+  };
 }
 
 interface PaymentPageProps {
@@ -64,78 +73,83 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
         throw new Error('로그인이 필요합니다.');
       }
 
-      // 첫 번째 아이템으로 주문 생성 (단일 상품 주문)
-      const firstItem = items[0];
-      console.log('결제 아이템 정보:', firstItem);
+      console.log('전체 결제 아이템:', items);
+      console.log('아이템 개수:', items.length);
       console.log('사용자 정보:', userData);
       
       let response;
       let currentToken = accessToken;
       
-      // 네이버 상품인지 일반 상품인지 구분하여 주문 생성
-      const createOrderRequest = async (token: string) => {
-        if (firstItem.isNaverProduct) {
-          console.log('네이버 상품 주문 생성');
-          const orderData = {
-            accountId: userData.id,
-            naverProductId: firstItem.id,
-            quantity: firstItem.quantity
-          };
+      // 백엔드 장바구니 상품들과 네이버 상품들을 분리
+      const backendCartItems = items.filter(item => 
+        !item.isNaverProduct && 
+        !item.id.toString().startsWith('naver-') && 
+        !item.id.toString().startsWith('backend-naver-') &&
+        item.product && item.product.id
+      );
 
-          console.log('네이버 상품 주문 생성 요청:', orderData);
-          
-          return await axios.post(`${API_BASE_URL}/orders/naver-product`, orderData, {
-            headers: {
-              'Access_Token': token
-            }
-          });
-        } else {
-          console.log('일반 상품 주문 생성');
-          const orderData = {
-            accountId: userData.id,
-            productId: firstItem.id,
-            quantity: firstItem.quantity
-          };
+      const naverItems = items.filter(item => 
+        item.isNaverProduct || 
+        item.id.toString().startsWith('naver-') || 
+        item.id.toString().startsWith('backend-naver-')
+      );
 
-          console.log('일반 상품 주문 생성 요청:', orderData);
-          
-          return await axios.post(`${API_BASE_URL}/orders`, orderData, {
-            headers: {
-              'Access_Token': token
-            }
-          });
-        }
-      };
+      console.log('백엔드 장바구니 상품:', backendCartItems);
+      console.log('네이버 상품:', naverItems);
 
-      try {
-        response = await createOrderRequest(currentToken);
-      } catch (orderError: any) {
-        // 토큰이 만료된 경우 리프레시 토큰으로 갱신 시도
-        if (orderError.response?.status === 401 && refreshToken) {
-          console.log('주문 생성 중 토큰이 만료되었습니다. 리프레시 토큰으로 갱신을 시도합니다.');
-          
-          try {
-            const refreshResponse = await axios.post(`${API_BASE_URL}/accounts/refresh`, {
-              refreshToken: refreshToken
-            });
-            
-            if (refreshResponse.data.success) {
-              const newAccessToken = refreshResponse.data.data.accessToken;
-              localStorage.setItem('accessToken', newAccessToken);
-              currentToken = newAccessToken;
-              
-              // 새로운 토큰으로 주문 생성 다시 시도
-              response = await createOrderRequest(currentToken);
-            } else {
-              throw new Error('토큰 갱신에 실패했습니다.');
-            }
-          } catch (refreshError) {
-            console.error('토큰 갱신 실패:', refreshError);
-            throw new Error('토큰이 만료되었습니다. 다시 로그인해주세요.');
+      // 1. 백엔드 장바구니 상품들이 있으면 bulk API 사용
+      if (backendCartItems.length > 0) {
+        console.log('Bulk 주문 생성 시작');
+        const bulkOrderData = {
+          accountId: userData.id
+        };
+
+        const bulkResponse = await axios.post(`${getBackendUrl()}/api/orders/bulk`, bulkOrderData, {
+          headers: {
+            'Access_Token': currentToken
           }
-        } else {
-          throw orderError;
-        }
+        });
+
+        console.log('Bulk 주문 생성 응답:', bulkResponse.data);
+        response = bulkResponse;
+      }
+      // 2. 네이버 상품들이 있으면 첫 번째 네이버 상품으로 주문 생성 (결제용)
+      else if (naverItems.length > 0) {
+        console.log('네이버 상품 주문 생성 (결제용)');
+        const firstNaverItem = naverItems[0];
+        
+        const orderData = {
+          accountId: userData.id,
+          naverProductId: firstNaverItem.naverProduct?.id || firstNaverItem.id,
+          quantity: firstNaverItem.quantity
+        };
+
+        console.log('네이버 상품 주문 생성 요청:', orderData);
+        
+        response = await axios.post(`${getBackendUrl()}/api/orders/naver-product`, orderData, {
+          headers: {
+            'Access_Token': currentToken
+          }
+        });
+      }
+      // 3. 일반 상품이 있으면 첫 번째 일반 상품으로 주문 생성 (결제용)
+      else {
+        console.log('일반 상품 주문 생성 (결제용)');
+        const firstItem = items[0];
+        
+        const orderData = {
+          accountId: userData.id,
+          productId: firstItem.product?.id || firstItem.id,
+          quantity: firstItem.quantity
+        };
+
+        console.log('일반 상품 주문 생성 요청:', orderData);
+        
+        response = await axios.post(`${getBackendUrl()}/api/orders`, orderData, {
+          headers: {
+            'Access_Token': currentToken
+          }
+        });
       }
 
       console.log('주문 생성 응답:', response.data);
@@ -179,7 +193,7 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
       // 토큰이 만료되었을 경우 리프레시 토큰으로 갱신 시도
       let currentToken = accessToken;
       try {
-        const response = await axios.get(`${API_BASE_URL}/accounts/me`, {
+        const response = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
           headers: {
             'Access_Token': currentToken
           }
@@ -207,7 +221,7 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
           console.log('액세스 토큰이 만료되었습니다. 리프레시 토큰으로 갱신을 시도합니다.');
           
           try {
-            const refreshResponse = await axios.post(`${API_BASE_URL}/accounts/refresh`, {
+            const refreshResponse = await axios.post(`${getBackendUrl()}/api/accounts/refresh`, {
               refreshToken: refreshToken
             });
             
@@ -217,7 +231,7 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
               currentToken = newAccessToken;
               
               // 새로운 토큰으로 사용자 정보 다시 요청
-              const userResponse = await axios.get(`${API_BASE_URL}/accounts/me`, {
+              const userResponse = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
                 headers: {
                   'Access_Token': currentToken
                 }
@@ -272,7 +286,6 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
     // SDK 로드 및 초기화 (공식 패키지 방식)
     (async () => {
       try {
-        console.log("Using clientKey:", CLIENT_KEY);
         if (!CLIENT_KEY || CLIENT_KEY.trim().length === 0) {
           console.error('환경변수 NEXT_PUBLIC_TOSS_CLIENT_KEY 가 설정되지 않았습니다. .env.local 에 테스트 클라이언트 키를 설정하고 dev 서버를 재시작하세요.');
           return;
@@ -388,13 +401,6 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
         }))
       });
 
-      // 결제 요청 전 준비 완료
-      console.log("결제 요청 준비 완료");
-      
-      console.log("결제창 요청 시작...");
-      console.log("TossPayments instance:", tossPayments);
-      console.log("Payment instance:", payment);
-      
       // 필수 파라미터 검증
       if (!orderId || !totalAmount || totalAmount <= 0) {
         throw new Error("결제 금액이나 주문번호가 올바르지 않습니다.");
@@ -422,12 +428,6 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
         useCardPoint: false,
         useAppCardOnly: false,
       };
-      
-      // v2 API 사용법으로 결제창 요청
-      console.log("=== 결제 요청 정보 ===");
-      console.log("Payment config:", JSON.stringify(paymentConfig, null, 2));
-      console.log("User info:", userInfo);
-      console.log("========================");
       
       await payment.requestPayment(paymentConfig);
     } catch (error) {

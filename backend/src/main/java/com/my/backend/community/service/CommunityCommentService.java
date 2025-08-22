@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,11 +34,10 @@ public class CommunityCommentService {
         CommunityPost post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
 
-        String authorName = account.getName(); // ✅ Account의 name 필드를 사용
-
         CommunityComment comment = CommunityComment.builder()
                 .post(post)
-                .author(authorName)
+                .author(account.getName())        // 화면에 표시될 이름
+                .ownerEmail(account.getEmail())   // 고유 식별자
                 .content(dto.getContent())
                 .build();
 
@@ -49,13 +49,14 @@ public class CommunityCommentService {
         CommunityComment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
 
-        String authorName = account.getName(); // ✅ nickname 대신 name 사용
 
-        if (!comment.getAuthor().equals(authorName)) {
+        if (!comment.getOwnerEmail().equals(account.getEmail())
+                && !"ROLE_ADMIN".equals(account.getRole())) {
             throw new RuntimeException("본인 댓글만 수정할 수 있습니다.");
         }
 
         comment.setContent(dto.getContent());
+        comment.setUpdatedAt(LocalDateTime.now());
         return toDto(commentRepository.save(comment));
     }
 
@@ -64,9 +65,7 @@ public class CommunityCommentService {
         CommunityComment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
 
-        String authorName = account.getName(); // ✅ nickname 대신 name 사용
-
-        if (!comment.getAuthor().equals(authorName)
+        if (!comment.getOwnerEmail().equals(account.getEmail())
                 && !"ROLE_ADMIN".equals(account.getRole())) {
             throw new RuntimeException("본인 댓글만 삭제할 수 있습니다.");
         }
@@ -78,7 +77,9 @@ public class CommunityCommentService {
     private CommunityCommentDto toDto(CommunityComment comment) {
         return CommunityCommentDto.builder()
                 .id(comment.getId())
+                .postId(comment.getPost().getId())
                 .author(comment.getAuthor())
+                .ownerEmail(comment.getOwnerEmail())
                 .content(comment.getContent())
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())

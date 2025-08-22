@@ -154,8 +154,25 @@ public class OrderController {
     // 장바구니 기반 전체 주문 생성
     @PostMapping("/bulk")
     public ResponseEntity<List<OrderResponseDto>> createOrdersFromCart(@Valid @RequestBody CartOrderRequestDto requestDto) {
-        List<OrderResponseDto> responseDtos = orderService.createOrdersFromCart(requestDto.getAccountId());
-        return ResponseEntity.ok(responseDtos);
+        System.out.println("=== OrderController.createOrdersFromCart ===");
+        System.out.println("받은 요청 데이터: " + requestDto);
+        System.out.println("AccountId: " + requestDto.getAccountId());
+        
+        try {
+            // 요청 데이터 검증
+            if (requestDto.getAccountId() == null) {
+                throw new IllegalArgumentException("AccountId는 필수입니다.");
+            }
+            
+            List<OrderResponseDto> responseDtos = orderService.createOrdersFromCart(requestDto.getAccountId());
+            System.out.println("Bulk 주문 생성 성공: " + responseDtos.size() + "개 주문");
+            return ResponseEntity.ok(responseDtos);
+        } catch (Exception e) {
+            System.out.println("Bulk 주문 생성 실패: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
     }
 
     // 관리자용 모든 사용자의 주문 조회

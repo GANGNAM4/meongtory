@@ -25,12 +25,18 @@ public class CommunityPostService {
         return postRepository.findAllByOrderByCreatedAtDesc();
     }
 
-    // 게시글 상세 조회 ( 조회 수 증가 포함)
+    // 게시글 상세 조회 (조회 수 증가 포함)
     public CommunityPost getPostById(Long id) {
         CommunityPost post = postRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
         post.setViews(post.getViews() + 1);
         return postRepository.save(post);
+    }
+
+    // 조회수 증가 없는 게시글 단순 조회
+    public CommunityPost findPostById(Long id) {
+        return postRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Post not found"));
     }
 
     // 게시글 생성
@@ -77,9 +83,10 @@ public class CommunityPostService {
                 .updatedAt(post.getUpdatedAt())
                 .build();
     }
+
     // 게시글 수정
     public CommunityPost updatePost(Long id, CommunityPostDto dto, List<MultipartFile> imgs) throws IOException {
-        CommunityPost post = getPostById(id);
+        CommunityPost post = findPostById(id);
 
         // 기존 이미지 리스트 불러오기
         List<String> imageUrls = post.getImages() != null ? new ArrayList<>(post.getImages()) : new ArrayList<>();
@@ -87,10 +94,7 @@ public class CommunityPostService {
         // 삭제할 이미지 처리
         if (dto.getImagesToDelete() != null && !dto.getImagesToDelete().isEmpty()) {
             for (String fileName : dto.getImagesToDelete()) {
-                // S3에서 삭제
                 s3Service.deleteFile(fileName);
-
-                // DB에서 해당 파일 제거
                 imageUrls.removeIf(url -> url.contains(fileName));
             }
         }
@@ -115,8 +119,7 @@ public class CommunityPostService {
 
     // 게시글 삭제
     public void deletePost(Long id) {
-        CommunityPost post = postRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Post not found"));
+        CommunityPost post = findPostById(id);
 
         if (post.getImages() != null && !post.getImages().isEmpty()) {
             for (String imageUrl : post.getImages()) {
@@ -124,7 +127,7 @@ public class CommunityPostService {
             }
         }
 
-        postRepository.deleteById(id);
+        postRepository.delete(post);
     }
 
     public CommunityPost save(CommunityPost post) {

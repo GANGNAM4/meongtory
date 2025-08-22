@@ -11,9 +11,6 @@ import { useRouter } from "next/navigation"
 import axios from "axios" // axios 직접 import
 import { getBackendUrl } from '@/lib/api'
 
-
-const API_BASE_URL = `${getBackendUrl()}/api`
-
 // axios 인터셉터 설정 - 요청 시 인증 토큰 자동 추가
 axios.interceptors.request.use(
   (config) => {
@@ -38,7 +35,7 @@ axios.interceptors.response.use(
       const refreshToken = localStorage.getItem('refreshToken');
       if (refreshToken) {
         try {
-          const response = await axios.post(`${API_BASE_URL}/accounts/refresh`, {
+          const response = await axios.post(`${getBackendUrl()}/api/accounts/refresh`, {
             refreshToken: refreshToken
           });
           const newAccessToken = response.data.accessToken;
@@ -126,9 +123,10 @@ export default function StorePage({
   const [naverProducts, setNaverProducts] = useState<NaverProduct[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showNaverProducts, setShowNaverProducts] = useState(false)
+  const [showNaverProducts, setShowNaverProducts] = useState(true) // 초기에 네이버 상품 표시 모드 활성화
   const [naverSearchQuery, setNaverSearchQuery] = useState("")
   const [naverSearchLoading, setNaverSearchLoading] = useState(false)
+  const [naverInitialLoading, setNaverInitialLoading] = useState(false) // 초기 네이버 상품 로딩 상태
   const [savingProducts, setSavingProducts] = useState<Set<string>>(new Set()) // 저장 중인 상품들
 
   // 네이버 쇼핑 API 함수들
@@ -136,7 +134,7 @@ export default function StorePage({
     // 실시간 검색
     searchProducts: async (query: string, display: number = 10, start: number = 1, sort: string = "sim") => {
       try {
-        const response = await axios.post(`${API_BASE_URL}/naver-shopping/search`, {
+        const response = await axios.post(`${getBackendUrl()}/api/naver-shopping/search`, {
           query,
           display,
           start,
@@ -152,7 +150,7 @@ export default function StorePage({
     // 저장된 네이버 상품 검색
     searchSavedProducts: async (keyword: string, page: number = 0, size: number = 20) => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/naver-shopping/products/search`, {
+        const response = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/search`, {
           params: { keyword, page, size }
         });
         return response.data;
@@ -165,7 +163,7 @@ export default function StorePage({
     // 카테고리별 검색
     searchByCategory: async (category: string, page: number = 0, size: number = 20) => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/naver-shopping/products/category/${encodeURIComponent(category)}`, {
+        const response = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/category/${encodeURIComponent(category)}`, {
           params: { page, size }
         });
         return response.data;
@@ -178,7 +176,7 @@ export default function StorePage({
     // 인기 상품 조회 (저장된 네이버 상품들)
     getPopularProducts: async (page: number = 0, size: number = 20) => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/naver-shopping/products/popular`, {
+        const response = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/popular`, {
           params: { page, size }
         });
         return response.data;
@@ -191,7 +189,7 @@ export default function StorePage({
     // 저장된 네이버 상품들 조회
     getSavedProducts: async (page: number = 0, size: number = 20) => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/naver-shopping/products/search`, {
+        const response = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/search`, {
           params: { keyword: '', page, size }
         });
         return response.data;
@@ -204,7 +202,7 @@ export default function StorePage({
     // 높은 평점 상품 조회
     getTopRatedProducts: async (page: number = 0, size: number = 20) => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/naver-shopping/products/top-rated`, {
+        const response = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/top-rated`, {
           params: { page, size }
         });
         return response.data;
@@ -243,7 +241,7 @@ export default function StorePage({
           searchCount: naverProduct.searchCount
         };
 
-        const response = await axios.post(`${API_BASE_URL}/naver-shopping/cart/add`, naverProductDto, {
+        const response = await axios.post(`${getBackendUrl()}/api/naver-shopping/cart/add`, naverProductDto, {
           params: { quantity },
           headers: {
             'Authorization': token,
@@ -260,7 +258,7 @@ export default function StorePage({
     // 네이버 상품을 DB에 저장
     saveNaverProduct: async (naverProduct: NaverProduct) => {
       try {
-        const response = await axios.post(`${API_BASE_URL}/naver-shopping/save`, {
+        const response = await axios.post(`${getBackendUrl()}/api/naver-shopping/save`, {
           productId: naverProduct.productId,
           title: naverProduct.title,
           description: naverProduct.description,
@@ -445,7 +443,7 @@ export default function StorePage({
   const handleAddLocalProductToCart = async (product: Product) => {
     try {
       // 백엔드 API 호출하여 장바구니에 추가
-      const response = await axios.post(`${API_BASE_URL}/cart/add`, {
+      const response = await axios.post(`${getBackendUrl()}/api/cart/add`, {
         productId: product.id,
         quantity: 1
       });
@@ -537,7 +535,7 @@ export default function StorePage({
     getProducts: async (): Promise<any[]> => {
       try {
 
-        const response = await axios.get(`${API_BASE_URL}/products`);
+        const response = await axios.get(`${getBackendUrl()}/api/products`);
         // ResponseDto 구조에 맞춰 데이터 추출
         return response.data?.data || response.data;
       } catch (error) {
@@ -549,7 +547,7 @@ export default function StorePage({
     // 특정 상품 조회
     getProduct: async (productId: number): Promise<any> => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/products/${productId}`);
+        const response = await axios.get(`${getBackendUrl()}/api/products/${productId}`);
         return response.data;
       } catch (error) {
         console.error('상품 조회 실패:', error);
@@ -560,7 +558,7 @@ export default function StorePage({
     // 상품 생성
     createProduct: async (productData: any): Promise<any> => {
       try {
-        const response = await axios.post(`${API_BASE_URL}/api/products`, productData, {
+        const response = await axios.post(`${getBackendUrl()}/api/products`, productData, {
           headers: {
             'Content-Type': 'application/json',
           },
@@ -575,7 +573,7 @@ export default function StorePage({
     // 상품 수정
     updateProduct: async (productId: number, productData: any): Promise<any> => {
       try {
-        const response = await axios.put(`${API_BASE_URL}/api/products/${productId}`, productData, {
+        const response = await axios.put(`${getBackendUrl()}/api/products/${productId}`, productData, {
           headers: {
             'Content-Type': 'application/json',
           },
@@ -590,7 +588,7 @@ export default function StorePage({
     // 상품 삭제
     deleteProduct: async (productId: number): Promise<void> => {
       try {
-        await axios.delete(`${API_BASE_URL}/products/${productId}`);
+        await axios.delete(`${getBackendUrl()}/api/products/${productId}`);
       } catch (error) {
         console.error('상품 삭제 실패:', error);
         throw error;
@@ -606,15 +604,6 @@ export default function StorePage({
       
       const response = await productApi.getProducts();
       console.log('가져온 상품 데이터:', response);
-      console.log('응답 타입:', typeof response);
-      console.log('응답이 배열인가?', Array.isArray(response));
-      
-      // 응답이 배열이 아닌 경우 빈 배열로 처리
-      if (!Array.isArray(response)) {
-        console.error('응답이 배열이 아닙니다:', response);
-        setProducts([]);
-        return;
-      }
       
       // 백엔드 응답을 프론트엔드 형식으로 변환
       const data: Product[] = response.map((item: any) => ({
@@ -640,6 +629,7 @@ export default function StorePage({
       });
       
       setProducts(sortedData);
+      console.log('상품 목록 로드 완료:', sortedData.length, '개');
     } catch (error) {
       console.error("Error fetching products:", error);
       setError('상품 목록을 불러오는데 실패했습니다.');
@@ -649,18 +639,26 @@ export default function StorePage({
   };
 
   useEffect(() => {
-    fetchProducts();
-    // 페이지 로드 시 네이버 쇼핑에서 인기 펫 용품 가져오기 (한 번만 실행)
-    const hasLoadedNaverProducts = sessionStorage.getItem('naverProductsLoaded');
-    if (!hasLoadedNaverProducts) {
-      loadInitialNaverProducts();
-      sessionStorage.setItem('naverProductsLoaded', 'true');
-    }
+    const initializeStore = async () => {
+      try {
+        // 먼저 우리 스토어 상품들을 로드
+        await fetchProducts();
+        
+        // 그 다음 네이버 상품들을 로드
+        await loadInitialNaverProducts();
+      } catch (error) {
+        console.error('스토어 초기화 실패:', error);
+        // 에러가 발생해도 기본 상품들은 표시되도록 함
+      }
+    };
+    
+    initializeStore();
   }, []);
 
   // 초기 네이버 상품 로드 - 저장된 상품들 불러오기
   const loadInitialNaverProducts = async () => {
     try {
+      setNaverInitialLoading(true);
       console.log('초기 네이버 상품 로드 시작...');
       
       // 먼저 저장된 네이버 상품들을 불러오기 시도
@@ -803,8 +801,11 @@ export default function StorePage({
         }
       } catch (fallbackError) {
         console.error('기본 검색어 재시도도 실패:', fallbackError);
-        setError('네이버 상품을 불러오는데 실패했습니다.');
+        // 에러가 발생해도 네이버 상품 표시 모드는 활성화하여 사용자가 수동으로 검색할 수 있도록 함
+        setShowNaverProducts(true);
       }
+    } finally {
+      setNaverInitialLoading(false);
     }
   };
 
@@ -905,7 +906,7 @@ export default function StorePage({
       // 일반 상품인 경우
       console.log('일반 상품 장바구니 추가:', product.id);
       
-      const response = await axios.post(`${API_BASE_URL}/api/carts?productId=${product.id}&quantity=1`, null, {
+      const response = await axios.post(`${getBackendUrl()}/api/carts?productId=${product.id}&quantity=1`, null, {
         headers: {
           "Access_Token": accessToken,
           "Content-Type": "application/x-www-form-urlencoded"
@@ -942,7 +943,7 @@ export default function StorePage({
       console.log('네이버 상품 장바구니 추가:', naverProduct.productId);
       
       // 네이버 상품 전용 API 사용
-      const response = await axios.post(`${API_BASE_URL}/api/naver-shopping/cart/add`, {
+      const response = await axios.post(`${getBackendUrl()}/api/naver-shopping/cart/add`, {
         productId: naverProduct.productId,
         title: naverProduct.title,
         description: naverProduct.description,
@@ -1109,7 +1110,7 @@ export default function StorePage({
           <div className="relative w-full max-w-md">
             <Input
               type="text"
-              placeholder="상품 검색 (우리 스토어 + 네이버 쇼핑)"
+              placeholder="상품 검색 (멍토리 + 네이버 쇼핑)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-4 pr-12 py-3 border-2 border-yellow-300 rounded-full focus:border-yellow-400 focus:ring-yellow-400"
@@ -1129,25 +1130,7 @@ export default function StorePage({
           </div>
         </div>
 
-        {/* 네이버 쇼핑 퀵 버튼 */}
-        {showNaverProducts && (
-          <div className="flex justify-center mb-6 space-x-4">
-            <Button
-              onClick={handleNaverPopularProducts}
-              disabled={naverSearchLoading}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
-            >
-              {naverSearchLoading ? "로딩중..." : "🔥 인기 상품"}
-            </Button>
-            <Button
-              onClick={handleNaverTopRatedProducts}
-              disabled={naverSearchLoading}
-              className="bg-green-500 hover:bg-green-600 text-white"
-            >
-              {naverSearchLoading ? "로딩중..." : "⭐ 높은 평점"}
-            </Button>
-          </div>
-        )}
+
 
 
 
@@ -1220,11 +1203,13 @@ export default function StorePage({
         </div>
 
         {/* 통합 상품 그리드 */}
-        {naverSearchLoading ? (
+        {(naverSearchLoading || naverInitialLoading) ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
-              <p className="text-gray-600">검색 중...</p>
+              <p className="text-gray-600">
+                {naverInitialLoading ? "네이버 상품을 불러오는 중..." : "검색 중..."}
+              </p>
             </div>
           </div>
         ) : (

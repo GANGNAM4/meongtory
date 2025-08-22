@@ -90,6 +90,24 @@ public class NaverShoppingController {
     }
 
     /**
+     * 인기 네이버 상품 조회
+     */
+    @GetMapping("/products/popular")
+    public ResponseEntity<ResponseDto> getPopularProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        try {
+            log.info("인기 네이버 상품 조회 요청: page={}, size={}", page, size);
+            
+            Page<NaverProductDto> products = naverShoppingService.getPopularProducts(page, size);
+            return ResponseEntity.ok(ResponseDto.success(products));
+        } catch (Exception e) {
+            log.error("인기 네이버 상품 조회 실패: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ResponseDto.fail("POPULAR_PRODUCTS_FAILED", "인기 네이버 상품 조회에 실패했습니다: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 네이버 상품 상세 조회
      */
     @GetMapping("/products/{productId}")
@@ -106,37 +124,7 @@ public class NaverShoppingController {
         }
     }
 
-    /**
-     * 인기 네이버 상품 조회
-     */
-    @GetMapping("/products/popular")
-    public ResponseEntity<ResponseDto> getPopularProducts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        try {
-            Page<NaverProductDto> products = naverShoppingService.getPopularProducts(page, size);
-            return ResponseEntity.ok(ResponseDto.success(products));
-        } catch (Exception e) {
-            log.error("인기 네이버 상품 조회 실패: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(ResponseDto.fail("POPULAR_PRODUCTS_FAILED", "인기 네이버 상품 조회에 실패했습니다: " + e.getMessage()));
-        }
-    }
 
-    /**
-     * 높은 평점 네이버 상품 조회
-     */
-    @GetMapping("/products/top-rated")
-    public ResponseEntity<ResponseDto> getTopRatedProducts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        try {
-            Page<NaverProductDto> products = naverShoppingService.getTopRatedProducts(page, size);
-            return ResponseEntity.ok(ResponseDto.success(products));
-        } catch (Exception e) {
-            log.error("높은 평점 네이버 상품 조회 실패: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(ResponseDto.fail("TOP_RATED_PRODUCTS_FAILED", "높은 평점 네이버 상품 조회에 실패했습니다: " + e.getMessage()));
-        }
-    }
 
     /**
      * 현재 인증된 사용자의 ID를 가져오는 헬퍼 메서드

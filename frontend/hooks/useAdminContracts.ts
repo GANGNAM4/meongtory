@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { ContractTemplate, GeneratedContract } from '@/types/admin'
 import axios from 'axios'
 import { formatToKST } from '@/lib/utils'
+import { getBackendUrl } from "@/lib/api";
 
 export function useAdminContracts() {
   const [contractTemplates, setContractTemplates] = useState<ContractTemplate[]>([])
@@ -10,11 +11,6 @@ export function useAdminContracts() {
   const [error, setError] = useState<string | null>(null)
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
   const [isLoadingContracts, setIsLoadingContracts] = useState(false)
-
-  // 백엔드 URL 가져오기
-  const getBackendUrl = () => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-  }
 
   // 계약서 템플릿 페칭
   const fetchContractTemplates = async () => {

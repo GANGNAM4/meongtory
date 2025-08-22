@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Plus, Edit, Mic, Trash2 } from "lucide-react"
-import { fetchDiaries, deleteDiary } from "@/lib/api/diary"
+import { fetchDiaries, deleteDiary } from "@/lib/diary"
 import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/components/navigation"
 import GrowthDiaryWritePage from "./write/page"
 
 interface DiaryEntry {
@@ -25,7 +26,7 @@ interface GrowthDiaryPageProps {
   onViewEntry: (entry: DiaryEntry) => void
   onClose: () => void
   onAddEntry: (entryData: Omit<DiaryEntry, "diaryId" | "createdAt" | "updatedAt">) => void
-  isLoggedIn: boolean
+  isLoggedIn?: boolean // prop을 optional로 변경
   currentUserId?: string
   onNavigateToWrite: () => void
 }
@@ -35,63 +36,56 @@ export default function GrowthDiaryPage({
   onViewEntry,
   onClose,
   onAddEntry,
-  isLoggedIn,
+  isLoggedIn: propIsLoggedIn,
   currentUserId,
   onNavigateToWrite,
 }: GrowthDiaryPageProps) {
+  const { isLoggedIn, currentUser, checkLoginStatus } = useAuth();
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
   const [isWriteMode, setIsWriteMode] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [diaryToDelete, setDiaryToDelete] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
 
-  const refetchDiaries = () => {
+  const refetchDiaries = async () => {
     console.log("=== refetchDiaries called ===");
-    console.log("Fetching diaries for current user");
+    console.log("Fetching diaries for current user, isLoggedIn:", isLoggedIn);
     
-    fetchDiaries()
-      .then((data) => {
-        console.log("=== fetchDiaries success ===");
-        console.log("Raw data received:", data);
-        console.log("Data type:", typeof data);
-        console.log("Is array:", Array.isArray(data));
-        console.log("Number of entries fetched:", data.length);
-        console.log("Setting diary entries:", data);
-        setDiaryEntries(data as DiaryEntry[]);
-      })
-      .catch((err: any) => {
-        console.error("=== fetchDiaries error ===");
-        console.error("일기 목록 불러오기 실패:", err);
-        console.error("Error details:", err.message);
-        
-        // 인증 관련 에러 처리
-        if (err.message.includes("로그인이 필요합니다") || err.message.includes("세션이 만료")) {
-          toast({
-            title: "로그인 필요",
-            description: "로그인이 필요합니다. 다시 로그인해주세요.",
-            variant: "destructive",
-          });
-          // 로그인 페이지로 이동
-          // 로그인 모달 표시 대신 홈으로 이동
-          window.location.href = "/";
-          return;
-        }
-      });
+    try {
+      const data = await fetchDiaries();
+      console.log("=== fetchDiaries success ===");
+      console.log("Raw data received:", data);
+      console.log("Data type:", typeof data);
+      console.log("Is array:", Array.isArray(data));
+      console.log("Number of entries fetched:", data.length);
+      setDiaryEntries(data as DiaryEntry[]);
+    } catch (err: any) {
+      console.error("=== fetchDiaries error ===");
+      console.error("일기 목록 불러오기 실패:", err);
+      console.error("Error details:", err.message);
+      
+      if (err.message.includes("로그인이 필요합니다") || err.message.includes("세션이 만료")) {
+        toast({
+          title: "로그인 필요",
+          description: "로그인이 필요합니다. 다시 로그인해주세요.",
+          variant: "destructive",
+        });
+        window.location.href = "/";
+        return;
+      }
+    }
   };
 
   const handleEdit = (diaryId: number) => {
     console.log("=== handleEdit called ===");
     console.log("Diary ID:", diaryId);
     console.log("Current URL:", window.location.href);
-    
-    // 항상 직접 수정 페이지로 이동
-    console.log("Redirecting to diary edit page");
     window.location.href = `/diary/edit/${diaryId}`;
   };
 
   const handleDelete = async (diaryId: number) => {
-    // 삭제할 일기 ID를 설정하고 확인 모달 표시
     setDiaryToDelete(diaryId);
     setShowDeleteConfirm(true);
   };
@@ -109,20 +103,15 @@ export default function GrowthDiaryPage({
       refetchDiaries();
     } catch (err: any) {
       console.error("일기 삭제 실패:", err);
-      
-      // 인증 관련 에러 처리
       if (err.message.includes("로그인이 필요합니다") || err.message.includes("세션이 만료")) {
         toast({
           title: "로그인 필요",
           description: "로그인이 필요합니다. 다시 로그인해주세요.",
           variant: "destructive",
         });
-        // 로그인 페이지로 이동
-                  // 로그인 모달 표시 대신 홈으로 이동
-          window.location.href = "/";
+        window.location.href = "/";
         return;
       }
-      
       toast({
         title: "삭제 실패",
         description: "삭제 중 오류가 발생했습니다.",
@@ -141,61 +130,36 @@ export default function GrowthDiaryPage({
 
   useEffect(() => {
     console.log("=== useEffect triggered ===");
-    console.log("Current userId:", currentUserId, "isLoggedIn:", isLoggedIn);
-    console.log("Calling refetchDiaries from useEffect");
-    refetchDiaries();
-  }, [currentUserId, isLoggedIn]);
-
-  // isLoggedIn 상태 변경 시 로그
-  useEffect(() => {
-    console.log("=== isLoggedIn changed ===");
-    console.log("isLoggedIn:", isLoggedIn);
-  }, [isLoggedIn]);
-
-  // URL 파라미터 변경 시에도 데이터 새로고침
-  useEffect(() => {
-    const handleUrlChange = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const page = urlParams.get("page");
-      console.log("URL changed, page:", page);
-      if (page === "diary") {
-        console.log("Diary page detected, refetching data");
-        refetchDiaries();
-      }
-    };
-
-    // 초기 로드 시 체크
-    handleUrlChange();
-
-    // URL 변경 감지
-    const handlePopState = () => {
-      handleUrlChange();
-    };
-
-    // 페이지 포커스 시에도 데이터 새로고침
-    const handleFocus = () => {
-      handleUrlChange();
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    window.addEventListener('focus', handleFocus);
+    console.log("Current userId:", currentUser?.id, "isLoggedIn:", isLoggedIn);
     
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('focus', handleFocus);
+    const initialize = async () => {
+      setIsLoading(true);
+      await checkLoginStatus();
+      if (isLoggedIn) {
+        await refetchDiaries();
+      }
+      setIsLoading(false);
     };
-  }, []);
+
+    initialize();
+  }, [isLoggedIn, currentUser, checkLoginStatus]);
 
   const userEntries = diaryEntries.filter((entry) => {
     console.log("Filtering entry:", entry);
     console.log("Entry userId:", entry.userId, "Entry title:", entry.title);
-    
-    // 모든 일기를 표시 (필터링 제거)
-    return true;
+    return true; // 모든 일기 표시
   });
 
   console.log("userEntries length:", userEntries.length);
   console.log("userEntries:", userEntries);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
+        <p className="text-gray-500">로딩 중...</p>
+      </div>
+    );
+  }
 
   if (isWriteMode) {
     return (
@@ -207,7 +171,7 @@ export default function GrowthDiaryPage({
           console.log("Calling refetchDiaries");
           refetchDiaries();
         }}
-        currentUserId={Number(currentUserId)}
+        currentUserId={Number(currentUser?.id) || Number(currentUserId)}
       />
     );
   }
@@ -234,7 +198,6 @@ export default function GrowthDiaryPage({
           )}
         </div>
 
-        {/* Diary Entries List */}
         <div className="grid gap-6">
           {userEntries.length > 0 ? (
             userEntries.map((entry) => (
@@ -317,7 +280,6 @@ export default function GrowthDiaryPage({
           )}
         </div>
 
-        {/* 삭제 확인 모달 */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <Card className="w-full max-w-md mx-4">

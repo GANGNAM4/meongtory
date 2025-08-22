@@ -94,7 +94,7 @@ public class WebSecurityConfig {
                                 "/api/carts/**",
                                 "/error",
                                 "/actuator/**",
-                                "/api/naver-shopping/products/**"
+                                "/api/naver-shopping/**"
                         ).permitAll()
 
                         .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")

@@ -5,8 +5,9 @@ import com.my.backend.community.dto.CommunityPostDto;
 import com.my.backend.community.entity.CommunityPost;
 import com.my.backend.community.service.CommunityPostService;
 import com.my.backend.global.security.user.UserDetailsImpl;
-import com.my.backend.s3.S3Service;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -16,15 +17,15 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/community/posts")
 @RequiredArgsConstructor
+@Slf4j
 public class CommunityPostController {
 
     private static final Logger logger = LoggerFactory.getLogger(CommunityPostController.class);
@@ -92,7 +93,7 @@ public class CommunityPostController {
             CommunityPostDto response = postService.createPost(dto, imgs, account);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Error creating post: {}", e.getMessage());
+            logger.error("Error creating post: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "게시물 생성 중 오류 발생: " + e.getMessage()));
         }
@@ -103,10 +104,13 @@ public class CommunityPostController {
             @PathVariable Long id,
             @RequestPart(value = "postImg", required = false) List<MultipartFile> imgs,
             @RequestPart(value = "dto") CommunityPostDto dto,
-            @AuthenticationPrincipal UserDetailsImpl userDetails
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            HttpServletRequest request
     ) {
-        logger.info("Updating post with id: {}", id);
+        log.info("Content-Type received: {}", request.getContentType());
+        log.info("Updating post with id: {}", id);
         if (userDetails == null || userDetails.getAccount() == null) {
+            log.warn("Unauthorized access attempt: userDetails={}", userDetails);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "로그인이 필요합니다."));
         }
@@ -115,7 +119,7 @@ public class CommunityPostController {
         try {
             CommunityPost existingPost = postService.getPostById(id);
 
-            if (!existingPost.getOwnerEmail().equals(account.getEmail()) &&
+            if (!Objects.equals(existingPost.getOwnerEmail(), account.getEmail()) &&
                     !"ADMIN".equals(account.getRole())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Map.of("error", "수정 권한이 없습니다."));
@@ -124,7 +128,7 @@ public class CommunityPostController {
             CommunityPost updatedPost = postService.updatePost(id, dto, imgs);
             return ResponseEntity.ok(updatedPost);
         } catch (Exception e) {
-            logger.error("Error updating post: {}", e.getMessage());
+            logger.error("Error updating post: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", e.getMessage()));
         }
@@ -139,7 +143,7 @@ public class CommunityPostController {
             postService.save(post);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
-            logger.error("Error liking post: {}", e.getMessage());
+            logger.error("Error liking post: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "좋아요 처리 중 오류 발생: " + e.getMessage()));
         }
@@ -157,15 +161,23 @@ public class CommunityPostController {
         }
 
         Account account = userDetails.getAccount();
-        CommunityPost post = postService.getPostById(id);
+        try {
+            // ✅ 조회수 증가 없는 메서드로 가져오기
+            CommunityPost post = postService.findPostById(id);
 
-        if (!post.getOwnerEmail().equals(account.getEmail()) &&
-                !"ADMIN".equals(account.getRole())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "삭제 권한이 없습니다."));
+            if (!Objects.equals(post.getOwnerEmail(), account.getEmail()) &&
+                    !"ADMIN".equals(account.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "삭제 권한이 없습니다."));
+            }
+
+            postService.deletePost(id);
+            return ResponseEntity.ok(Map.of("message", "삭제 완료"));
+        } catch (Exception e) {
+            logger.error("Error deleting post: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
         }
-
-        postService.deletePost(id);
-        return ResponseEntity.ok(Map.of("message", "삭제 완료"));
     }
+
 }

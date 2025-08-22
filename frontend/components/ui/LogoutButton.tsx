@@ -3,7 +3,7 @@
 import type React from "react";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
-import { getApiBaseUrl, getBackendUrl } from "@/lib/api";
+import { getBackendUrl } from "@/lib/api";
 
 interface LogoutButtonProps {
   onLogout: () => void;
@@ -18,8 +18,8 @@ export default function LogoutButton({ onLogout }: LogoutButtonProps) {
       }
 
 
-      await axios.post(`${getBackendUrl()}/api/accounts/logout`, {}, {
-
+      await axios.post(`${getBackendUrl()}/api/accounts/logout`, {}, 
+      {
         headers: {
           "Content-Type": "application/json",
           "Access_Token": accessToken,

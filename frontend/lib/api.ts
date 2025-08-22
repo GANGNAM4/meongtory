@@ -2,20 +2,9 @@ import axios from 'axios';
 
 // API 설정을 위한 공통 유틸리티
 export const getBackendUrl = () => {
-
   const url = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
-
-  const normalizedUrl = url.endsWith('/') ? url.slice(0, -1) : url;
-  console.log('Backend URL:', normalizedUrl);
-  console.log('NEXT_PUBLIC_BACKEND_URL:', process.env.NEXT_PUBLIC_BACKEND_URL);
-  return normalizedUrl;
+  return url;
 };
-
-export const getApiBaseUrl = () => {
-  return `${getBackendUrl()}/api`;
-};
-
-const API_BASE_URL = getApiBaseUrl();
 
 // 인증이 필요 없는 엔드포인트 목록
 const PUBLIC_ENDPOINTS = [
@@ -55,8 +44,7 @@ axios.interceptors.response.use(
       const refreshToken = localStorage.getItem('refreshToken');
       if (refreshToken) {
         try {
-          const response = await axios.post(
-            `${API_BASE_URL}/accounts/refresh`,
+          const response = await axios.post(`${getBackendUrl()}/api/accounts/refresh`,
             { refreshToken },
             {
               headers: {
@@ -110,17 +98,17 @@ export const petApi = {
         }
       });
     }
-    console.log('Fetching pets with URL:', `${API_BASE_URL}/pets?${params.toString()}`);
-    const response = await axios.get(`${API_BASE_URL}/pets?${params.toString()}`);
+    console.log('Fetching pets with URL:', `${getBackendUrl()}/api/pets?${params.toString()}`);
+    const response = await axios.get(`${getBackendUrl()}/api/pets?${params.toString()}`);
     console.log('Raw pets response:', response.data);
     // 응답이 배열이면 그대로 반환, 아니면 response.data.data 반환
     return Array.isArray(response.data) ? response.data : response.data.data;
   },
 
   createPet: async (petData: Omit<Pet, 'petId'>): Promise<Pet> => {
-    console.log('Creating pet with URL:', `${API_BASE_URL}/pets`);
+    console.log('Creating pet with URL:', `${getBackendUrl()}/api/pets`);
     console.log('Pet data:', petData);
-    const response = await axios.post(`${API_BASE_URL}/pets`, petData, {
+    const response = await axios.post(`${getBackendUrl()}/api/pets`, petData, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -170,7 +158,7 @@ export const petApi = {
   updatePet: async (petId: number, petData: Partial<Pet>): Promise<Pet> => {
     console.log('전송할 데이터:', petData);
     
-    const response = await axios.put(`${API_BASE_URL}/pets/${petId}`, petData, {
+    const response = await axios.put(`${getBackendUrl()}/api/pets/${petId}`, petData, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -179,18 +167,18 @@ export const petApi = {
   },
 
   deletePet: async (petId: number): Promise<void> => {
-    await axios.delete(`${API_BASE_URL}/pets/${petId}`);
+    await axios.delete(`${getBackendUrl()}/api/pets/${petId}`);
   },
 
   updatePetImageUrl: async (petId: number, imageUrl: string): Promise<Pet> => {
-    const response = await axios.patch(`${API_BASE_URL}/pets/${petId}/image-url`, null, {
+    const response = await axios.patch(`${getBackendUrl()}/api/pets/${petId}/image-url`, null, {
       params: { imageUrl },
     });
     return response.data.data;
   },
 
   updateAdoptionStatus: async (petId: number, adopted: boolean): Promise<Pet> => {
-    const response = await axios.patch(`${API_BASE_URL}/pets/${petId}/adoption-status`, null, {
+    const response = await axios.patch(`${getBackendUrl()}/api/pets/${petId}/adoption-status`, null, {
       params: { adopted },
     });
     return response.data.data;
@@ -202,7 +190,7 @@ export const s3Api = {
   uploadFile: async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await axios.post(`${API_BASE_URL}/s3/upload`, formData, {
+    const response = await axios.post(`${getBackendUrl()}/api/s3/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -213,7 +201,7 @@ export const s3Api = {
   uploadAdoptionFile: async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await axios.post(`${API_BASE_URL}/s3/upload/adoption`, formData, {
+    const response = await axios.post(`${getBackendUrl()}/api/s3/upload/adoption`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -224,7 +212,8 @@ export const s3Api = {
   },
 
   deleteFile: async (fileName: string): Promise<void> => {
-    const response = await axios.delete(`${API_BASE_URL}/s3/delete`, {
+    const response = await axios.delete(`${getBackendUrl()}/api/s3/delete`, 
+    {
       params: { fileName },
     });
     if (response.status !== 200) {
@@ -236,7 +225,7 @@ export const s3Api = {
 // 사용자 정보 API 함수들
 export const userApi = {
   getCurrentUser: async (): Promise<any> => {
-    const response = await axios.get(`${API_BASE_URL}/accounts/me`);
+    const response = await axios.get(`${getBackendUrl()}/api/accounts/me`);
     return response.data.data;
   },
 };
@@ -250,31 +239,30 @@ export const adoptionRequestApi = {
     email: string;
     message: string;
   }): Promise<any> => {
-    console.log("API 요청 데이터:", requestData)
-    const response = await axios.post(`${API_BASE_URL}/adoption-requests`, requestData);
-    console.log("API 응답:", response.data)
+    const response = await axios.post(`${getBackendUrl()}/api/adoption-requests`, requestData);
     return response.data.data;
   },
 
   getAdoptionRequests: async (): Promise<any[]> => {
-    const response = await axios.get(`${API_BASE_URL}/adoption-requests`);
+    const response = await axios.get(`${getBackendUrl()}/api/adoption-requests`);
     console.log('Raw adoption requests response:', response.data);
     // 응답이 배열이면 그대로 반환, 아니면 response.data.data 반환
     return Array.isArray(response.data) ? response.data : response.data.data;
   },
 
   getUserAdoptionRequests: async (): Promise<any[]> => {
-    const response = await axios.get(`${API_BASE_URL}/adoption-requests/user`);
+    const response = await axios.get(`${getBackendUrl()}/api/adoption-requests/user`);
     return response.data.data;
   },
 
   getAdoptionRequest: async (requestId: number): Promise<any> => {
-    const response = await axios.get(`${API_BASE_URL}/adoption-requests/${requestId}`);
+    const response = await axios.get(`${getBackendUrl()}/api/adoption-requests/${requestId}`);
     return response.data.data;
   },
 
   updateAdoptionRequestStatus: async (requestId: number, status: string): Promise<any> => {
-    const response = await axios.put(`${API_BASE_URL}/adoption-requests/${requestId}/status`, {
+    const response = await axios.put(`${getBackendUrl()}/api/adoption-requests/${requestId}/status`, 
+    {
       status: status,
     });
     return response.data.data;
@@ -289,12 +277,12 @@ export const adoptionRequestApi = {
       message: string;
     }
   ): Promise<any> => {
-    const response = await axios.put(`${API_BASE_URL}/adoption-requests/${requestId}`, data);
+    const response = await axios.put(`${getBackendUrl()}/api/adoption-requests/${requestId}`, data);
     return response.data.data;
   },
 
   getAdoptionRequestsByStatus: async (status: string): Promise<any[]> => {
-    const response = await axios.get(`${API_BASE_URL}/adoption-requests/status/${status}`);
+    const response = await axios.get(`${getBackendUrl()}/api/adoption-requests/status/${status}`);
     return response.data.data;
   },
 };
@@ -302,7 +290,7 @@ export const adoptionRequestApi = {
 // 상품 API 함수들
 export const productApi = {
   getProducts: async (): Promise<any[]> => {
-    const response = await axios.get(`${API_BASE_URL}/products`);
+    const response = await axios.get(`${getBackendUrl()}/api/products`);
     console.log('Raw products response:', response);
     console.log('Response data:', response.data);
     console.log('Response data type:', typeof response.data);
@@ -326,10 +314,10 @@ export const productApi = {
   },
 
   getProduct: async (productId: number): Promise<any> => {
-    console.log('상품 조회 요청:', `${API_BASE_URL}/products/${productId}`);
+    console.log('상품 조회 요청:', `${getBackendUrl()}/api/products/${productId}`);
     console.log('요청할 productId:', productId, '타입:', typeof productId);
     try {
-      const response = await axios.get(`${API_BASE_URL}/products/${productId}`);
+      const response = await axios.get(`${getBackendUrl()}/api/products/${productId}`);
       console.log('상품 조회 성공:', response.data);
       return response.data.data;
     } catch (error) {
@@ -348,9 +336,9 @@ export const productApi = {
   },
 
   createProduct: async (productData: any): Promise<any> => {
-    console.log('Creating product with URL:', `${API_BASE_URL}/products`);
+    console.log('Creating product with URL:', `${getBackendUrl()}/api/products`);
     console.log('Product data:', productData);
-    const response = await axios.post(`${API_BASE_URL}/products`, productData, {
+    const response = await axios.post(`${getBackendUrl()}/api/products`, productData, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -359,7 +347,7 @@ export const productApi = {
   },
 
   updateProduct: async (productId: number, productData: any): Promise<any> => {
-    const response = await axios.put(`${API_BASE_URL}/products/${productId}`, productData, {
+    const response = await axios.put(`${getBackendUrl()}/api/products/${productId}`, productData, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -368,7 +356,7 @@ export const productApi = {
   },
 
   deleteProduct: async (productId: number): Promise<void> => {
-    await axios.delete(`${API_BASE_URL}/products/${productId}`);
+    await axios.delete(`${getBackendUrl()}/api/products/${productId}`);
   },
 };
 

@@ -11,15 +11,13 @@ import torch.nn.functional as F
 import sys
 import io
 
-# Windows 콘솔에서 한글 출력 (기본 인코딩 사용)
-
 class DogEmotionModel(nn.Module):
     """
     강아지 감정 분류를 위한 ResNet50 기반 모델
     Transfer Learning 적용
     """
     
-    def __init__(self, num_classes=4, pretrained=True, dropout_rate=0.5):
+    def __init__(self, num_classes=4, pretrained=True, dropout_rate=0.3):
         """
         Args:
             num_classes (int): 감정 클래스 수 (기본값: 4 - angry, happy, relaxed, sad)
@@ -149,7 +147,7 @@ class DogEmotionModel(nn.Module):
         
         return trainable_params, total_params
 
-def create_model(num_classes=4, pretrained=True, dropout_rate=0.5, freeze_backbone=True):
+def create_model(num_classes=4, pretrained=True, dropout_rate=0.3, freeze_backbone=False):
     """
     모델 생성 헬퍼 함수
     
@@ -183,8 +181,8 @@ def test_model():
     model = create_model(
         num_classes=4,
         pretrained=True,
-        freeze_backbone=True,
-        dropout_rate=0.5
+        freeze_backbone=False,
+        dropout_rate=0.3
     )
     
     # 테스트 입력 생성 (배치 크기 2)
