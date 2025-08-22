@@ -1,42 +1,47 @@
 "use client"
 
-import React, { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Plus, Trash2, GripVertical, Sparkles, X } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Plus, Trash2, X } from "lucide-react"
+import axios from "axios"
 
 interface EditTemplateModalProps {
   isOpen: boolean
   onClose: () => void
   editingTemplate: any
-  onUpdateTemplate: (templateData: any) => void
-  onGetAISuggestion?: (sectionId: number, sectionTitle: string) => Promise<string>
+  onUpdateTemplate: () => void
 }
 
-export default function EditTemplateModal({
-  isOpen,
-  onClose,
-  editingTemplate,
-  onUpdateTemplate,
-  onGetAISuggestion,
-}: EditTemplateModalProps) {
-  const [newTemplate, setNewTemplate] = useState({
-    name: editingTemplate?.name || "",
-    category: editingTemplate?.category || "",
+interface TemplateSection {
+  id: string
+  title: string
+  aiSuggestion: string
+}
+
+interface NewTemplate {
+  name: string
+  category: string
+  content: string
+  isDefault: boolean
+}
+
+export default function EditTemplateModal({ isOpen, onClose, editingTemplate, onUpdateTemplate }: EditTemplateModalProps) {
+  const [newTemplate, setNewTemplate] = useState<NewTemplate>({
+    name: "",
+    category: "",
     content: "",
     isDefault: false
   })
-  const [templateSections, setTemplateSections] = useState<Array<{
-    id: string;
-    title: string;
-    aiSuggestion: string;
-  }>>([])
+  const [templateSections, setTemplateSections] = useState<TemplateSection[]>([])
   const [showAISuggestion, setShowAISuggestion] = useState<string | null>(null)
-  const [isLoadingAI, setIsLoadingAI] = useState(false)
 
-  // 템플릿 데이터 초기화
-  React.useEffect(() => {
+  const getBackendUrl = () => {
+    return process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080"
+  }
+
+  useEffect(() => {
     if (editingTemplate) {
       setNewTemplate({
         name: editingTemplate.name || "",
@@ -44,8 +49,7 @@ export default function EditTemplateModal({
         content: "",
         isDefault: editingTemplate.isDefault || false
       })
-      
-      // sections 파싱
+
       if (editingTemplate.sections && editingTemplate.sections.length > 0) {
         const sections = editingTemplate.sections.map((section: any, index: number) => ({
           id: `section-${Date.now()}-${index}`,
@@ -54,7 +58,6 @@ export default function EditTemplateModal({
         }))
         setTemplateSections(sections)
       } else if (editingTemplate.content) {
-        // content가 있으면 파싱해서 sections로 변환
         const contentLines = editingTemplate.content.split('\n').filter((line: string) => line.trim())
         const sections = contentLines.map((line: string, index: number) => {
           const match = line.match(/^(\d+)\.\s*(.+?)(?:\s*\(필수\))?$/)
@@ -62,14 +65,12 @@ export default function EditTemplateModal({
             return {
               id: `section-${Date.now()}-${index}`,
               title: match[2].trim(),
-              required: line.includes('(필수)'),
               aiSuggestion: ""
             }
           } else {
             return {
               id: `section-${Date.now()}-${index}`,
               title: line.trim(),
-              required: false,
               aiSuggestion: ""
             }
           }
@@ -88,6 +89,17 @@ export default function EditTemplateModal({
       aiSuggestion: ""
     }
     setTemplateSections([...templateSections, newSection])
+  }
+
+  const addSectionAtIndex = (index: number) => {
+    const newSection = {
+      id: (Date.now() + Math.random()).toString(),
+      title: "새 항목",
+      aiSuggestion: ""
+    }
+    const newSections = [...templateSections]
+    newSections.splice(index, 0, newSection)
+    setTemplateSections(newSections)
   }
 
   const addDefaultSections = () => {
@@ -127,6 +139,114 @@ export default function EditTemplateModal({
     setTemplateSections([...templateSections, ...defaultSections])
   }
 
+  const generateClauseNumber = (title: string, sections: TemplateSection[] = templateSections) => {
+    const finalTitle = title && title.trim() !== '' ? title : '새 항목'
+    
+    const usedNumbers = new Set<number>()
+    
+    sections.forEach((section) => {
+      if (section.aiSuggestion) {
+        const match = section.aiSuggestion.match(/제(\d+)조/)
+        if (match) {
+          usedNumbers.add(parseInt(match[1]))
+        }
+      }
+    })
+    
+    let clauseNumber = 1
+    while (usedNumbers.has(clauseNumber)) {
+      clauseNumber++
+    }
+    
+    return `제${clauseNumber}조 (${finalTitle})`
+  }
+
+  const getAISuggestion = async (title: string) => {
+    try {
+      const isDefaultTitle = !title || title === '' || title === '새 항목'
+      
+      if (isDefaultTitle) {
+        const response = await axios.post(`${getBackendUrl()}/api/contract-templates/ai-suggestions/contract-suggestions`, {
+          templateId: 1,
+          currentContent: "",
+          petInfo: {},
+          userInfo: {}
+        })
+        
+        if (response.data.data && response.data.data.suggestions && response.data.data.suggestions.length > 0) {
+          const aiTitle = response.data.data.suggestions[0].suggestion.replace(/^제\d+조\s*\((.+)\)$/, '$1')
+          return generateClauseNumber(aiTitle)
+        }
+      } else {
+        const response = await axios.post(`${getBackendUrl()}/api/contract-templates/ai-suggestions/clauses`, {
+          templateId: null,
+          currentClauses: templateSections.map(s => s.title),
+          petInfo: {},
+          userInfo: {}
+        })
+        
+        if (response.data.data && response.data.data.suggestions && response.data.data.suggestions.length > 0) {
+          const aiTitle = response.data.data.suggestions[0].suggestion.replace(/^제\d+조\s*\((.+)\)$/, '$1')
+          return generateClauseNumber(aiTitle)
+        }
+      }
+      
+      const defaultTitle = title || '새 항목'
+      return generateClauseNumber(defaultTitle)
+    } catch (error) {
+      console.error("AI 추천 생성 실패:", error)
+      const defaultTitle = title || '새 항목'
+      return generateClauseNumber(defaultTitle)
+    }
+  }
+
+  const handleGetClauseNumber = async (sectionId: string, title: string) => {
+    const suggestion = await getAISuggestion(title)
+    updateSection(sectionId, 'aiSuggestion', suggestion)
+    setShowAISuggestion(sectionId)
+  }
+
+  const handleRejectAISuggestion = async (sectionId: string) => {
+    const section = templateSections.find(s => s.id === sectionId)
+    if (section) {
+      try {
+        const response = await axios.post(`${getBackendUrl()}/api/contract-templates/ai-suggestions/clauses`, {
+          templateId: null,
+          currentClauses: templateSections.map(s => s.title),
+          petInfo: {},
+          userInfo: {}
+        })
+        
+        if (response.data.data && response.data.data.length > 1) {
+          const randomIndex = Math.floor(Math.random() * (response.data.data.length - 1)) + 1
+          const aiTitle = response.data.data[randomIndex].suggestion.replace(/^제\d+조\s*\((.+)\)$/, '$1')
+          const newSuggestion = generateClauseNumber(aiTitle)
+          updateSection(sectionId, 'aiSuggestion', newSuggestion)
+        } else {
+          const basicNumber = generateClauseNumber(section.title)
+          updateSection(sectionId, 'aiSuggestion', basicNumber)
+        }
+      } catch (error) {
+        console.error("다른 AI 추천 생성 실패:", error)
+        const basicNumber = generateClauseNumber(section.title)
+        updateSection(sectionId, 'aiSuggestion', basicNumber)
+      }
+    }
+  }
+
+  const handleApplyAISuggestion = (sectionId: string) => {
+    const section = templateSections.find(s => s.id === sectionId)
+    if (section && section.aiSuggestion) {
+      const titleOnly = section.aiSuggestion.replace(/^제\d+조\s*\((.+)\)$/, '$1')
+      updateSection(sectionId, 'title', titleOnly)
+      setShowAISuggestion(null)
+    }
+  }
+
+  const handleCloseAISuggestion = (sectionId: string) => {
+    setShowAISuggestion(null)
+  }
+
   const removeSection = (id: string) => {
     setTemplateSections(templateSections.filter(section => section.id !== id))
   }
@@ -144,77 +264,44 @@ export default function EditTemplateModal({
     setTemplateSections(newSections)
   }
 
-  const handleGetAISuggestion = async (sectionId: string, sectionTitle: string) => {
-    if (!onGetAISuggestion) return
+  const handleUpdateTemplate = async () => {
+    if (!editingTemplate) return
     
-    setIsLoadingAI(true)
     try {
-      const suggestion = await onGetAISuggestion(parseInt(sectionId), sectionTitle)
-      setTemplateSections(prev =>
-        prev.map(section =>
-          section.id === sectionId
-            ? { ...section, aiSuggestion: suggestion }
-            : section
-        )
-      )
-      setShowAISuggestion(sectionId)
-    } catch (error) {
-      console.error('AI 추천 가져오기 오류:', error)
-      alert('AI 추천을 가져오는 중 오류가 발생했습니다.')
-    } finally {
-      setIsLoadingAI(false)
-    }
-  }
-
-  const handleApplyAISuggestion = (sectionId: string) => {
-    setTemplateSections(prev =>
-      prev.map(section =>
-        section.id === sectionId
-          ? { ...section, title: section.aiSuggestion || section.title }
-          : section
-      )
-    )
-    setShowAISuggestion(null)
-  }
-
-  const handleRejectAISuggestion = async (sectionId: string) => {
-    const section = templateSections.find(s => s.id === sectionId)
-    if (section && onGetAISuggestion) {
-      await handleGetAISuggestion(sectionId, section.title)
-    }
-  }
-
-  const handleCloseAISuggestion = (sectionId: string) => {
-    setShowAISuggestion(null)
-  }
-
-  const handleSubmit = () => {
-    if (!newTemplate.name.trim()) {
-      alert("템플릿 이름을 입력해주세요.")
-      return
-    }
-
-    if (templateSections.length === 0) {
-      alert("최소 하나의 섹션을 추가해주세요.")
-      return
-    }
-
-    const templateData = {
-      ...newTemplate,
-      sections: templateSections.map((section, index) => ({
+      const sections = templateSections.map((section, index) => ({
         title: section.title,
         order: index + 1,
         content: "",
         options: null
-      })),
+      }))
+      
+      const templateData = {
+        name: newTemplate.name,
+        category: newTemplate.category,
+        sections: sections
+      }
+      
+      const response = await axios.put(`${getBackendUrl()}/api/contract-templates/${editingTemplate.id}`, templateData)
+      if (response.data.success) {
+        alert("템플릿이 수정되었습니다.")
+        onClose()
+        onUpdateTemplate()
+      } else {
+        alert("템플릿 수정에 실패했습니다.")
+      }
+    } catch (error) {
+      console.error("템플릿 수정 실패:", error)
+      alert("템플릿 수정에 실패했습니다.")
     }
-
-    onUpdateTemplate(templateData)
-    handleClose()
   }
 
   const handleClose = () => {
-    setNewTemplate({ name: "", category: "", content: "", isDefault: false })
+    setNewTemplate({
+      name: "",
+      category: "",
+      content: "",
+      isDefault: false
+    })
     setTemplateSections([])
     setShowAISuggestion(null)
     onClose()
@@ -293,29 +380,23 @@ export default function EditTemplateModal({
                             ⋮⋮
                           </div>
                           <h4 className="font-medium">항목 {index + 1}</h4>
-                          {onGetAISuggestion && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleGetAISuggestion(section.id, section.title)}
-                              disabled={isLoadingAI}
-                              className="text-xs"
-                            >
-                              {isLoadingAI ? (
-                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
-                              ) : (
-                                <Sparkles className="h-3 w-3 mr-1" />
-                              )}
-                              AI 추천
-                            </Button>
-                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleGetClauseNumber(section.id, section.title)}
+                            className="text-xs whitespace-nowrap"
+                          >
+                            AI 추천
+                          </Button>
                           
-                          {/* AI 추천 말풍선 */}
+                          {/* 조항 번호 말풍선 */}
                           {showAISuggestion === section.id && section.aiSuggestion && (
-                            <div className="absolute bottom-10 left-full z-10 w-80 bg-blue-50 border border-blue-200 rounded-lg shadow-lg p-3 ml-2">
+                            <div className="absolute bottom-10px left-full z-10 w-80 bg-blue-50 border border-blue-200 rounded-lg shadow-lg p-3 ml-2 mb-2">
                               <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs font-medium text-blue-800">AI 추천</span>
                                 <Button
+                                  type="button"
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleCloseAISuggestion(section.id)}
@@ -324,9 +405,10 @@ export default function EditTemplateModal({
                                   <X className="h-3 w-3" />
                                 </Button>
                               </div>
-                              <p className="text-sm text-blue-900 mb-2">{section.aiSuggestion}</p>
+                              <p className="text-sm text-blue-900 mb-2">{section.aiSuggestion.replace(/^제\d+조\s*\((.+)\)$/, '$1')}</p>
                               <div className="flex gap-1 justify-end">
                                 <Button
+                                  type="button"
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleRejectAISuggestion(section.id)}
@@ -335,6 +417,7 @@ export default function EditTemplateModal({
                                   다른 추천
                                 </Button>
                                 <Button
+                                  type="button"
                                   size="sm"
                                   variant="default"
                                   onClick={() => handleApplyAISuggestion(section.id)}
@@ -343,6 +426,7 @@ export default function EditTemplateModal({
                                   적용하기
                                 </Button>
                               </div>
+                              <div className="absolute top-4 -left-2 w-0 h-0 border-t-2 border-b-2 border-r-2 border-transparent border-r-blue-50"></div>
                             </div>
                           )}
                         </div>
@@ -414,7 +498,7 @@ export default function EditTemplateModal({
               취소
             </Button>
             <Button 
-              onClick={handleSubmit}
+              onClick={handleUpdateTemplate}
               className="bg-blue-500 hover:bg-blue-600 text-white"
               disabled={!newTemplate.name || !newTemplate.category || templateSections.length === 0}
             >

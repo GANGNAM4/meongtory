@@ -1,28 +1,33 @@
 "use client"
 
-import React from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FileText } from "lucide-react"
 
 interface GeneratedContractViewModalProps {
   isOpen: boolean
   onClose: () => void
-  selectedContract: any
-  onDownloadContract?: (contractId: number) => void
-  formatToKST?: (date: string) => string
+  generatedContract: string | null
 }
 
-export default function GeneratedContractViewModal({
-  isOpen,
-  onClose,
-  selectedContract,
-  onDownloadContract,
-  formatToKST,
-}: GeneratedContractViewModalProps) {
-  const handleDownload = () => {
-    if (onDownloadContract && selectedContract?.id) {
-      onDownloadContract(selectedContract.id)
+export default function GeneratedContractViewModal({ isOpen, onClose, generatedContract }: GeneratedContractViewModalProps) {
+  const handleDownloadContract = async () => {
+    try {
+      // 임시로 텍스트 파일로 다운로드
+      const blob = new Blob([generatedContract || ""], { type: 'text/plain' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `generated-contract-${Date.now()}.txt`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      
+      alert("계약서 파일이 다운로드되었습니다.")
+    } catch (error) {
+      console.error("계약서 다운로드 실패:", error)
+      alert("파일 다운로드에 실패했습니다.")
     }
   }
 
@@ -32,63 +37,31 @@ export default function GeneratedContractViewModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5" />
-            생성된 계약서 상세 보기
+            생성된 계약서 보기
           </DialogTitle>
         </DialogHeader>
+        
         <div className="space-y-6">
-          {selectedContract && (
-            <div className="space-y-6">
-              {/* 계약서 정보 */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-medium mb-3 text-gray-800">계약서 정보</h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="flex items-center">
-                    <span className="font-medium text-gray-700 w-20">계약서명:</span>
-                    <span className="text-gray-900">{selectedContract.contractName || "계약서"}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="font-medium text-gray-700 w-20">생성일:</span>
-                    <span className="text-gray-900">{selectedContract.generatedAt ? formatToKST?.(selectedContract.generatedAt) : "날짜 없음"}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="font-medium text-gray-700 w-20">생성자:</span>
-                    <span className="text-gray-900">{selectedContract.generatedBy || "관리자"}</span>
-                  </div>
-                  {selectedContract.template && (
-                    <div className="flex items-center">
-                      <span className="font-medium text-gray-700 w-20">사용 템플릿:</span>
-                      <span className="text-gray-900">{selectedContract.template.name}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
+          {generatedContract ? (
+            <div className="space-y-4">
               {/* 계약서 내용 */}
               <div className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium">계약서 내용</h4>
+                  <h4 className="font-medium">생성된 계약서 내용</h4>
                   <div className="flex gap-2">
-                    {onDownloadContract && (
-                      <Button 
-                        size="sm"
-                        variant="outline"
-                        className="bg-white text-black border border-gray-300 hover:bg-gray-50"
-                        onClick={handleDownload}
-                      >
-                        <FileText className="h-4 w-4 mr-1" />
-                        PDF 다운로드
-                      </Button>
-                    )}
+                    <Button 
+                      size="sm"
+                      variant="outline"
+                      className="bg-white text-black border border-gray-300 hover:bg-gray-50"
+                      onClick={handleDownloadContract}
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      파일 다운로드
+                    </Button>
                   </div>
                 </div>
                 <div className="bg-white p-4 rounded border max-h-96 overflow-y-auto">
-                  {selectedContract.content ? (
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed">{selectedContract.content}</div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <p>계약서 내용을 불러올 수 없습니다.</p>
-                    </div>
-                  )}
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{generatedContract}</div>
                 </div>
               </div>
 
@@ -97,6 +70,10 @@ export default function GeneratedContractViewModal({
                   닫기
                 </Button>
               </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>생성된 계약서가 없습니다.</p>
             </div>
           )}
         </div>

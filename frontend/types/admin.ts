@@ -63,6 +63,25 @@ export interface AdoptionRequest {
   petId: number
   petName: string
   petBreed: string
+  petAge?: string
+  petGender?: 'MALE' | 'FEMALE' | 'UNKNOWN'
+  petWeight?: number
+  petVaccinated?: boolean
+  petNeutered?: boolean
+  petMedicalHistory?: string
+  petVaccinations?: string
+  petNotes?: string
+  petSpecialNeeds?: string
+  petDescription?: string
+  petLocation?: string
+  petMicrochipId?: string
+  petPersonality?: string
+  petRescueStory?: string
+  petAiBackgroundStory?: string
+  petStatus?: string
+  petType?: string
+  petAdopted?: boolean
+  petImageUrl?: string
   userId: number
   userName: string
   applicantName: string

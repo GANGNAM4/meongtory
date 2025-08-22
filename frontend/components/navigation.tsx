@@ -237,9 +237,9 @@ function NavigationHeader({
             </button>
             {isLoggedIn && (
               <button
-                onClick={() => onNavigate("myPage")}
+                onClick={() => onNavigate("my")}
                 className={`text-sm font-medium transition-colors ${
-                  currentPage === "myPage" ? "text-blue-600" : "text-gray-700 hover:text-blue-600"
+                  currentPage === "my" ? "text-blue-600" : "text-gray-700 hover:text-blue-600"
                 }`}
               >
                 마이페이지

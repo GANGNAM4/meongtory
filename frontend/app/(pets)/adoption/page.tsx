@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -28,6 +29,7 @@ export default function AdoptionPage({
   pets: initialPets = [],
   onViewPet,
 }: AdoptionPageProps) {
+  const router = useRouter()
   const [activeFilters, setActiveFilters] = useState<string[]>(["보호"])
   const [displayedPetsCount, setDisplayedPetsCount] = useState(PETS_PER_PAGE)
   const [isLoading, setIsLoading] = useState(false)
@@ -85,9 +87,8 @@ export default function AdoptionPage({
   }
 
   const handlePetClick = (pet: Pet) => {
-    if (onViewPet) {
-      onViewPet(pet)
-    }
+    // 직접 라우팅 처리
+    router.push(`/adoption/${pet.petId || pet.id}`)
   }
 
   // API 데이터를 프론트엔드 형식으로 변환
@@ -111,6 +112,7 @@ export default function AdoptionPage({
     }
 
     return {
+      petId: apiPet.petId,
       id: apiPet.petId,
       name: apiPet.name,
       breed: apiPet.breed,

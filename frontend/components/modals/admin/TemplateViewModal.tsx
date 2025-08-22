@@ -1,9 +1,8 @@
 "use client"
 
-import React from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FileText } from "lucide-react"
 
 interface TemplateViewModalProps {
@@ -12,11 +11,7 @@ interface TemplateViewModalProps {
   selectedTemplate: any
 }
 
-export default function TemplateViewModal({
-  isOpen,
-  onClose,
-  selectedTemplate,
-}: TemplateViewModalProps) {
+export default function TemplateViewModal({ isOpen, onClose, selectedTemplate }: TemplateViewModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">

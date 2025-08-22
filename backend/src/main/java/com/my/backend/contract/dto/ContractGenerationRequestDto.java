@@ -32,10 +32,15 @@ public class ContractGenerationRequestDto {
     @AllArgsConstructor
     @Builder
     public static class PetInfoDto {
+        private Long petId; // petId 추가 (옵셔널)
         private String name;
         private String breed;
         private String age;
+        private String gender;
         private String healthStatus;
+        private Double weight;
+        private Boolean vaccinated;
+        private Boolean neutered;
     }
     
     @Getter

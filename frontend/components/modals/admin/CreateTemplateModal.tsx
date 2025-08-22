@@ -1,161 +1,272 @@
 "use client"
 
-import React, { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Plus, Trash2, GripVertical, Sparkles, X } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Plus, Trash2, X } from "lucide-react"
+import axios from "axios"
 
 interface CreateTemplateModalProps {
   isOpen: boolean
   onClose: () => void
-  onCreateTemplate: (templateData: any) => void
-  onGetAISuggestion?: (sectionId: number, sectionTitle: string) => Promise<string>
+  onCreateTemplate?: () => void
 }
 
-export default function CreateTemplateModal({
-  isOpen,
-  onClose,
-  onCreateTemplate,
-  onGetAISuggestion,
-}: CreateTemplateModalProps) {
-  const [newTemplate, setNewTemplate] = useState({
+interface TemplateSection {
+  id: string
+  title: string
+  aiSuggestion: string
+}
+
+interface NewTemplate {
+  name: string
+  category: string
+  content: string
+  isDefault: boolean
+}
+
+export default function CreateTemplateModal({ isOpen, onClose, onCreateTemplate }: CreateTemplateModalProps) {
+  const [newTemplate, setNewTemplate] = useState<NewTemplate>({
     name: "",
     category: "",
-    description: "",
+    content: "",
+    isDefault: false
   })
-  const [templateSections, setTemplateSections] = useState<any[]>([])
-  const [showAISuggestion, setShowAISuggestion] = useState<number | null>(null)
-  const [isLoadingAI, setIsLoadingAI] = useState(false)
+  const [templateSections, setTemplateSections] = useState<TemplateSection[]>([])
+  const [showAISuggestion, setShowAISuggestion] = useState<string | null>(null)
+
+  const getBackendUrl = () => {
+    return process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080"
+  }
 
   const addSection = () => {
     const newSection = {
-      id: Date.now(),
-      title: "",
-      content: "",
-      order: templateSections.length,
+      id: (Date.now() + Math.random()).toString(),
+      title: "새 항목",
+      aiSuggestion: ""
     }
     setTemplateSections([...templateSections, newSection])
   }
 
+  const addSectionAtIndex = (index: number) => {
+    const newSection = {
+      id: (Date.now() + Math.random()).toString(),
+      title: "새 항목",
+      aiSuggestion: ""
+    }
+    const newSections = [...templateSections]
+    newSections.splice(index, 0, newSection)
+    setTemplateSections(newSections)
+  }
+
   const addDefaultSections = () => {
+    const baseTime = Date.now()
     const defaultSections = [
       {
-        id: Date.now(),
-        title: "1. 입양자 정보",
-        content: "입양자의 기본 정보를 입력하세요.",
-        order: 0,
+        id: (baseTime + 1).toString(),
+        title: "반려동물 이름",
+        aiSuggestion: "반려동물의 이름을 입력해주세요"
       },
       {
-        id: Date.now() + 1,
-        title: "2. 입양 동물 정보",
-        content: "입양할 동물의 기본 정보를 입력하세요.",
-        order: 1,
+        id: (baseTime + 2).toString(),
+        title: "반려동물 품종",
+        aiSuggestion: "반려동물의 품종을 입력해주세요"
       },
       {
-        id: Date.now() + 2,
-        title: "3. 입양 조건",
-        content: "입양에 필요한 조건들을 명시하세요.",
-        order: 2,
+        id: (baseTime + 3).toString(),
+        title: "반려동물 나이",
+        aiSuggestion: "반려동물의 나이를 입력해주세요"
       },
       {
-        id: Date.now() + 3,
-        title: "4. 책임과 의무",
-        content: "입양자의 책임과 의무를 명시하세요.",
-        order: 3,
+        id: (baseTime + 4).toString(),
+        title: "신청자 이름",
+        aiSuggestion: "신청자의 이름을 입력해주세요"
       },
       {
-        id: Date.now() + 4,
-        title: "5. 기타 사항",
-        content: "기타 필요한 사항들을 명시하세요.",
-        order: 4,
+        id: (baseTime + 5).toString(),
+        title: "신청자 연락처",
+        aiSuggestion: "신청자의 연락처를 입력해주세요"
       },
+      {
+        id: (baseTime + 6).toString(),
+        title: "신청자 이메일",
+        aiSuggestion: "신청자의 이메일을 입력해주세요"
+      }
     ]
-    setTemplateSections(defaultSections)
+    setTemplateSections([...templateSections, ...defaultSections])
   }
 
-  const updateSection = (id: number, field: string, value: string) => {
-    setTemplateSections(prev =>
-      prev.map(section =>
-        section.id === id ? { ...section, [field]: value } : section
-      )
-    )
-  }
-
-  const removeSection = (id: number) => {
-    setTemplateSections(prev => prev.filter(section => section.id !== id))
-  }
-
-  const handleGetAISuggestion = async (sectionId: number, sectionTitle: string) => {
-    if (!onGetAISuggestion) return
+  const generateClauseNumber = (title: string, sections: TemplateSection[] = templateSections) => {
+    const finalTitle = title && title.trim() !== '' ? title : '새 항목'
     
-    setIsLoadingAI(true)
+    const usedNumbers = new Set<number>()
+    
+    sections.forEach((section) => {
+      if (section.aiSuggestion) {
+        const match = section.aiSuggestion.match(/제(\d+)조/)
+        if (match) {
+          usedNumbers.add(parseInt(match[1]))
+        }
+      }
+    })
+    
+    let clauseNumber = 1
+    while (usedNumbers.has(clauseNumber)) {
+      clauseNumber++
+    }
+    
+    return `제${clauseNumber}조 (${finalTitle})`
+  }
+
+  const getAISuggestion = async (title: string) => {
     try {
-      const suggestion = await onGetAISuggestion(sectionId, sectionTitle)
-      setTemplateSections(prev =>
-        prev.map(section =>
-          section.id === sectionId
-            ? { ...section, aiSuggestion: suggestion }
-            : section
-        )
-      )
-      setShowAISuggestion(sectionId)
+      const isDefaultTitle = !title || title === '' || title === '새 항목'
+      
+      if (isDefaultTitle) {
+        const response = await axios.post(`${getBackendUrl()}/api/contract-templates/ai-suggestions/contract-suggestions`, {
+          templateId: 1,
+          currentContent: "",
+          petInfo: {},
+          userInfo: {}
+        })
+        
+        if (response.data.data && response.data.data.suggestions && response.data.data.suggestions.length > 0) {
+          const aiTitle = response.data.data.suggestions[0].suggestion.replace(/^제\d+조\s*\((.+)\)$/, '$1')
+          return generateClauseNumber(aiTitle)
+        }
+      } else {
+        const response = await axios.post(`${getBackendUrl()}/api/contract-templates/ai-suggestions/clauses`, {
+          templateId: null,
+          currentClauses: templateSections.map(s => s.title),
+          petInfo: {},
+          userInfo: {}
+        })
+        
+        if (response.data.data && response.data.data.suggestions && response.data.data.suggestions.length > 0) {
+          const aiTitle = response.data.data.suggestions[0].suggestion.replace(/^제\d+조\s*\((.+)\)$/, '$1')
+          return generateClauseNumber(aiTitle)
+        }
+      }
+      
+      const defaultTitle = title || '새 항목'
+      return generateClauseNumber(defaultTitle)
     } catch (error) {
-      console.error('AI 추천 가져오기 오류:', error)
-      alert('AI 추천을 가져오는 중 오류가 발생했습니다.')
-    } finally {
-      setIsLoadingAI(false)
+      console.error("AI 추천 생성 실패:", error)
+      const defaultTitle = title || '새 항목'
+      return generateClauseNumber(defaultTitle)
     }
   }
 
-  const handleApplyAISuggestion = (sectionId: number) => {
-    setTemplateSections(prev =>
-      prev.map(section =>
-        section.id === sectionId
-          ? { ...section, content: section.aiSuggestion || section.content }
-          : section
-      )
-    )
-    setShowAISuggestion(null)
+  const handleGetClauseNumber = async (sectionId: string, title: string) => {
+    const suggestion = await getAISuggestion(title)
+    updateSection(sectionId, 'aiSuggestion', suggestion)
+    setShowAISuggestion(sectionId)
   }
 
-  const handleRejectAISuggestion = async (sectionId: number) => {
+  const handleRejectAISuggestion = async (sectionId: string) => {
     const section = templateSections.find(s => s.id === sectionId)
-    if (section && onGetAISuggestion) {
-      await handleGetAISuggestion(sectionId, section.title)
+    if (section) {
+      try {
+        const response = await axios.post(`${getBackendUrl()}/api/contract-templates/ai-suggestions/clauses`, {
+          templateId: null,
+          currentClauses: templateSections.map(s => s.title),
+          petInfo: {},
+          userInfo: {}
+        })
+        
+        if (response.data.data && response.data.data.length > 1) {
+          const randomIndex = Math.floor(Math.random() * (response.data.data.length - 1)) + 1
+          const aiTitle = response.data.data[randomIndex].suggestion.replace(/^제\d+조\s*\((.+)\)$/, '$1')
+          const newSuggestion = generateClauseNumber(aiTitle)
+          updateSection(sectionId, 'aiSuggestion', newSuggestion)
+        } else {
+          const basicNumber = generateClauseNumber(section.title)
+          updateSection(sectionId, 'aiSuggestion', basicNumber)
+        }
+      } catch (error) {
+        console.error("다른 AI 추천 생성 실패:", error)
+        const basicNumber = generateClauseNumber(section.title)
+        updateSection(sectionId, 'aiSuggestion', basicNumber)
+      }
     }
   }
 
-  const handleCloseAISuggestion = (sectionId: number) => {
+  const handleApplyAISuggestion = (sectionId: string) => {
+    const section = templateSections.find(s => s.id === sectionId)
+    if (section && section.aiSuggestion) {
+      const titleOnly = section.aiSuggestion.replace(/^제\d+조\s*\((.+)\)$/, '$1')
+      updateSection(sectionId, 'title', titleOnly)
+      setShowAISuggestion(null)
+    }
+  }
+
+  const handleCloseAISuggestion = (sectionId: string) => {
     setShowAISuggestion(null)
   }
 
-  const handleSubmit = () => {
-    if (!newTemplate.name.trim()) {
-      alert("템플릿 이름을 입력해주세요.")
-      return
-    }
+  const removeSection = (id: string) => {
+    setTemplateSections(templateSections.filter(section => section.id !== id))
+  }
 
-    if (templateSections.length === 0) {
-      alert("최소 하나의 섹션을 추가해주세요.")
-      return
-    }
+  const updateSection = (id: string, field: 'title' | 'aiSuggestion', value: string) => {
+    setTemplateSections(templateSections.map(section => 
+      section.id === id ? { ...section, [field]: value } : section
+    ))
+  }
 
-    const templateData = {
-      ...newTemplate,
-      sections: templateSections.map((section, index) => ({
-        ...section,
-        order: index,
-      })),
-    }
+  const moveSection = (fromIndex: number, toIndex: number) => {
+    const newSections = [...templateSections]
+    const [movedSection] = newSections.splice(fromIndex, 1)
+    newSections.splice(toIndex, 0, movedSection)
+    setTemplateSections(newSections)
+  }
 
-    onCreateTemplate(templateData)
-    handleClose()
+  const handleCreateTemplate = async () => {
+    try {
+      const sections = templateSections.map((section, index) => ({
+        title: section.title,
+        order: index + 1,
+        content: "",
+        options: null
+      }))
+      
+      const templateData = {
+        name: newTemplate.name,
+        category: newTemplate.category,
+        sections: sections
+      }
+      
+      const response = await axios.post(`${getBackendUrl()}/api/contract-templates`, templateData)
+      if (response.data.success) {
+        alert("템플릿이 생성되었습니다.")
+        onClose()
+        setNewTemplate({
+          name: "",
+          category: "",
+          content: "",
+          isDefault: false
+        })
+        setTemplateSections([])
+        onCreateTemplate?.()
+      } else {
+        alert("템플릿 생성에 실패했습니다.")
+      }
+    } catch (error) {
+      console.error("템플릿 생성 실패:", error)
+      alert("템플릿 생성에 실패했습니다.")
+    }
   }
 
   const handleClose = () => {
-    setNewTemplate({ name: "", category: "", description: "" })
+    setNewTemplate({
+      name: "",
+      category: "",
+      content: "",
+      isDefault: false
+    })
     setTemplateSections([])
+    setShowAISuggestion(null)
     onClose()
   }
 
@@ -196,17 +307,6 @@ export default function CreateTemplateModal({
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium">설명</label>
-            <textarea
-              className="w-full mt-1 p-2 border rounded-md"
-              rows={3}
-              value={newTemplate.description}
-              onChange={(e) => setNewTemplate({...newTemplate, description: e.target.value})}
-              placeholder="템플릿에 대한 설명을 입력하세요"
-            />
-          </div>
-
           {/* 섹션 관리 */}
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -238,109 +338,146 @@ export default function CreateTemplateModal({
                 {templateSections.map((section, index) => (
                   <div key={section.id}>
                     <Card className="p-4">
-                                              <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center space-x-2">
-                            <GripVertical className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm font-medium">섹션 {index + 1}</span>
-                            {onGetAISuggestion && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleGetAISuggestion(section.id, section.title)}
-                                disabled={isLoadingAI}
-                                className="text-xs"
-                              >
-                                {isLoadingAI ? (
-                                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
-                                ) : (
-                                  <Sparkles className="h-3 w-3 mr-1" />
-                                )}
-                                AI 추천
-                              </Button>
-                            )}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2 relative">
+                          <div className="cursor-move text-gray-400 hover:text-gray-600">
+                            ⋮⋮
                           </div>
+                          <h4 className="font-medium">항목 {index + 1}</h4>
                           <Button
+                            type="button"
                             size="sm"
                             variant="outline"
+                            onClick={() => handleGetClauseNumber(section.id, section.title)}
+                            className="text-xs whitespace-nowrap"
+                          >
+                            AI 추천
+                          </Button>
+                          
+                          {/* AI 추천 말풍선 */}
+                          {showAISuggestion === section.id && section.aiSuggestion && (
+                            <div className="absolute top-30 left-0 z-10 w-80 bg-blue-50 border border-blue-200 rounded-lg shadow-lg p-3 mt-1">
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs font-medium text-blue-800">AI 추천</span>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleCloseAISuggestion(section.id)}
+                                  className="text-xs p-1 h-6 w-6"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              <p className="text-sm text-blue-900 mb-2">{section.aiSuggestion.replace(/^제\d+조\s*\((.+)\)$/, '$1')}</p>
+                              <div className="flex gap-1 justify-end">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleRejectAISuggestion(section.id)}
+                                  className="text-xs px-2"
+                                >
+                                  다른 추천
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => handleApplyAISuggestion(section.id)}
+                                  className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2"
+                                >
+                                  적용하기
+                                </Button>
+                              </div>
+                              <div className="absolute top-4 -left-2 w-0 h-0 border-t-2 border-b-2 border-r-2 border-transparent border-r-blue-50"></div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {index > 0 && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => moveSection(index, index - 1)}
+                            >
+                              ↑
+                            </Button>
+                          )}
+                          {index < templateSections.length - 1 && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => moveSection(index, index + 1)}
+                            >
+                              ↓
+                            </Button>
+                          )}
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
                             onClick={() => removeSection(section.id)}
+                            className="text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
-                                              <div className="space-y-3">
-                          <div>
-                            <label className="text-sm font-medium">제목</label>
-                            <input
-                              type="text"
-                              className="w-full mt-1 p-2 border rounded-md"
-                              value={section.title}
-                              onChange={(e) => updateSection(section.id, "title", e.target.value)}
-                              placeholder="섹션 제목을 입력하세요"
-                            />
-                          </div>
-                          
-                          {/* AI 추천 말풍선 */}
-                          {showAISuggestion === section.id && section.aiSuggestion && (
-                            <div className="relative">
-                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-                                <div className="flex justify-between items-start mb-2">
-                                  <span className="text-xs font-medium text-blue-800">AI 추천</span>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleCloseAISuggestion(section.id)}
-                                    className="text-xs p-1 h-6 w-6"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                                <p className="text-sm text-blue-900 mb-2">{section.aiSuggestion}</p>
-                                <div className="flex gap-1 justify-end">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleRejectAISuggestion(section.id)}
-                                    className="text-xs px-2"
-                                  >
-                                    다른 추천
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    onClick={() => handleApplyAISuggestion(section.id)}
-                                    className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2"
-                                  >
-                                    적용하기
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          <div>
-                            <label className="text-sm font-medium">내용</label>
-                            <textarea
-                              className="w-full mt-1 p-2 border rounded-md"
-                              rows={3}
-                              value={section.content}
-                              onChange={(e) => updateSection(section.id, "content", e.target.value)}
-                              placeholder="섹션 내용을 입력하세요"
-                            />
-                          </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium">항목 제목</label>
+                          <input
+                            type="text"
+                            className="w-full mt-1 p-2 border rounded-md"
+                            value={section.title}
+                            onChange={(e) => updateSection(section.id, 'title', e.target.value)}
+                            placeholder="예: 반려동물 이름, 신청자 연락처"
+                          />
                         </div>
+                      </div>
                     </Card>
                   </div>
                 ))}
+                
+                {/* 마지막 항목 아래에 추가 버튼 */}
+                {templateSections.length > 0 && (
+                  <div className="flex justify-center my-2">
+                    <Button 
+                      onClick={addSection}
+                      className="bg-green-500 hover:bg-green-600 text-white text-sm"
+                      size="sm"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      항목 추가
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
+          {/* 기본 템플릿 설정 */}
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="isDefault"
+              checked={newTemplate.isDefault}
+              onChange={(e) => setNewTemplate({...newTemplate, isDefault: e.target.checked})}
+            />
+            <label htmlFor="isDefault" className="text-sm">기본 템플릿으로 설정</label>
+          </div>
+
           {/* 버튼 */}
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={handleClose}>
               취소
             </Button>
-            <Button onClick={handleSubmit} className="bg-blue-500 hover:bg-blue-600 text-white">
+            <Button 
+              onClick={handleCreateTemplate}
+              className="bg-blue-500 hover:bg-blue-600 text-white"
+              disabled={!newTemplate.name || !newTemplate.category || templateSections.length === 0}
+            >
               템플릿 생성
             </Button>
           </div>

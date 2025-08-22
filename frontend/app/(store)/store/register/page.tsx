@@ -193,7 +193,7 @@ function StoreProductRegistrationPageContent({
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" onClick={onBack} className="hover:bg-gray-100">
+          <Button variant="ghost" onClick={() => router.push('/admin?tab=products')} className="hover:bg-gray-100">
             <ArrowLeft className="w-4 h-4 mr-2" />
             관리자 페이지로 돌아가기
           </Button>

@@ -1,108 +1,186 @@
 "use client"
 
-import React, { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Edit } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { FileText } from "lucide-react"
+import axios from "axios"
 
 interface ContractEditModalProps {
   isOpen: boolean
   onClose: () => void
   editingContract: any
-  onUpdateContract: (contractData: any) => void
-  formatToKST?: (date: string) => string
+  onUpdateContract: () => void
+  pet?: any // pet 정보 추가
 }
 
-export default function ContractEditModal({
-  isOpen,
-  onClose,
-  editingContract,
-  onUpdateContract,
-  formatToKST,
-}: ContractEditModalProps) {
-  const [editedContractContent, setEditedContractContent] = useState(editingContract?.content || "")
+export default function ContractEditModal({ isOpen, onClose, editingContract, onUpdateContract, pet }: ContractEditModalProps) {
+  const [contractData, setContractData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
-  // 계약서 데이터 초기화
-  React.useEffect(() => {
+  const getBackendUrl = () => {
+    return process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080"
+  }
+
+  // petInfo 파싱 함수
+  const parsePetInfo = (contract: any) => {
+    if (!contract) return null
+    
+    try {
+      if (contract.petInfo) {
+        return typeof contract.petInfo === 'string' 
+          ? JSON.parse(contract.petInfo) 
+          : contract.petInfo
+      }
+      return null
+    } catch (error) {
+      console.error("petInfo 파싱 오류:", error)
+      return null
+    }
+  }
+
+  useEffect(() => {
     if (editingContract) {
-      setEditedContractContent(editingContract.content || "")
+      setContractData({
+        ...editingContract,
+        content: editingContract.content || ""
+      })
     }
   }, [editingContract])
 
-  const handleSubmit = () => {
-    if (!editedContractContent.trim()) {
-      alert("계약서 내용을 입력해주세요.")
-      return
-    }
+  const handleUpdateContract = async () => {
+    if (!editingContract || !contractData) return
 
-    const contractData = {
-      content: editedContractContent
-    }
+    try {
+      setIsLoading(true)
+      
+      const response = await axios.put(`${getBackendUrl()}/api/contract-generation/${editingContract.id}`, {
+        content: contractData.content
+      })
 
-    onUpdateContract(contractData)
-    handleClose()
+      if (response.data.success) {
+        alert("계약서가 수정되었습니다.")
+        onClose()
+        onUpdateContract()
+      } else {
+        alert("계약서 수정에 실패했습니다.")
+      }
+    } catch (error) {
+      console.error("계약서 수정 실패:", error)
+      alert("계약서 수정에 실패했습니다.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleClose = () => {
-    setEditedContractContent("")
+    setContractData(null)
+    setIsLoading(false)
     onClose()
   }
 
+  if (!contractData) return null
+
+  const petInfo = parsePetInfo(editingContract)
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Edit className="w-5 h-5" />
+            <FileText className="w-5 h-5" />
             계약서 수정
           </DialogTitle>
         </DialogHeader>
         
         {editingContract && (
           <div className="space-y-6">
-            {/* 계약서 기본 정보 */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium mb-2">계약서 정보</h4>
-              <div className="text-sm space-y-1">
-                <p><strong>계약서명:</strong> {editingContract.contractName || "계약서"}</p>
-                <p><strong>생성일:</strong> {editingContract.generatedAt ? formatToKST?.(editingContract.generatedAt) : "날짜 없음"}</p>
-                <p><strong>생성자:</strong> {editingContract.generatedBy || "관리자"}</p>
-                {editingContract.template && (
-                  <p><strong>사용 템플릿:</strong> {editingContract.template.name}</p>
-                )}
+            {/* 동물 정보 - 입양관리에서만 표시 */}
+            {pet && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium mb-3 text-gray-800">동물 정보</h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="flex items-center">
+                    <span className="font-medium text-gray-700 w-16">이름:</span>
+                    <span className="text-gray-900">{pet?.name || petInfo?.name || editingContract.petName || editingContract.name || "정보 없음"}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="font-medium text-gray-700 w-16">품종:</span>
+                    <span className="text-gray-900">{pet?.breed || petInfo?.breed || editingContract.petBreed || editingContract.breed || "정보 없음"}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="font-medium text-gray-700 w-16">나이:</span>
+                    <span className="text-gray-900">{pet?.age ? `${pet.age}살` : petInfo?.age || editingContract.petAge || editingContract.age || "정보 없음"}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="font-medium text-gray-700 w-16">성별:</span>
+                    <span className="text-gray-900">
+                      {(() => {
+                        if (pet?.gender === 'MALE') return '수컷'
+                        if (pet?.gender === 'FEMALE') return '암컷'
+                        if (pet?.gender === 'UNKNOWN') return '알 수 없음'
+                        if (petInfo?.gender === 'MALE') return '수컷'
+                        if (petInfo?.gender === 'FEMALE') return '암컷'
+                        if (petInfo?.gender === 'UNKNOWN') return '알 수 없음'
+                        if (editingContract.petGender === 'MALE') return '수컷'
+                        if (editingContract.petGender === 'FEMALE') return '암컷'
+                        if (editingContract.petGender === 'UNKNOWN') return '알 수 없음'
+                        if (editingContract.gender === 'MALE') return '수컷'
+                        if (editingContract.gender === 'FEMALE') return '암컷'
+                        if (editingContract.gender === 'UNKNOWN') return '알 수 없음'
+                        return "정보 없음"
+                      })()}
+                    </span>
+                  </div>
+                                      <div className="flex items-center">
+                      <span className="font-medium text-gray-700 w-16">체중:</span>
+                      <span className="text-gray-900">{petInfo?.weight !== undefined ? `${petInfo.weight}kg` : "정보 없음"}</span>
+                    </div>
+                  <div className="flex items-center">
+                    <span className="font-medium text-gray-700 w-16">건강상태:</span>
+                    <span className="text-gray-900">{pet?.medicalHistory || petInfo?.healthStatus || editingContract.healthStatus || "정보 없음"}</span>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 계약서 내용 수정 */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium">계약서 내용 수정</h4>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-lg">계약서 내용</h4>
+                <div className="text-sm text-gray-500">
+                  계약서 내용을 직접 수정할 수 있습니다
+                </div>
               </div>
-              <div className="bg-white border rounded-lg p-4">
-                <textarea
-                  className="w-full h-96 p-3 border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={editedContractContent}
-                  onChange={(e) => setEditedContractContent(e.target.value)}
+              
+              <div className="border rounded-lg bg-white">
+                <textarea 
+                  className="w-full h-80 p-4 border-0 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  value={contractData.content || ""}
+                  onChange={(e) => setContractData({
+                    ...contractData,
+                    content: e.target.value
+                  })}
                   placeholder="계약서 내용을 수정하세요..."
                 />
               </div>
             </div>
+
+            {/* 버튼 */}
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={handleClose}>
+                취소
+              </Button>
+              <Button 
+                onClick={handleUpdateContract}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={isLoading}
+              >
+                {isLoading ? "수정 중..." : "수정 완료"}
+              </Button>
+            </div>
           </div>
         )}
-
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={handleClose}>
-            취소
-          </Button>
-          <Button 
-            onClick={handleSubmit}
-            className="bg-blue-500 hover:bg-blue-600 text-white"
-            disabled={!editedContractContent.trim()}
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            계약서 수정
-          </Button>
-        </div>
       </DialogContent>
     </Dialog>
   )
