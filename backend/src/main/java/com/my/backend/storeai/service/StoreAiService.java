@@ -495,7 +495,11 @@ public class StoreAiService {
                 break;
         }
         
-        keyword.append("반려동물 용품");
+        // 다양한 카테고리 키워드 추가
+        String[] categories = {"용품", "의류", "건강관리", "사료", "간식", "장난감"};
+        String randomCategory = categories[(int) (Math.random() * categories.length)];
+        keyword.append("반려동물 ").append(randomCategory);
+        
         return keyword.toString();
     }
     

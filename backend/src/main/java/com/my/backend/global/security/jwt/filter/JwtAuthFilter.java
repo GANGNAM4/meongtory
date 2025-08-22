@@ -29,7 +29,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
-        boolean shouldNotFilter = path.equals("/api/accounts/register") || path.equals("/api/accounts/login");
+        boolean shouldNotFilter = path.equals("/api/accounts/register") || 
+                                 path.equals("/api/accounts/login") || 
+                                 path.equals("/api/accounts/refresh");
         log.info("JwtAuthFilter: shouldNotFilter for path {}: {}", path, shouldNotFilter);
         return shouldNotFilter;
     }

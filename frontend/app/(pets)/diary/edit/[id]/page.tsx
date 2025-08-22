@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { updateDiary, fetchDiaries, fetchDiary, uploadImageToS3, uploadAudioToS3 } from "@/lib/api/diary";
+import { updateDiary, fetchDiaries, fetchDiary, uploadImageToS3, uploadAudioToS3 } from "@/lib/diary";
 import { useToast } from "@/components/ui/use-toast";
 import type { DiaryEntry } from "@/types/diary";
 import { Mic, MicOff, Play, Pause, X, Camera, ChevronLeft, ImageIcon, Edit, Check, RotateCcw } from "lucide-react";

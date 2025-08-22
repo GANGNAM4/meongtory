@@ -34,11 +34,12 @@ import OrdersTab from "@/components/admin/OrdersTab"
 import ContractsTab from "@/components/admin/ContractsTab"
 
 
-import { petApi, handleApiError, s3Api, adoptionRequestApi, productApi } from "@/lib/api"
+import { getBackendUrl, petApi, handleApiError, s3Api, adoptionRequestApi, productApi } from "@/lib/api"
 import axios from "axios"
 import { formatToKST, formatToKSTWithTime, getCurrentKSTDate } from "@/lib/utils"
 import { getBackendUrl } from "@/lib/api"
 import { toast } from "sonner"
+
 
 interface Product {
   id: number
@@ -328,7 +329,6 @@ export default function AdminPage({
  useEffect(() => {
   const fetchProducts = async () => {
     try {
-      console.log('Fetching products from:', getBackendUrl() + '/api/products');
       const accessToken = localStorage.getItem("accessToken");
       console.log('Access Token:', accessToken ? 'Found' : 'Not found');
 
@@ -401,14 +401,11 @@ export default function AdminPage({
   fetchProducts();
 }, []);
 
-
-
   // 입양 신청 목록을 백엔드에서 가져오기
   useEffect(() => {
     const fetchAdoptionRequests = async () => {
       try {
         const response = await adoptionRequestApi.getAdoptionRequests();
-        console.log('입양신청 데이터:', response);
         setAdoptionRequests(response);
       } catch (error) {
         console.error("Error fetching adoption requests:", error);
@@ -504,7 +501,6 @@ export default function AdminPage({
               const fileName = imageUrl.split('/').pop()
               if (fileName) {
                 await s3Api.deleteFile(fileName)
-                console.log(`S3에서 이미지 삭제 완료: ${fileName}`)
               }
             } catch (error) {
               console.error("S3 이미지 삭제 실패:", error)
@@ -601,7 +597,6 @@ export default function AdminPage({
 
   // ProductsTab(AdminProduct) -> AdminPage(Product) 어댑터
   const handleEditProductFromTab = (adminProduct: any) => {
-    console.log('handleEditProductFromTab called with:', adminProduct);
     
     // productId를 안전하게 추출
     const productId = adminProduct.id || adminProduct.productId || 0;
@@ -625,7 +620,6 @@ export default function AdminPage({
       registeredBy: adminProduct.registeredBy || "admin",
     }
     
-    console.log('Adapted product:', adaptedProduct);
     handleEditProduct(adaptedProduct)
   }
 
@@ -642,9 +636,7 @@ export default function AdminPage({
   }
   if (window.confirm('정말로 이 상품을 삭제하시겠습니까?')) {
     try {
-      console.log('상품 삭제 요청:', productId);
       await productApi.deleteProduct(productId);
-      console.log('삭제 완료');
       setProducts(prev => prev.filter(p => p.id !== productId));
       alert('상품이 성공적으로 삭제되었습니다.');
     } catch (error) {
@@ -656,6 +648,7 @@ export default function AdminPage({
     }
   }
 };
+
 
   return (
     <div className="min-h-screen bg-gray-50">

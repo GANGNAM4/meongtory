@@ -22,7 +22,9 @@ public class CommunityComment {
     @JoinColumn(name = "post_id", nullable = false)
     private CommunityPost post; // 게시글과 연결
 
-    private String author;
+    private String author;       // 사용자 이름
+    private String ownerEmail;   // 고유 식별자 (Account.email)
+
     private String content;
 
     private LocalDateTime createdAt;
@@ -39,3 +41,4 @@ public class CommunityComment {
         this.updatedAt = LocalDateTime.now();
     }
 }
+

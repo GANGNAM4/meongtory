@@ -22,7 +22,6 @@ interface Product {
   description: string;
   tags: string[];
   stock: number;
-  petType?: "dog" | "cat" | "all";
   registrationDate: string;
   registeredBy: string;
 }
@@ -42,11 +41,7 @@ const categories = [
   { name: "사료", value: "사료" },
 ];
 
-const petTypes = [
-  { name: "강아지", value: "dog" },
-  { name: "고양이", value: "cat" },
-  { name: "모든 동물", value: "all" },
-];
+
 
 function StoreProductEditPageContent({ productId: propProductId, onBack, onSave }: StoreProductEditPageProps) {
   const router = useRouter();
@@ -83,7 +78,7 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
           throw new Error('인증 토큰이 없습니다.');
         }
 
-        const response = await axios.get(`http://localhost:8080/api/products/${actualProductId}`, {
+        const response = await axios.get(`${getBackendUrl()}/api/products/${actualProductId}`, {
           headers: {
             Authorization: accessToken, // Bearer 접두사 제거
             'Access_Token': accessToken,
@@ -106,7 +101,6 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
               : productData.tags.split(',').map((tag: string) => tag.trim())
             : [],
           stock: productData.stock || 0,
-          petType: 'all',
           registrationDate: Array.isArray(productData.registrationDate) 
             ? new Date(productData.registrationDate[0], productData.registrationDate[1] - 1, productData.registrationDate[2]).toISOString()
             : productData.registration_date || productData.registrationDate || productData.createdAt || new Date().toISOString(),
@@ -222,7 +216,7 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
         throw new Error('인증 토큰이 없습니다.');
       }
 
-      await axios.put(`http://localhost:8080/api/products/${actualProductId}`, updateData, {
+      await axios.put(`${getBackendUrl()}/api/products/${actualProductId}`, updateData, {
         headers: {
           Authorization: accessToken,
           'Access_Token': accessToken,
@@ -333,22 +327,7 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
               </Select>
             </div>
 
-            {/* 반려동물 타입 */}
-            <div className="space-y-2">
-              <Label htmlFor="petType">반려동물 타입 *</Label>
-              <Select value={product.petType || 'all'} onValueChange={(value) => handleInputChange('petType', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="반려동물 타입을 선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  {petTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+
 
             {/* 재고 */}
             <div className="space-y-2">

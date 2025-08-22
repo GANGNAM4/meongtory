@@ -152,10 +152,6 @@ export default function AdoptionRequestModal({
 
     setIsSubmitting(true)
     try {
-      console.log("모달에서 보내는 데이터:", {
-        petId: selectedPet.petId,
-        ...formData
-      })
       await onSubmit({
         petId: selectedPet.petId, // id -> petId로 수정
         ...formData

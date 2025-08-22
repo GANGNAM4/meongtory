@@ -28,7 +28,6 @@ public class ContractTemplateInitializationService implements CommandLineRunner 
     private void initializeDefaultTemplates() {
         // 이미 기본 템플릿이 있는지 확인
         if (contractTemplateRepository.count() > 0) {
-            log.info("기본 계약서 템플릿이 이미 존재합니다.");
             return;
         }
         

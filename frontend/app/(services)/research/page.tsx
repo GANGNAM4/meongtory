@@ -7,11 +7,9 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Camera, Upload, Sparkles, Heart, Video, Smile } from "lucide-react"
+import { Camera, Upload, Sparkles, Heart, Smile } from "lucide-react"
 import axios from "axios"
 import { getBackendUrl } from "@/lib/api"
-
-const API_BASE_URL = `${getBackendUrl()}/api`
 
 interface BreedIdentificationResult {
   breed: string
@@ -34,10 +32,8 @@ interface MoodAnalysisResult {
   emotions: {
     happy: number
     sad: number
-    excited: number
-    calm: number
-    anxious: number
-    playful: number
+    angry: number
+    relaxed: number
   }
   recommendations: string[]
   description: string
@@ -59,10 +55,8 @@ export default function DogResearchLabPage() {
 
   // Mood Analysis State
   const [moodImage, setMoodImage] = useState<string>("")
-  const [moodVideo, setMoodVideo] = useState<string>("")
   const [moodResult, setMoodResult] = useState<MoodAnalysisResult | null>(null)
   const [isAnalyzingMood, setIsAnalyzingMood] = useState(false)
-  const [moodInputType, setMoodInputType] = useState<"photo" | "video">("photo")
 
   const handleImageUpload = (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -96,19 +90,6 @@ export default function DogResearchLabPage() {
     }
   }
 
-  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setMoodVideo(e.target.result as string)
-          setMoodResult(null)
-        }
-      }
-      reader.readAsDataURL(file)
-    }
-  }
 
   const analyzeBreed = async () => {
     if (!uploadedFile) return
@@ -118,9 +99,7 @@ export default function DogResearchLabPage() {
     try {
       const formData = new FormData()
       formData.append('image', uploadedFile)
-      const backendUrl = getBackendUrl()
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/ai/predict-breed`, 
+      const response = await axios.post(`${getBackendUrl()}/api/ai/predict-breed`, 
         formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -209,11 +188,7 @@ export default function DogResearchLabPage() {
       formData.append("parent1", parent1Blob, "parent1.jpg");
       formData.append("parent2", parent2Blob, "parent2.jpg");
 
-      const backendUrl = getBackendUrl()
-      const response = await axios.post(
-
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/ai/predict-breeding`, 
-        formData);
+      const response = await axios.post(`${getBackendUrl()}/api/ai/predict-breeding`, formData);
       const result = response.data;
       
       if (!result) throw new Error("No result received from API");
@@ -257,38 +232,11 @@ export default function DogResearchLabPage() {
   };
 
   const analyzeMood = async () => {
-    if (!moodImage && !moodVideo) return
+    if (!moodImage) return
 
     setIsAnalyzingMood(true)
 
     try {
-      // 현재는 사진만 지원 (동영상은 향후 구현)
-      if (moodInputType === "video") {
-        // 임시로 동영상은 기존 mock 데이터 사용
-        setTimeout(() => {
-          const mockResult: MoodAnalysisResult = {
-            mood: "평온함",
-            confidence: 75,
-            emotions: {
-              happy: 65,
-              sad: 10,
-              excited: 20,
-              calm: 85,
-              anxious: 15,
-              playful: 30,
-            },
-            recommendations: [
-              "동영상 분석은 준비 중입니다",
-              "사진으로 분석해주세요"
-            ],
-            description: "동영상 감정 분석 기능은 곧 제공될 예정입니다."
-          }
-          setMoodResult(mockResult)
-          setIsAnalyzingMood(false)
-        }, 2000)
-        return
-      }
-
       // 사진 분석을 위한 File 객체 생성
       const response = await fetch(moodImage)
       const blob = await response.blob()
@@ -297,11 +245,8 @@ export default function DogResearchLabPage() {
       const formData = new FormData()
       formData.append('image', file)
 
-      const backendUrl = getBackendUrl()
-      const apiResponse = await axios.post(
-
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/ai/analyze-emotion`, 
-        formData, {
+      const apiResponse = await axios.post(`${getBackendUrl()}/api/ai/analyze-emotion`, formData, 
+      {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -318,7 +263,7 @@ export default function DogResearchLabPage() {
         setMoodResult({
           mood: aiResult.emotionKorean,
           confidence: Math.round(aiResult.confidence),
-          emotions: moodInfo.emotions,
+          emotions: aiResult.emotions || { happy: 25, sad: 25, angry: 25, relaxed: 25 }, // AI 실제 분석 결과 사용
           recommendations: moodInfo.recommendations,
           description: moodInfo.description,
         })
@@ -330,10 +275,8 @@ export default function DogResearchLabPage() {
           emotions: {
             happy: 0,
             sad: 0,
-            excited: 0,
-            calm: 0,
-            anxious: 0,
-            playful: 0,
+            angry: 0,
+            relaxed: 0,
           },
           recommendations: ["이미지 분석에 실패했습니다. 다시 시도해주세요."],
           description: "감정 분석에 실패했습니다. 강아지의 얼굴이 명확히 보이는 사진을 업로드해주세요.",
@@ -347,10 +290,8 @@ export default function DogResearchLabPage() {
         emotions: {
           happy: 0,
           sad: 0,
-          excited: 0,
-          calm: 0,
-          anxious: 0,
-          playful: 0,
+          angry: 0,
+          relaxed: 0,
         },
         recommendations: ["서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요."],
         description: "서버 연결 오류가 발생했습니다.",
@@ -360,33 +301,28 @@ export default function DogResearchLabPage() {
     }
   }
 
-  // 감정별 세부 정보를 반환하는 헬퍼 함수
+  // 감정별 추천사항과 설명을 반환하는 헬퍼 함수
   const getMoodInfo = (emotion: string, emotionKorean: string) => {
-    const moodInfoMap: Record<string, { emotions: any, recommendations: string[], description: string }> = {
+    const moodInfoMap: Record<string, { recommendations: string[], description: string }> = {
       "happy": {
-        emotions: { happy: 90, sad: 5, excited: 80, calm: 60, anxious: 10, playful: 85 },
         recommendations: ["현재 매우 좋은 상태입니다!", "놀이 시간을 늘려주세요", "간식을 주며 칭찬해주세요"],
         description: "강아지가 매우 행복하고 건강한 상태를 보이고 있습니다."
       },
       "sad": {
-        emotions: { happy: 15, sad: 85, excited: 10, calm: 30, anxious: 60, playful: 15 },
         recommendations: ["부드럽게 위로해주세요", "좋아하는 장난감을 주세요", "조용한 환경을 만들어주세요"],
         description: "강아지가 슬퍼하는 것 같습니다. 관심과 사랑을 보여주세요."
       },
       "angry": {
-        emotions: { happy: 10, sad: 20, excited: 20, calm: 10, anxious: 80, playful: 10 },
         recommendations: ["조용한 환경을 만들어주세요", "스트레스 요인을 제거해주세요", "수의사 상담을 고려해보세요"],
         description: "강아지가 화나거나 스트레스를 받고 있는 것 같습니다."
       },
       "relaxed": {
-        emotions: { happy: 70, sad: 5, excited: 20, calm: 95, anxious: 5, playful: 30 },
         recommendations: ["현재 상태를 유지해주세요", "적당한 휴식을 취하게 해주세요", "규칙적인 생활 패턴을 유지하세요"],
         description: "강아지가 매우 편안하고 안정된 상태입니다."
       }
     }
 
     return moodInfoMap[emotion] || {
-      emotions: { happy: 50, sad: 20, excited: 30, calm: 40, anxious: 25, playful: 35 },
       recommendations: ["현재 상태를 관찰해주세요", "필요시 수의사와 상담하세요"],
       description: `강아지의 감정 상태가 ${emotionKorean}로 분석되었습니다.`
     }
@@ -733,88 +669,43 @@ export default function DogResearchLabPage() {
             <Card className="mb-8">
               <CardHeader>
                 <CardTitle className="text-center text-2xl">😊 AI 기분 분석</CardTitle>
-                <p className="text-center text-gray-600">사진이나 동영상을 통해 강아지의 기분 상태를 분석해드려요!</p>
+                <p className="text-center text-gray-600">사진을 통해 강아지의 기분 상태를 분석해드려요!</p>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Input Type Selection */}
-                <div className="flex justify-center space-x-4">
-                  <Button
-                    onClick={() => setMoodInputType("photo")}
-                    variant={moodInputType === "photo" ? "default" : "outline"}
-                    className={moodInputType === "photo" ? "bg-green-500 hover:bg-green-600" : ""}
-                  >
-                    <Camera className="w-4 h-4 mr-2" />
-                    사진 분석
-                  </Button>
-                  <Button
-                    onClick={() => setMoodInputType("video")}
-                    variant={moodInputType === "video" ? "default" : "outline"}
-                    className={moodInputType === "video" ? "bg-green-500 hover:bg-green-600" : ""}
-                  >
-                    <Video className="w-4 h-4 mr-2" />
-                    동영상 분석
-                  </Button>
-                </div>
 
                 {/* Upload Area */}
                 <div className="text-center">
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 hover:border-green-400 transition-colors">
-                    {moodInputType === "photo" ? (
-                      moodImage ? (
-                        <div className="space-y-4">
-                          <Image
-                            src={moodImage || "/placeholder.svg"}
-                            alt="Mood analysis"
-                            width={300}
-                            height={300}
-                            className="mx-auto rounded-lg object-cover"
-                          />
-                          <Button
-                            onClick={() => document.getElementById("mood-image-upload")?.click()}
-                            variant="outline"
-                          >
-                            <Camera className="w-4 h-4 mr-2" />
-                            다른 사진 선택
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <Upload className="w-16 h-16 text-gray-400 mx-auto" />
-                          <div>
-                            <Button
-                              onClick={() => document.getElementById("mood-image-upload")?.click()}
-                              className="bg-green-500 hover:bg-green-600 text-white"
-                            >
-                              <Camera className="w-4 h-4 mr-2" />
-                              사진 업로드
-                            </Button>
-                            <p className="text-sm text-gray-500 mt-2">
-                              강아지의 표정이 잘 보이는 사진을 업로드해주세요
-                            </p>
-                          </div>
-                        </div>
-                      )
-                    ) : moodVideo ? (
+                    {moodImage ? (
                       <div className="space-y-4">
-                        <video src={moodVideo} controls className="mx-auto rounded-lg max-w-full h-64 object-cover" />
-                        <Button onClick={() => document.getElementById("mood-video-upload")?.click()} variant="outline">
-                          <Video className="w-4 h-4 mr-2" />
-                          다른 동영상 선택
+                        <Image
+                          src={moodImage || "/placeholder.svg"}
+                          alt="Mood analysis"
+                          width={300}
+                          height={300}
+                          className="mx-auto rounded-lg object-cover"
+                        />
+                        <Button
+                          onClick={() => document.getElementById("mood-image-upload")?.click()}
+                          variant="outline"
+                        >
+                          <Camera className="w-4 h-4 mr-2" />
+                          다른 사진 선택
                         </Button>
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        <Video className="w-16 h-16 text-gray-400 mx-auto" />
+                        <Upload className="w-16 h-16 text-gray-400 mx-auto" />
                         <div>
                           <Button
-                            onClick={() => document.getElementById("mood-video-upload")?.click()}
+                            onClick={() => document.getElementById("mood-image-upload")?.click()}
                             className="bg-green-500 hover:bg-green-600 text-white"
                           >
-                            <Video className="w-4 h-4 mr-2" />
-                            동영상 업로드
+                            <Camera className="w-4 h-4 mr-2" />
+                            사진 업로드
                           </Button>
                           <p className="text-sm text-gray-500 mt-2">
-                            강아지의 행동이 잘 보이는 짧은 동영상을 업로드해주세요
+                            강아지의 표정이 잘 보이는 사진을 업로드해주세요
                           </p>
                         </div>
                       </div>
@@ -827,18 +718,11 @@ export default function DogResearchLabPage() {
                       onChange={(e) => handleImageUpload(e, "mood")}
                       className="hidden"
                     />
-                    <input
-                      id="mood-video-upload"
-                      type="file"
-                      accept="video/*"
-                      onChange={handleVideoUpload}
-                      className="hidden"
-                    />
                   </div>
                 </div>
 
                 {/* Analyze Button */}
-                {(moodImage || moodVideo) && (
+                {moodImage && (
                   <div className="text-center">
                     <Button
                       onClick={analyzeMood}
@@ -875,16 +759,14 @@ export default function DogResearchLabPage() {
                           {/* Emotion Chart */}
                           <div>
                             <h4 className="font-semibold mb-4 text-center">감정 상태 분석</h4>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               {Object.entries(moodResult.emotions).map(([emotion, value]) => (
                                 <div key={emotion} className="text-center">
                                   <div className="text-sm font-medium mb-2 capitalize">
                                     {emotion === "happy" && "행복"}
                                     {emotion === "sad" && "슬픔"}
-                                    {emotion === "excited" && "흥분"}
-                                    {emotion === "calm" && "평온"}
-                                    {emotion === "anxious" && "불안"}
-                                    {emotion === "playful" && "장난기"}
+                                    {emotion === "angry" && "화남"}
+                                    {emotion === "relaxed" && "편안함"}
                                   </div>
                                   <div className="w-full bg-gray-200 rounded-full h-3 mb-1">
                                     <div
@@ -921,16 +803,6 @@ export default function DogResearchLabPage() {
                     </Card>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Info Card */}
-            <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="p-4">
-                <p className="text-sm text-blue-800 text-center">
-                  💡 AI 기분 분석은 강아지의 표정, 자세, 행동을 종합적으로 분석합니다. 정확한 진단을 위해서는 수의사와
-                  상담하세요.
-                </p>
               </CardContent>
             </Card>
           </div>

@@ -61,7 +61,6 @@ export default function PetsTab({ onNavigateToAnimalRegistration, onUpdatePet, o
   const fetchPets = async () => {
     try {
       const apiPets = await petApi.getPets()
-      console.log('API Pets response:', apiPets)
       
       if (!apiPets || !Array.isArray(apiPets)) {
         console.error('API 응답이 배열이 아닙니다:', apiPets)
@@ -81,7 +80,6 @@ export default function PetsTab({ onNavigateToAnimalRegistration, onUpdatePet, o
   const fetchAdoptionRequests = async () => {
     try {
       const response = await adoptionRequestApi.getAdoptionRequests()
-      console.log('Adoption requests response:', response)
       
       if (response && Array.isArray(response)) {
         setAdoptionRequests(response)

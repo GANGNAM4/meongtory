@@ -13,11 +13,10 @@ import { Search, Plus, FileText, Sparkles, Upload, X, Loader2 } from "lucide-rea
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
 import { ArrowLeft } from "lucide-react"
-import { petApi, s3Api, handleApiError } from "@/lib/api"
+import { getBackendUrl, petApi, s3Api, handleApiError } from "@/lib/api"
 import AnimalEditModal from "@/components/modals/animal-edit-modal"
 import axios from "axios"
 import { useToast } from "@/hooks/use-toast"
-import { getBackendUrl } from "@/lib/api"
 
 interface AnimalRecord {
   id: string
@@ -128,7 +127,6 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
   }
 
   const handleEditPet = (pet: Pet) => {
-    console.log('handleEditPet called with pet:', pet)
     setSelectedPetForEdit(pet)
     setShowEditModal(true)
   }
@@ -177,10 +175,7 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
 
     try {
       const backendUrl = getBackendUrl()
-      const response = await axios.post(
-
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/story/generate-background-story`, 
-
+      const response = await axios.post(`${getBackendUrl()}/api/story/generate-background-story`, 
         {
         petName: newAnimal.name,
         breed: newAnimal.breed,
@@ -275,9 +270,6 @@ export default function AnimalRegistrationPage({ isAdmin, currentUserId, onAddPe
 
       // Send to backend API
       const createdPet = await petApi.createPet(newPetData)
-      console.log("Created pet:", createdPet)
-      console.log("Created pet type:", typeof createdPet)
-      console.log("Created pet keys:", createdPet ? Object.keys(createdPet) : 'null/undefined')
 
       // Create a new pet object for the adoption page (frontend state)
       const newPet: Pet = {

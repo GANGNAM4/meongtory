@@ -16,6 +16,8 @@ public interface NaverProductRepository extends JpaRepository<NaverProduct, Long
     
     Optional<NaverProduct> findByProductId(String productId);
     
+    Optional<NaverProduct> findByTitleAndMallName(String title, String mallName);
+    
     @Query("SELECT np FROM NaverProduct np WHERE np.title LIKE %:keyword% OR np.description LIKE %:keyword% OR np.brand LIKE %:keyword%")
     Page<NaverProduct> findByKeyword(@Param("keyword") String keyword, Pageable pageable);
     

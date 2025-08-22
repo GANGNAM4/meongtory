@@ -10,6 +10,7 @@ import { X, Eye, EyeOff } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/components/navigation";
+import { getBackendUrl } from "@/lib/api";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -30,7 +31,6 @@ export default function LoginModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const { setIsLoggedIn, setCurrentUser, setIsAdmin, refreshAccessToken, checkLoginStatus } = useAuth();
-  const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +51,7 @@ export default function LoginModal({
 
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/api/accounts/login`,
+        `${getBackendUrl()}/api/accounts/login`,
         { email, password },
         { headers: { "Content-Type": "application/json" } }
       );
@@ -161,7 +161,7 @@ export default function LoginModal({
           <div className="space-y-3">
             <Button
               type="button"
-              onClick={() => (window.location.href = `${API_BASE_URL}/oauth2/authorization/google`)}
+              onClick={() => (window.location.href = `${getBackendUrl()}/oauth2/authorization/google`)}
               className="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -186,7 +186,7 @@ export default function LoginModal({
             </Button>
             <Button
               type="button"
-              onClick={() => (window.location.href = `${API_BASE_URL}/oauth2/authorization/kakao`)}
+              onClick={() => (window.location.href = `${getBackendUrl()}/oauth2/authorization/kakao`)}
               className="w-full bg-yellow-400 text-black hover:bg-yellow-500"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -199,7 +199,7 @@ export default function LoginModal({
             </Button>
             <Button
               type="button"
-              onClick={() => (window.location.href = `${API_BASE_URL}/oauth2/authorization/naver`)}
+              onClick={() => (window.location.href = `${getBackendUrl()}/oauth2/authorization/naver`)}
               className="w-full bg-green-500 text-white hover:bg-green-600"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">

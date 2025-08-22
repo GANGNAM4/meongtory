@@ -72,6 +72,7 @@ public class AccountController {
         String email = userDetails.getUsername();
         return ResponseDto.success(accountService.getUserInfoByEmail(email));
     }
+    
     @PostMapping("/refresh")
     public ResponseDto<?> refreshToken(@RequestBody Map<String, String> request) {
         log.info("리프레시 토큰 요청 수신");

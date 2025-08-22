@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ChevronDown, Plus } from "lucide-react"
-import { petApi, handleApiError } from "@/lib/api"
+import { petApi } from "@/lib/api"
 
 import type { Pet } from "@/types/pets"
 

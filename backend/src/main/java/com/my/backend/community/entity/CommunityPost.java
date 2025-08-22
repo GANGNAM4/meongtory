@@ -24,11 +24,11 @@ public class CommunityPost {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    private String author;      // 닉네임 or 이름
-    private String ownerEmail;  // ✅ 작성자 이메일 (로그인 계정)
+    private String author;
+    private String ownerEmail;
 
     private String category;
-    private String boardType; // "Q&A" or "자유게시판"
+    private String boardType;
 
     private int views;
     private int likes;
@@ -44,6 +44,10 @@ public class CommunityPost {
     @Column(name = "image_url")
     private List<String> images;
 
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CommunityComment> commentsList;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -58,4 +62,3 @@ public class CommunityPost {
         this.updatedAt = LocalDateTime.now();
     }
 }
-

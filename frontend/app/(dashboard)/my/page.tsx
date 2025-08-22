@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format } from "date-fns"
 import { formatToKST } from "@/lib/utils"
-import { adoptionRequestApi, userApi } from "@/lib/api"
+import { getBackendUrl, adoptionRequestApi, userApi } from "@/lib/api"
 import { myPetApi, MyPetRequestDto, MyPetResponseDto } from "@/lib/mypet"
 import { Edit, X, Plus, Trash2, Camera } from "lucide-react"
 import axios from "axios"
@@ -104,16 +104,14 @@ export default function MyPage() {
       const token = localStorage.getItem('accessToken')
       
       // 먼저 현재 사용자 정보를 가져와서 accountId를 얻습니다
-      const userResponse = await axios.get('http://localhost:8080/api/accounts/me', {
+      const userResponse = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
         headers: {
           "Access_Token": token,
           "Refresh_Token": localStorage.getItem('refreshToken') || ''
         }
       })
       
-      console.log('사용자 정보 응답 전체:', userResponse.data)
       const accountId = userResponse.data.data?.id || userResponse.data.id
-      console.log('현재 사용자 accountId:', accountId)
       
       if (!accountId) {
         console.error('사용자 ID를 찾을 수 없습니다.')
@@ -121,7 +119,7 @@ export default function MyPage() {
       }
       
       // 사용자별 주문 조회 API 호출
-      const response = await axios.get(`http://localhost:8080/api/orders/user/${accountId}`, {
+      const response = await axios.get(`${getBackendUrl()}/api/orders/user/${accountId}`, {
         headers: {
           "Access_Token": token,
           "Refresh_Token": localStorage.getItem('refreshToken') || ''
@@ -176,9 +174,7 @@ export default function MyPage() {
   // 사용자 정보 가져오기
   const fetchUserInfo = async () => {
     try {
-      console.log("사용자 정보 요청 시작...")
       const response = await userApi.getCurrentUser()
-      console.log("사용자 정보 응답:", response)
       setUserInfo(response)
       setEditedName(response.name || "")
       setEditedEmail(response.email || "")
@@ -212,16 +208,10 @@ export default function MyPage() {
 
   // 컴포넌트 마운트 시 데이터 가져오기
   useEffect(() => {
-    console.log("MyPage 컴포넌트 마운트됨")
-    console.log("fetchUserInfo 함수 호출 시작")
     fetchUserInfo()
-    console.log("fetchAdoptionRequests 함수 호출 시작")
     fetchAdoptionRequests()
-    console.log("fetchMyPets 함수 호출 시작")
     fetchMyPets()
-    console.log("fetchOrders 함수 호출 시작")
     fetchOrders()
-    console.log("MyPage useEffect 완료")
   }, [])
 
   // 주문 내역 탭이 활성화될 때 주문 데이터 새로고침
@@ -245,11 +235,7 @@ export default function MyPage() {
     }
   }, [handleOrderStatusUpdate])
 
-  console.log("userInfo 상태:", userInfo)
-  console.log("userInfo가 null인지 확인:", userInfo === null)
-  
   if (!userInfo) {
-    console.log("userInfo가 null이므로 로그인 필요 메시지 표시")
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="p-8 text-center">
@@ -385,9 +371,7 @@ export default function MyPage() {
 
   // 이미지 선택 처리
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("이미지 선택 이벤트 발생:", event)
     const file = event.target.files?.[0]
-    console.log("선택된 파일:", file)
     if (file) {
       setSelectedImage(file)
       const reader = new FileReader()

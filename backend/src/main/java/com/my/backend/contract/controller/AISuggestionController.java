@@ -22,16 +22,9 @@ public class AISuggestionController {
     @PostMapping("/clauses")
     public ResponseEntity<ResponseDto<List<AISuggestionDto>>> getClauseSuggestions(
             @RequestBody ClauseSuggestionRequestDto requestDto, Authentication authentication) {
-        System.out.println("=== AISuggestionController.getClauseSuggestions 호출됨 ===");
-        System.out.println("Request DTO: " + requestDto);
-        System.out.println("Current Clauses: " + requestDto.getCurrentClauses());
-        System.out.println("Pet Info: " + requestDto.getPetInfo());
-        System.out.println("User Info: " + requestDto.getUserInfo());
         
         String userEmail = authentication.getName();
-        System.out.println("User Email: " + userEmail);
         
-        System.out.println("=== aiSuggestionService.getClauseSuggestions 호출 시작 ===");
         List<AISuggestionDto> suggestions = aiSuggestionService.getClauseSuggestions(
                 requestDto.getTemplateId(),
                 requestDto.getCurrentClauses(),
@@ -39,10 +32,6 @@ public class AISuggestionController {
                 requestDto.getUserInfo(),
                 userEmail
         );
-        System.out.println("=== aiSuggestionService.getClauseSuggestions 호출 완료 ===");
-        
-        System.out.println("=== 조항 추천 결과 ===");
-        System.out.println("Suggestions: " + suggestions);
         
         return ResponseEntity.ok(ResponseDto.success(suggestions));
     }
@@ -50,20 +39,13 @@ public class AISuggestionController {
     @PostMapping("/generate-contract")
     public ResponseEntity<ResponseDto<Map<String, Object>>> generateContract(
             @RequestBody ContractGenerationRequestDto requestDto, Authentication authentication) {
-        System.out.println("=== AISuggestionController.generateContract 호출됨 ===");
         try {
-            System.out.println("=== 계약서 생성 요청 받음 ===");
-            System.out.println("Request DTO: " + requestDto);
-            
             String userEmail = authentication.getName();
-            System.out.println("User Email: " + userEmail);
-            
+
             Map<String, Object> result = aiSuggestionService.generateContract(requestDto, userEmail);
-            System.out.println("AI 서비스 결과: " + result);
             
             return ResponseEntity.ok(ResponseDto.success(result));
         } catch (Exception e) {
-            System.out.println("계약서 생성 오류: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.badRequest()
                 .body(ResponseDto.fail("AI_ERROR", "계약서 생성 실패: " + e.getMessage()));

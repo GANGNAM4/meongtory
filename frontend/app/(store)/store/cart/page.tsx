@@ -7,6 +7,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import axios from "axios"
 import PaymentPage from "../../payment/PaymentPage"
+import { getBackendUrl } from "@/lib/api";
 
 interface CartItem {
   id: number
@@ -50,13 +51,25 @@ export default function CartPage() {
       
       if (token) {
         try {
-          const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/carts`, {
+          const response = await axios.get(`${getBackendUrl()}/api/carts`, {
             headers: { "Access_Token": token },
             timeout: 5000,
           })
 
           if (response.status === 200) {
             cartData = response.data
+            console.log("=== 백엔드 장바구니 데이터 ===");
+            console.log("전체 cartData:", cartData);
+            console.log("cartData 길이:", cartData.length);
+            
+            cartData.forEach((item, index) => {
+              console.log(`아이템 ${index}:`, {
+                id: item.id,
+                product: item.product,
+                naverProduct: item.naverProduct,
+                quantity: item.quantity
+              });
+            });
           }
         } catch (error) {
           console.log("백엔드 장바구니 조회 실패, 로컬 스토리지만 사용")
@@ -103,6 +116,7 @@ export default function CartPage() {
           productId: item.naverProduct.id,
           quantity: item.quantity,
           isNaverProduct: true,
+          naverProduct: item.naverProduct, // 원본 naverProduct 객체 보존
           naverProductInfo: {
             title: item.naverProduct.title || '네이버 상품',
             price: item.naverProduct.price || 0,
@@ -117,12 +131,37 @@ export default function CartPage() {
       // 백엔드에서 가져온 일반 상품 처리
       const backendRegularItems = cartData.filter((item: any) => item.product && !item.naverProduct);
 
+      // 백엔드 일반 상품을 CartItem 형태로 변환
+      const backendRegularCartItems = backendRegularItems.map((item: any, index: number) => ({
+        id: item.id,
+        name: item.product.name,
+        brand: "브랜드 없음",
+        price: item.product.price,
+        image: item.product.imageUrl || "/placeholder.svg",
+        category: item.product.category || "카테고리 없음",
+        quantity: item.quantity,
+        order: index,
+        isNaverProduct: false,
+        product: {
+          id: item.product.id,
+          name: item.product.name,
+          description: item.product.description || '',
+          price: item.product.price,
+          stock: item.product.stock || 0,
+          imageUrl: item.product.imageUrl || '/placeholder.svg',
+          category: item.product.category || '카테고리 없음',
+          registrationDate: item.product.registrationDate || '',
+          registeredBy: item.product.registeredBy || '',
+        }
+      }));
+
       console.log("=== 처리 결과 ===");
       console.log("네이버 상품 개수:", backendNaverItems.length);
       console.log("일반 상품 개수:", backendRegularItems.length);
+      console.log("변환된 일반 상품 개수:", backendRegularCartItems.length);
 
       // 백엔드 장바구니와 네이버 장바구니 합치기
-      const allCartData = [...backendRegularItems, ...backendNaverItems, ...naverItems]
+      const allCartData = [...backendRegularCartItems, ...backendNaverItems, ...naverItems]
       
       // 유효하지 않은 데이터 필터링
       const validCartData = allCartData.filter((item: any) => {
@@ -220,7 +259,7 @@ export default function CartPage() {
           return
         }
 
-        const response = await axios.delete(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/carts/${actualCartId}`, {
+        const response = await axios.delete(`${getBackendUrl()}/api/carts/${actualCartId}`, {
           headers: { "Access_Token": accessToken }
         })
         
@@ -252,7 +291,8 @@ export default function CartPage() {
         return
       }
 
-      const response = await axios.delete(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/carts/${cartId}`, {
+      const response = await axios.delete(`${getBackendUrl()}/api/carts/${cartId}`, 
+      {
         headers: { "Access_Token": accessToken }
       })
       
@@ -281,7 +321,7 @@ export default function CartPage() {
           return
         }
 
-        const response = await axios.put(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/carts/${actualCartId}?quantity=${quantity}`, null, {
+        const response = await axios.put(`${getBackendUrl()}/api/carts/${actualCartId}?quantity=${quantity}`, null, {
           headers: { "Access_Token": accessToken }
         })
         
@@ -311,7 +351,7 @@ export default function CartPage() {
         return
       }
 
-      const response = await axios.put(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/carts/${cartId}?quantity=${quantity}`, null, {
+      const response = await axios.put(`${getBackendUrl()}/api/carts/${cartId}?quantity=${quantity}`, null, {
         headers: { "Access_Token": accessToken }
       })
       
@@ -329,31 +369,128 @@ export default function CartPage() {
   // 전체 구매
   const onPurchaseAll = async (items: CartItem[]) => {
     try {
+      console.log("=== onPurchaseAll 시작 ===");
+      console.log("전체 아이템:", items);
+      console.log("전체 아이템 개수:", items.length);
+      
       const accessToken = localStorage.getItem("accessToken")
       if (!accessToken) {
         alert("로그인이 필요합니다")
         return
       }
 
-      // 각 상품을 개별적으로 주문
-      for (const item of items) {
-        const orderData = {
-          accountId: 1, // TODO: 실제 사용자 ID 가져오기
-          productId: item.product?.id || item.id,
-          quantity: item.quantity,
-        }
-
-        await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/orders`, orderData, {
+      // 현재 사용자 정보 가져오기
+      let currentUserId: number
+      try {
+        const userResponse = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
           headers: { "Access_Token": accessToken }
         })
+        currentUserId = userResponse.data.data.id
+      } catch (error) {
+        console.error("사용자 정보 가져오기 실패:", error)
+        alert("사용자 정보를 가져올 수 없습니다")
+        return
       }
 
-      // 장바구니 비우기
+      // 백엔드 장바구니에 있는 상품들만 필터링 (네이버 상품 제외)
+      const backendCartItems = items.filter(item => 
+        !item.isNaverProduct && 
+        !item.id.toString().startsWith('naver-') && 
+        !item.id.toString().startsWith('backend-naver-') &&
+        item.product && item.product.id // product 정보가 있는 일반 상품만
+      )
+
+      // 네이버 상품들
+      const naverItems = items.filter(item => 
+        item.isNaverProduct || 
+        item.id.toString().startsWith('naver-') || 
+        item.id.toString().startsWith('backend-naver-')
+      )
+
+      console.log("백엔드 장바구니 상품들:", backendCartItems);
+      console.log("네이버 상품들:", naverItems);
+      console.log("백엔드 상품 개수:", backendCartItems.length);
+      console.log("네이버 상품 개수:", naverItems.length);
+
+      const createdOrders: any[] = []
+
+      // 1. 백엔드 장바구니 상품들은 bulk API 사용
+      if (backendCartItems.length > 0) {
+        console.log("Bulk API 호출 시작");
+        try {
+          const bulkOrderData = {
+            accountId: currentUserId
+          }
+
+          console.log("Bulk 주문 데이터:", bulkOrderData);
+
+          const bulkResponse = await axios.post(`${getBackendUrl()}/api/orders/bulk`, bulkOrderData, {
+            headers: { "Access_Token": accessToken }
+          })
+
+          console.log("Bulk API 응답:", bulkResponse.data);
+
+          if (bulkResponse.data && Array.isArray(bulkResponse.data)) {
+            createdOrders.push(...bulkResponse.data)
+            console.log("Bulk 주문 생성 성공:", bulkResponse.data.length, "개")
+          }
+        } catch (error) {
+          console.error("Bulk 주문 생성 실패:", error)
+          alert("일부 상품 주문에 실패했습니다")
+          return
+        }
+      } else {
+        console.log("백엔드 장바구니 상품이 없어서 bulk API 호출하지 않음");
+      }
+
+      // 2. 네이버 상품들은 개별 주문
+      for (const item of naverItems) {
+        try {
+          console.log("네이버 상품 주문 처리:", item);
+          
+          // 네이버 상품 ID를 올바르게 가져오기
+          let naverProductId: number;
+          if (item.naverProduct && item.naverProduct.id) {
+            // naverProduct 객체에서 ID 가져오기
+            naverProductId = item.naverProduct.id;
+          } else if (item.product && item.product.id) {
+            // product 객체에서 ID 가져오기 (네이버 상품이 product 형태로 저장된 경우)
+            naverProductId = item.product.id;
+          } else {
+            // 마지막 fallback으로 item.id 사용
+            naverProductId = item.id;
+          }
+          
+          const orderData = {
+            accountId: currentUserId,
+            naverProductId: naverProductId,
+            quantity: item.quantity,
+          }
+
+          console.log("네이버 상품 주문 데이터:", orderData);
+
+          const response = await axios.post(`${getBackendUrl()}/api/orders/naver-product`, orderData, {
+            headers: { "Access_Token": accessToken }
+          })
+
+          console.log("네이버 상품 주문 응답:", response.data);
+
+          if (response.data) {
+            createdOrders.push(response.data)
+            console.log("네이버 상품 주문 성공:", item.name);
+          }
+        } catch (error) {
+          console.error("네이버 상품 주문 실패:", error)
+          alert(`${item.name} 주문에 실패했습니다`)
+        }
+      }
+
+      // 3. 장바구니 비우기
       for (const item of items) {
         await onRemoveFromCart(item.id)
       }
 
-      alert("전체 구매가 완료되었습니다")
+      alert(`전체 구매가 완료되었습니다. (${createdOrders.length}개 주문)`)
       router.push("/my")
     } catch (error: any) {
       console.error("전체 구매 오류:", error)
@@ -376,7 +513,7 @@ export default function CartPage() {
         quantity: item.quantity,
       }
 
-      const response = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/orders`, orderData, {
+      const response = await axios.post(`${getBackendUrl()}/api/orders`, orderData, {
         headers: { "Access_Token": accessToken }
       })
 
@@ -430,14 +567,53 @@ export default function CartPage() {
     setShowPayment(true)
   }
 
-  const handlePaymentSuccess = (paymentInfo: any) => {
-    console.log("결제 성공:", paymentInfo)
-    // 결제 성공 후 장바구니에서 상품 제거
-    paymentItems.forEach(item => onRemoveFromCart(item.id))
-    setShowPayment(false)
-    setPaymentItems([])
-    // 성공 페이지로 이동하거나 알림
-    alert("결제가 완료되었습니다!")
+  const handlePaymentSuccess = async (paymentInfo: any) => {
+    console.log("=== 결제 성공 처리 시작 ===");
+    console.log("결제 성공:", paymentInfo);
+    console.log("결제된 상품들:", paymentItems);
+    console.log("전체 장바구니 상품들:", cartItems);
+    
+    try {
+      // 결제 성공 후 나머지 상품들을 모두 주문
+      const remainingItems = cartItems.filter(item => 
+        !paymentItems.some(paymentItem => 
+          paymentItem.id === item.id || 
+          (paymentItem.product?.id && paymentItem.product.id === item.product?.id)
+        )
+      );
+      
+      console.log("=== 나머지 상품 분석 ===");
+      console.log("결제된 상품:", paymentItems);
+      console.log("나머지 상품:", remainingItems);
+      console.log("나머지 상품 개수:", remainingItems.length);
+      
+      if (remainingItems.length > 0) {
+        console.log("=== 나머지 상품들 주문 시작 ===");
+        
+        // onPurchaseAll 함수를 호출하여 나머지 상품들 주문
+        await onPurchaseAll(remainingItems);
+        
+        console.log("=== 나머지 상품들 주문 완료 ===");
+      } else {
+        console.log("나머지 상품이 없습니다.");
+      }
+      
+      // 결제된 상품 장바구니에서 제거
+      console.log("=== 장바구니에서 결제된 상품 제거 ===");
+      paymentItems.forEach(item => onRemoveFromCart(item.id))
+      
+      setShowPayment(false)
+      setPaymentItems([])
+      
+      // 성공 페이지로 이동하거나 알림
+      alert("전체 구매가 완료되었습니다!")
+      router.push("/my")
+      
+    } catch (error) {
+      console.error("=== 나머지 상품 주문 실패 ===");
+      console.error("나머지 상품 주문 실패:", error)
+      alert("일부 상품 주문에 실패했습니다. 장바구니를 확인해주세요.")
+    }
   }
 
   const handlePaymentFail = (error: any) => {
@@ -539,7 +715,7 @@ export default function CartPage() {
                             cartId = item.id
                           }
                           
-                          await axios.delete(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/carts/${cartId}`, {
+                          await axios.delete(`${getBackendUrl()}/api/carts/${cartId}`, {
                             headers: { "Access_Token": accessToken }
                           })
                         }

@@ -56,6 +56,8 @@ export interface CartItem {
   category: string
   quantity: number
   order: number
+  isNaverProduct?: boolean  // 네이버 상품 여부
+  naverProduct?: any  // 네이버 상품 원본 데이터
   product?: {
     id: number
     name: string

@@ -10,6 +10,7 @@ import Image from "next/image";
 import LoginModal from "@/components/modals/login-modal";
 import SignupModal from "@/components/modals/signup-modal";
 import PasswordRecoveryModal from "@/components/modals/password-recovery-modal";
+import { getBackendUrl } from "@/lib/api";
 
 // AuthContext 타입 정의
 interface AuthContextType {
@@ -50,9 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("리프레시 토큰이 없습니다.");
         return null;
       }
-      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
       const response = await axios.post(
-        `${API_BASE_URL}/api/accounts/refresh`,
+        `${getBackendUrl()}/api/accounts/refresh`,
         { refreshToken },
         { headers: { "Content-Type": "application/json" } }
       );
@@ -78,8 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const accessToken = localStorage.getItem("accessToken");
       if (!accessToken) return;
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
-      const response = await axios.get(`${API_BASE_URL}/api/accounts/me`, {
+      const response = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
         headers: { Access_Token: accessToken },
         timeout: 5000,
       });
@@ -103,8 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const newToken = await refreshAccessToken();
         if (newToken) {
           try {
-            const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
-            const response = await axios.get(`${API_BASE_URL}/api/accounts/me`, {
+            const response = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
               headers: { Access_Token: newToken },
               timeout: 5000,
             });
@@ -297,12 +295,10 @@ export default function Navigation() {
   const handleLogout = async () => {
     try {
       const accessToken = localStorage.getItem("accessToken");
-      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
       if (accessToken) {
-        await axios.post(
-          `${API_BASE_URL}/api/accounts/logout`,
+        await axios.post(`${getBackendUrl()}/api/accounts/logout`,
           {},
-          { headers: { "Content-Type": "application/json", Access_Token: accessToken } }
+          { headers: { "Content-Type": "application/json", "Access_Token": accessToken } }
         );
       }
       localStorage.removeItem("accessToken");
@@ -324,9 +320,7 @@ export default function Navigation() {
   // 회원가입 핸들러
   const handleSignup = async (userData: any) => {
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
-      const response = await axios.post(
-        `${API_BASE_URL}/api/accounts/register`,
+      const response = await axios.post(`${getBackendUrl()}/api/accounts/register`,
         userData,
         { headers: { "Content-Type": "application/json" } }
       );

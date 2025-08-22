@@ -9,8 +9,6 @@ import { CheckCircle, Home, Receipt } from "lucide-react";
 import axios from 'axios';
 import { getBackendUrl } from '@/lib/api';
 
-const API_BASE_URL = `${getBackendUrl()}/api`;
-
 interface PaymentInfo {
   paymentKey: string;
   orderId: string;
@@ -44,15 +42,12 @@ function PaymentSuccessContent() {
           return;
         }
 
-        console.log('결제 승인 요청:', { paymentKey, orderId, amount });
-
         const accessToken = localStorage.getItem('accessToken');
         if (!accessToken) {
           throw new Error('인증 토큰이 없습니다.');
         }
 
-        const response = await axios.post(
-          `${API_BASE_URL}/confirm`,
+        const response = await axios.post(`${getBackendUrl()}/api/confirm`,
           {
             paymentKey,
             orderId,
@@ -67,7 +62,6 @@ function PaymentSuccessContent() {
           }
         );
 
-        console.log('결제 승인 성공:', response.data);
         setPaymentInfo(response.data);
         
         // 결제 성공 후 장바구니 상태 새로고침을 위해 이벤트 발생

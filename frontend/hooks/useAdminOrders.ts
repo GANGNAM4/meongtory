@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { AdminOrder } from '@/types/admin'
 import axios from 'axios'
 import { formatToKST } from '@/lib/utils'
+import { getBackendUrl } from "@/lib/api";
 
 export function useAdminOrders() {
   const [orders, setOrders] = useState<AdminOrder[]>([])
@@ -32,7 +33,7 @@ export function useAdminOrders() {
       }
       
       console.log('요청 헤더:', headers)
-      const response = await axios.get('http://localhost:8080/api/orders/admin/all', { headers })
+      const response = await axios.get(`${getBackendUrl()}/api/orders/admin/all`, { headers })
       console.log('주문 API 응답:', response)
       
       const data: any[] = response.data
@@ -100,7 +101,7 @@ export function useAdminOrders() {
                            status === 'PENDING' ? 'CREATED' : 
                            status === 'CANCELLED' ? 'CANCELED' : 'CREATED'
       
-      const response = await axios.patch(`http://localhost:8080/api/orders/${orderId}/status?status=${backendStatus}`)
+      const response = await axios.patch(`${getBackendUrl()}/api/orders/${orderId}/status?status=${backendStatus}`)
       console.log('업데이트된 주문:', response.data)
       
       // 현재 주문 목록에서 해당 주문만 업데이트

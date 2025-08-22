@@ -10,9 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { X, Upload, Loader2, Sparkles } from "lucide-react"
-import { petApi, s3Api, handleApiError } from "@/lib/api"
+import { getBackendUrl, petApi, s3Api } from "@/lib/api"
 import axios from "axios"
-import { getBackendUrl } from "@/lib/api"
 
 import type { Pet } from "@/types/pets"
 
@@ -40,9 +39,7 @@ export default function AnimalEditModal({
   const [deletedImages, setDeletedImages] = useState<string[]>([])
 
   useEffect(() => {
-    console.log("AnimalEditModal useEffect - selectedPet:", selectedPet)
     if (selectedPet) {
-      console.log("selectedPet.petId:", selectedPet.petId, "타입:", typeof selectedPet.petId)
       setEditAnimal({
         name: selectedPet.name,
         breed: selectedPet.breed,
@@ -107,8 +104,7 @@ export default function AnimalEditModal({
 
     setIsGeneratingStory(true)
     try {
-      const backendUrl = getBackendUrl()
-      const response = await axios.post(`${backendUrl}/api/story/generate-background-story`, {
+      const response = await axios.post(`${getBackendUrl()}/api/story/generate-background-story`, {
         petName: editAnimal.name,
         breed: editAnimal.breed,
         age: editAnimal.age,
@@ -200,9 +196,6 @@ export default function AnimalEditModal({
         }
       }
 
-      console.log('업로드된 이미지 URLs:', uploadedImageUrls);
-      console.log('선택된 펫의 이미지:', selectedPet.imageUrl);
-      
       const updateData = {
         name: editAnimal.name || selectedPet.name,
         breed: editAnimal.breed || selectedPet.breed,
@@ -227,14 +220,8 @@ export default function AnimalEditModal({
                  (selectedPet.imageUrl && !selectedPet.imageUrl.includes('placeholder') ? selectedPet.imageUrl : undefined),
       } as any
 
-      console.log('전송할 데이터:', updateData)
-      console.log('Props petId:', petId, '타입:', typeof petId)
-      console.log('selectedPet.petId:', selectedPet?.petId, '타입:', typeof selectedPet?.petId)
-      console.log('API 호출 시작...')
-      
       // petId가 유효한지 확인 (props로 받은 petId를 우선 사용, id 필드도 확인)
       const finalPetId = petId || selectedPet?.petId || (selectedPet as any)?.id
-      console.log('최종 사용할 petId:', finalPetId)
       
       if (!finalPetId || finalPetId === 0) {
         console.error("펫 ID가 유효하지 않습니다:", { finalPetId, petId, selectedPet })
@@ -243,7 +230,6 @@ export default function AnimalEditModal({
       }
       
       const updatedPet = await petApi.updatePet(finalPetId, updateData)
-      console.log('API 호출 성공:', updatedPet)
       
       // 프론트엔드 상태 업데이트
       const updatedPetForFrontend: Pet = {

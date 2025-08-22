@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Package, User, Calendar, DollarSign, Eye, AlertCircle, XCircle } from "lucide-react"
 import { Order } from "@/types/store"
 import axios from "axios"
+import { getBackendUrl } from "@/lib/api";
 import { formatToKST } from "@/lib/utils"
 
 interface OrdersTabProps {
@@ -45,7 +46,7 @@ export default function OrdersTab({
       };
       
       console.log('요청 헤더:', headers);
-      const response = await axios.get('http://localhost:8080/api/orders/admin/all', { headers });
+      const response = await axios.get(`${getBackendUrl()}/api/orders/admin/all`, { headers });
       console.log('주문 API 응답:', response);
       
       const data: any[] = response.data;
@@ -108,7 +109,7 @@ export default function OrdersTab({
                            status === 'PENDING' ? 'CREATED' : 
                            status === 'CANCELLED' ? 'CANCELED' : 'CREATED';
       
-      const response = await axios.patch(`http://localhost:8080/api/orders/${orderId}/status?status=${backendStatus}`);
+      const response = await axios.patch(`${getBackendUrl()}/api/orders/${orderId}/status?status=${backendStatus}`);
       console.log('업데이트된 주문:', response.data);
       
       // 현재 주문 목록에서 해당 주문만 업데이트
