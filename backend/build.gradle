@@ -54,6 +54,8 @@ dependencies {
     implementation 'software.amazon.awssdk:sts:2.24.12'    
     // PDF 생성
     implementation 'org.apache.pdfbox:pdfbox:2.0.29'
+    // HTML parsing for crawling
+    implementation 'org.jsoup:jsoup:1.17.2'
 }
 
 tasks.named('test') {
