@@ -43,6 +43,7 @@ public class AISuggestionService {
                                                      ContractGenerationRequestDto.UserInfoDto userInfo,
                                                      String requestedBy) {
         
+
         // AI 조항 추천 생성
         List<AISuggestionDto> suggestions = generateClauseSuggestions(templateId, currentClauses, petInfo, userInfo);
         
@@ -70,14 +71,7 @@ public class AISuggestionService {
             requestBody.put("templateSections", requestDto.getTemplateSections()); // 템플릿의 실제 조항들
             requestBody.put("customSections", requestDto.getCustomSections()); // 추가할 커스텀 조항들
             requestBody.put("removedSections", requestDto.getRemovedSections());
-            Map<String, Object> petInfoMap = new HashMap<>();
-            if (requestDto.getPetInfo() != null) {
-                petInfoMap.put("name", requestDto.getPetInfo().getName() != null ? requestDto.getPetInfo().getName() : "");
-                petInfoMap.put("breed", requestDto.getPetInfo().getBreed() != null ? requestDto.getPetInfo().getBreed() : "");
-                petInfoMap.put("age", requestDto.getPetInfo().getAge() != null ? requestDto.getPetInfo().getAge() : 0);
-                petInfoMap.put("healthStatus", requestDto.getPetInfo().getHealthStatus() != null ? requestDto.getPetInfo().getHealthStatus() : "");
-            }
-            requestBody.put("petInfo", petInfoMap);
+            requestBody.put("petInfo", createPetInfoMap(requestDto.getPetInfo()));
             
             Map<String, Object> userInfoMap = new HashMap<>();
             if (requestDto.getUserInfo() != null) {
@@ -119,14 +113,7 @@ public class AISuggestionService {
             requestBody.put("templateId", requestDto.getTemplateId());
             requestBody.put("currentContent", requestDto.getCurrentContent());
             
-            Map<String, Object> petInfoMap = new HashMap<>();
-            if (requestDto.getPetInfo() != null) {
-                petInfoMap.put("name", requestDto.getPetInfo().getName() != null ? requestDto.getPetInfo().getName() : "");
-                petInfoMap.put("breed", requestDto.getPetInfo().getBreed() != null ? requestDto.getPetInfo().getBreed() : "");
-                petInfoMap.put("age", requestDto.getPetInfo().getAge() != null ? requestDto.getPetInfo().getAge() : 0);
-                petInfoMap.put("healthStatus", requestDto.getPetInfo().getHealthStatus() != null ? requestDto.getPetInfo().getHealthStatus() : "");
-            }
-            requestBody.put("petInfo", petInfoMap);
+            requestBody.put("petInfo", createPetInfoMap(requestDto.getPetInfo()));
             
             Map<String, Object> userInfoMap = new HashMap<>();
             if (requestDto.getUserInfo() != null) {
@@ -158,6 +145,23 @@ public class AISuggestionService {
         }
     }
     
+    // 공통 petInfoMap 생성 메서드
+    private Map<String, Object> createPetInfoMap(ContractGenerationRequestDto.PetInfoDto petInfo) {
+        Map<String, Object> petInfoMap = new HashMap<>();
+        if (petInfo != null) {
+            petInfoMap.put("petId", petInfo.getPetId());
+            petInfoMap.put("name", petInfo.getName() != null ? petInfo.getName() : "");
+            petInfoMap.put("breed", petInfo.getBreed() != null ? petInfo.getBreed() : "");
+            petInfoMap.put("age", petInfo.getAge() != null ? petInfo.getAge() : "알 수 없음");
+            petInfoMap.put("gender", petInfo.getGender() != null ? petInfo.getGender() : "UNKNOWN");
+            petInfoMap.put("healthStatus", petInfo.getHealthStatus() != null ? petInfo.getHealthStatus() : "건강상태 정보 없음");
+            petInfoMap.put("weight", petInfo.getWeight());
+            petInfoMap.put("vaccinated", petInfo.getVaccinated() != null ? petInfo.getVaccinated() : false);
+            petInfoMap.put("neutered", petInfo.getNeutered() != null ? petInfo.getNeutered() : false);
+        }
+        return petInfoMap;
+    }
+
     private List<AISuggestionDto> generateClauseSuggestions(Long templateId, List<String> currentClauses,
                                                            ContractGenerationRequestDto.PetInfoDto petInfo,
                                                            ContractGenerationRequestDto.UserInfoDto userInfo) {
@@ -166,14 +170,7 @@ public class AISuggestionService {
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("templateId", templateId);
             requestBody.put("currentClauses", currentClauses);
-            Map<String, Object> petInfoMap = new HashMap<>();
-            if (petInfo != null) {
-                petInfoMap.put("name", petInfo.getName() != null ? petInfo.getName() : "");
-                petInfoMap.put("breed", petInfo.getBreed() != null ? petInfo.getBreed() : "");
-                petInfoMap.put("age", petInfo.getAge() != null ? petInfo.getAge() : 0);
-                petInfoMap.put("healthStatus", petInfo.getHealthStatus() != null ? petInfo.getHealthStatus() : "");
-            }
-            requestBody.put("petInfo", petInfoMap);
+            requestBody.put("petInfo", createPetInfoMap(petInfo));
             
             Map<String, Object> userInfoMap = new HashMap<>();
             if (userInfo != null) {

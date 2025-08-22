@@ -591,8 +591,17 @@ export default function StoreProductDetailPage({
          const result = response.data;
         console.log('네이버 상품 DB 저장 결과:', result);
         
+        // 새로운 응답 형식 처리
+        let productId;
+        if (result.success && result.data) {
+          productId = result.data.productId;
+          console.log(`네이버 상품 저장 결과: ${result.data.isNewProduct ? '새 상품' : '기존 상품 업데이트'} - ${product.name}`);
+        } else {
+          throw new Error('네이버 상품 저장에 실패했습니다.');
+        }
+        
                  // URL 파라미터를 통해 Payment 페이지로 이동 (네이버 상품이므로 isNaverProduct=true)
-         const paymentUrl = `/payment?productId=${result.data}&quantity=${quantity}&price=${product.price}&productName=${encodeURIComponent(product.name)}&imageUrl=${encodeURIComponent(product.imageUrl)}&isNaverProduct=true`;
+         const paymentUrl = `/payment?productId=${productId}&quantity=${quantity}&price=${product.price}&productName=${encodeURIComponent(product.name)}&imageUrl=${encodeURIComponent(product.imageUrl)}&isNaverProduct=true`;
         console.log('네이버 상품 Payment 페이지로 이동할 URL:', paymentUrl);
         router.push(paymentUrl);
       } catch (error) {
@@ -994,22 +1003,19 @@ export default function StoreProductDetailPage({
                              const result = response.data;
                             console.log('네이버 상품 DB 저장 결과:', result);
                             
-                            // 저장된 상품 정보로 업데이트
-                            const naverProductAsProduct = {
-                              id: result.data.id,
-                              name: propNaverProduct.title.replace(/<[^>]*>/g, ''),
-                              price: propNaverProduct.price,
-                              imageUrl: propNaverProduct.imageUrl,
-                              productUrl: propNaverProduct.productUrl,
-                              mallName: propNaverProduct.mallName,
-                              brand: propNaverProduct.brand,
-                              maker: propNaverProduct.maker
+                            // 새로운 응답 형식 처리
+                            let productId;
+                            if (result.success && result.data) {
+                              productId = result.data.productId;
+                              console.log(`네이버 상품 저장 결과: ${result.data.isNewProduct ? '새 상품' : '기존 상품 업데이트'} - ${propNaverProduct.title}`);
+                            } else {
+                              throw new Error('네이버 상품 저장에 실패했습니다.');
                             }
 
-                            console.log('Payment 페이지로 이동할 상품 정보:', naverProductAsProduct);
+                            console.log('Payment 페이지로 이동할 상품 정보:', { productId, name: propNaverProduct.title, price: propNaverProduct.price, imageUrl: propNaverProduct.imageUrl });
                             
                                                          // URL 파라미터를 통해 Payment 페이지로 이동 (네이버 상품 정보 포함)
-                             const paymentUrl = `/payment?productId=${result.data}&quantity=${quantity}&price=${naverProductAsProduct.price}&productName=${encodeURIComponent(naverProductAsProduct.name)}&imageUrl=${encodeURIComponent(naverProductAsProduct.imageUrl)}&isNaverProduct=true&productUrl=${encodeURIComponent(naverProductAsProduct.productUrl)}&mallName=${encodeURIComponent(naverProductAsProduct.mallName)}`
+                             const paymentUrl = `/payment?productId=${productId}&quantity=${quantity}&price=${propNaverProduct.price}&productName=${encodeURIComponent(propNaverProduct.title)}&imageUrl=${encodeURIComponent(propNaverProduct.imageUrl)}&isNaverProduct=true&productUrl=${encodeURIComponent(propNaverProduct.productUrl)}&mallName=${encodeURIComponent(propNaverProduct.mallName)}`
                             
                             console.log('생성된 Payment URL:', paymentUrl);
                             console.log('Payment 페이지로 이동 시작...');

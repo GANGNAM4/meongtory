@@ -81,8 +81,8 @@ export default function ProductsTab({
 
       // 네이버 상품들 가져오기
       try {
-        const naverResponse = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/popular`, {
-          params: { page: 0, size: 50 }
+        const naverResponse = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/all`, {
+          params: { page: 0, size: 1000 } // 모든 네이버 상품을 가져오기 위해 큰 size 설정
         })
         
         if (naverResponse.data.success && naverResponse.data.data?.content) {
@@ -91,7 +91,7 @@ export default function ProductsTab({
             name: removeHtmlTags(naverProduct.title || '제목 없음'),
             price: parseInt(naverProduct.price) || 0,
             imageUrl: naverProduct.imageUrl || '/placeholder.svg',
-            category: naverProduct.category1 || '네이버 상품',
+            category: naverProduct.category1 || '용품', // 매핑된 카테고리 사용
             description: removeHtmlTags(naverProduct.description || ''),
             tags: [],
             stock: 999, // 네이버 상품은 재고 무제한으로 표시
@@ -101,6 +101,8 @@ export default function ProductsTab({
             mallName: naverProduct.mallName || '판매자 정보 없음',
             productUrl: naverProduct.productUrl || '#'
           }))
+          
+          console.log(`네이버 상품 ${naverProducts.length}개 로드됨`)
           
           // 기존 상품과 네이버 상품 합치기
           const allProducts = [...convertedProducts, ...naverProducts]
@@ -192,74 +194,318 @@ export default function ProductsTab({
     setNaverError(null)
     
     try {
-      // 다양한 펫 용품 검색어들
-      const searchTerms = [
-        "강아지 사료",
-        "고양이 사료", 
-        "강아지 간식",
-        "고양이 간식",
-        "강아지 장난감",
-        "고양이 장난감"
-      ]
+      console.log('네이버 상품 가져오기 시작...')
       
-      let totalSaved = 0
+             // 이전에 가져온 페이지 정보를 localStorage에서 가져오기
+       const lastPageInfo = localStorage.getItem('naverLastPageInfo')
+       let startPageOffset = 0
+       
+       if (lastPageInfo) {
+         const pageInfo = JSON.parse(lastPageInfo)
+         startPageOffset = pageInfo.lastStartPage || 0
+         console.log(`이전 시작 페이지: ${startPageOffset}, 다음 시작 페이지: ${startPageOffset + 1}`)
+       } else {
+         console.log(`첫 실행: 1페이지부터 시작`)
+       }
       
-      // 각 검색어로 상품 가져오기
-      for (const term of searchTerms) {
-        try {
-          console.log(`${term} 검색 중...`)
-          
-          // 네이버 쇼핑 API 호출
-          const searchResponse = await axios.post(`${getBackendUrl()}/api/naver-shopping/search`, {
-            query: term,
-            display: 10,
-            start: 1,
-            sort: "sim"
-          })
-          
-          if (searchResponse.data.success && searchResponse.data.data?.items) {
-            const items = searchResponse.data.data.items
-            
-            // 각 상품을 DB에 저장
-            for (const item of items) {
-              try {
-                const saveResponse = await axios.post(`${getBackendUrl()}/api/naver-shopping/save`, {
-                  productId: item.productId || '',
-                  title: item.title || '제목 없음',
-                  description: item.description || '',
-                  price: parseInt(item.lprice) || 0,
-                  imageUrl: item.image || '/placeholder.svg',
-                  mallName: item.mallName || '판매자 정보 없음',
-                  productUrl: item.link || '#',
-                  brand: item.brand || '',
-                  maker: item.maker || '',
-                  category1: item.category1 || '',
-                  category2: item.category2 || '',
-                  category3: item.category3 || '',
-                  category4: item.category4 || '',
-                  reviewCount: parseInt(item.reviewCount) || 0,
-                  rating: parseFloat(item.rating) || 0,
-                  searchCount: parseInt(item.searchCount) || 0
-                })
-                
-                if (saveResponse.data.success) {
-                  totalSaved++
-                }
-              } catch (saveError) {
-                console.error(`${item.title} 저장 실패:`, saveError)
-              }
-            }
-          }
-          
-          // API 호출 간격 조절
-          await new Promise(resolve => setTimeout(resolve, 200))
-          
-        } catch (searchError) {
-          console.error(`${term} 검색 실패:`, searchError)
-        }
+      // 카테고리별 검색어 그룹화
+      const searchCategories = {
+        사료: [
+          "강아지 사료",
+          "고양이 사료", 
+          "강아지 프리미엄 사료",
+          "고양이 프리미엄 사료",
+          "강아지 어덜트 사료",
+          "고양이 어덜트 사료"
+        ],
+        간식: [
+          "강아지 간식",
+          "고양이 간식",
+          "강아지 덴탈 간식",
+          "고양이 덴탈 간식",
+          "강아지 트릿",
+          "고양이 트릿"
+        ],
+        장난감: [
+          "강아지 장난감",
+          "고양이 장난감",
+          "강아지 공",
+          "고양이 공",
+          "강아지 로프 장난감",
+          "고양이 쥐돌이"
+        ],
+        용품: [
+          "강아지 용품",
+          "고양이 용품",
+          "강아지 하네스",
+          "고양이 캣타워",
+          "강아지 케이지",
+          "고양이 화장실"
+        ],
+        의류: [
+          "강아지 옷",
+          "고양이 옷",
+          "강아지 코트",
+          "고양이 코트",
+          "강아지 신발",
+          "고양이 신발",
+          "강아지 후드",
+          "고양이 후드",
+          "강아지 원피스",
+          "고양이 원피스",
+          "강아지 티셔츠",
+          "고양이 티셔츠",
+          "강아지 패딩",
+          "고양이 패딩",
+          "강아지 비옷",
+          "고양이 비옷"
+        ],
+        건강관리: [
+          "강아지 영양제",
+          "고양이 영양제",
+          "강아지 비타민",
+          "고양이 비타민",
+          "강아지 오메가3",
+          "고양이 오메가3",
+          "강아지 프로바이오틱스",
+          "고양이 프로바이오틱스",
+          "강아지 관절 영양제",
+          "고양이 관절 영양제",
+          "강아지 피부 영양제",
+          "고양이 피부 영양제",
+          "강아지 눈 영양제",
+          "고양이 눈 영양제",
+          "강아지 치아 관리",
+          "고양이 치아 관리",
+          "강아지 털 관리",
+          "고양이 털 관리"
+        ],
+        브랜드: [
+          "펫생각 신상",
+          "닥터바이 신상",
+          "울애기쌩쌩 신상",
+          "펫파워 신상",
+          "펫펫펫 신상",
+          "디어랩스 신상",
+          "닥터뉴토 신상",
+          "헬로마이펫 신상",
+          "닥터이안 신상",
+          "이뮤노벳 신상"
+        ],
+        특수제품: [
+          "강아지 유기농 사료",
+          "고양이 유기농 사료",
+          "강아지 글루텐프리 사료",
+          "고양이 글루텐프리 사료",
+          "강아지 저알러지 사료",
+          "고양이 저알러지 사료",
+          "강아지 다이어트 사료",
+          "고양이 다이어트 사료",
+          "강아지 시니어 사료",
+          "고양이 시니어 사료",
+          "강아지 퍼피 사료",
+          "고양이 키튼 사료"
+        ],
+        스마트제품: [
+          "강아지 스마트 장난감",
+          "고양이 스마트 장난감",
+          "강아지 자동급식기",
+          "고양이 자동급식기",
+          "강아지 자동급수기",
+          "고양이 자동급수기",
+          "강아지 GPS 목줄",
+          "고양이 GPS 목줄",
+          "강아지 카메라",
+          "고양이 카메라"
+        ],
+        계절용품: [
+          "강아지 선글라스",
+          "고양이 선글라스",
+          "강아지 모자",
+          "고양이 모자",
+          "강아지 우산",
+          "고양이 우산",
+          "강아지 우비",
+          "고양이 우비",
+          "강아지 스카프",
+          "고양이 스카프"
+        ]
       }
       
-      alert(`네이버 상품 ${totalSaved}개가 성공적으로 저장되었습니다!`)
+      const categories = Object.keys(searchCategories)
+      const totalTargetProducts = 500 // 총 목표 상품 수
+      const productsPerCategory = Math.floor(totalTargetProducts / categories.length) // 카테고리당 상품 수
+      
+      console.log(`총 목표 상품 수: ${totalTargetProducts}개`)
+      console.log(`카테고리 수: ${categories.length}개`)
+      console.log(`카테고리당 목표 상품 수: ${productsPerCategory}개`)
+      
+             let totalSaved = 0
+       let newProductsCount = 0
+       let updatedProductsCount = 0
+       let categoryStats: { [key: string]: { new: number, updated: number, total: number } } = {}
+       let maxStartPage = 0 // 이번 실행에서 사용한 최대 시작 페이지
+      
+      // 각 카테고리별로 상품 가져오기
+      for (const category of categories) {
+        const searchTerms = searchCategories[category as keyof typeof searchCategories]
+        categoryStats[category] = { new: 0, updated: 0, total: 0 }
+        
+        console.log(`\n=== ${category} 카테고리 시작 ===`)
+        console.log(`${category} 카테고리 - 검색어 ${searchTerms.length}개`)
+        
+        let categoryProductCount = 0
+        
+        // 각 검색어로 상품 가져오기
+        for (let i = 0; i < searchTerms.length; i++) {
+          const term = searchTerms[i]
+          
+          // 카테고리당 목표 상품 수에 도달하면 다음 카테고리로
+          if (categoryProductCount >= productsPerCategory) {
+            console.log(`${category} 카테고리 목표 달성 (${categoryProductCount}/${productsPerCategory})`)
+            break
+          }
+          
+          try {
+            console.log(`[${i + 1}/${searchTerms.length}] ${term} 검색 중...`)
+            
+            // 페이징 처리를 통해 상품 가져오기
+            const maxPages = 10 // 최대 10페이지까지
+            const itemsPerPage = 10
+            
+                         // 이전 실행에서 끝난 페이지 다음부터 시작 (최대 100페이지 제한)
+             const maxAllowedPage = Math.min(100, startPageOffset + 10) // 최대 10페이지씩 진행
+             let randomStartPage = startPageOffset + 1 // 이전 실행에서 끝난 페이지 다음부터 시작
+             
+             // 100페이지를 넘어가면 1페이지부터 다시 시작
+             if (randomStartPage > 100) {
+               randomStartPage = 1
+               console.log(`${term} - 100페이지 초과, 1페이지부터 다시 시작`)
+             }
+            console.log(`${term} - 랜덤 시작 페이지: ${randomStartPage}`)
+            
+            for (let page = 0; page < maxPages; page++) {
+              // 카테고리당 목표 상품 수에 도달하면 다음 검색어로
+              if (categoryProductCount >= productsPerCategory) {
+                break
+              }
+              
+                             const currentPage = randomStartPage + page
+               const start = (currentPage - 1) * itemsPerPage + 1
+               
+               // 최대 시작 페이지 업데이트
+               if (currentPage > maxStartPage) {
+                 maxStartPage = currentPage
+               }
+              
+              // 네이버 쇼핑 API 호출
+              const searchResponse = await axios.post(`${getBackendUrl()}/api/naver-shopping/search`, {
+                query: term,
+                display: itemsPerPage,
+                start: start,
+                sort: "sim"
+              })
+              
+              if (searchResponse.data.success && searchResponse.data.data?.items) {
+                const items = searchResponse.data.data.items
+                
+                // 결과가 없으면 다음 검색어로 넘어가기
+                if (items.length === 0) {
+                  console.log(`${term} - 페이지 ${currentPage}: 더 이상 상품이 없습니다.`)
+                  break
+                }
+                
+                console.log(`${term} - 페이지 ${currentPage}: ${items.length}개 상품 발견`)
+                
+                // 각 상품을 DB에 저장
+                for (const item of items) {
+                  // 카테고리당 목표 상품 수에 도달하면 중단
+                  if (categoryProductCount >= productsPerCategory) {
+                    break
+                  }
+                  
+                  try {
+                    const saveResponse = await axios.post(`${getBackendUrl()}/api/naver-shopping/save`, {
+                      productId: item.productId || '',
+                      title: item.title || '제목 없음',
+                      description: item.description || '',
+                      price: parseInt(item.lprice) || 0,
+                      imageUrl: item.image || '/placeholder.svg',
+                      mallName: item.mallName || '판매자 정보 없음',
+                      productUrl: item.link || '#',
+                      brand: item.brand || '',
+                      maker: item.maker || '',
+                      category1: item.category1 || '',
+                      category2: item.category2 || '',
+                      category3: item.category3 || '',
+                      category4: item.category4 || '',
+                      reviewCount: parseInt(item.reviewCount) || 0,
+                      rating: parseFloat(item.rating) || 0.0,
+                      searchCount: 0
+                    })
+                    
+                    if (saveResponse.data.success) {
+                      const result = saveResponse.data.data
+                      if (result && result.isNewProduct) {
+                        newProductsCount++
+                        categoryStats[category].new++
+                        console.log(`새 상품 저장됨: ${item.title}`)
+                      } else {
+                        updatedProductsCount++
+                        categoryStats[category].updated++
+                        console.log(`기존 상품 업데이트됨: ${item.title}`)
+                      }
+                      totalSaved++
+                      categoryStats[category].total++
+                      categoryProductCount++
+                    }
+                  } catch (saveError) {
+                    console.error(`상품 저장 실패: ${item.title}`, saveError)
+                  }
+                }
+                
+                // 잠시 대기 (API 호출 제한 방지)
+                await new Promise(resolve => setTimeout(resolve, 500))
+              } else {
+                console.log(`${term} - 페이지 ${currentPage}: 검색 결과가 없습니다.`)
+                break
+              }
+            }
+          } catch (searchError) {
+            console.error(`${term} 검색 실패:`, searchError)
+          }
+        }
+        
+        console.log(`${category} 카테고리 완료: 새 상품 ${categoryStats[category].new}개, 업데이트 ${categoryStats[category].updated}개, 총 ${categoryStats[category].total}개`)
+      }
+      
+             // 다음 실행을 위해 페이지 정보 저장 (100페이지 초과 시 1페이지부터 다시 시작)
+       let nextStartPage = maxStartPage + 1
+       if (nextStartPage > 100) {
+         nextStartPage = 1
+         console.log(`100페이지 초과, 다음 실행은 1페이지부터 시작`)
+       }
+       
+       const nextPageInfo = {
+         lastStartPage: nextStartPage,
+         timestamp: new Date().toISOString()
+       }
+       localStorage.setItem('naverLastPageInfo', JSON.stringify(nextPageInfo))
+       console.log(`다음 실행 시작 페이지: ${nextPageInfo.lastStartPage}`)
+      
+      // 결과 요약 생성
+      let resultMessage = `네이버 상품 가져오기 완료!\n\n`
+      resultMessage += `총 새로 저장된 상품: ${newProductsCount}개\n`
+      resultMessage += `총 기존 상품 업데이트: ${updatedProductsCount}개\n`
+      resultMessage += `총 처리된 상품: ${totalSaved}개\n\n`
+      resultMessage += `=== 카테고리별 결과 ===\n`
+      
+      for (const category of categories) {
+        const stats = categoryStats[category]
+        resultMessage += `${category}: 새 ${stats.new}개, 업데이트 ${stats.updated}개, 총 ${stats.total}개\n`
+      }
+      
+      alert(resultMessage)
       
       // 상품 목록 새로고침
       fetchProducts()

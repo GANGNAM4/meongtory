@@ -11,6 +11,7 @@ import AdoptionRequestModal from "@/components/modals/adoption-request-modal"
 import { adoptionRequestApi, petApi } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 
+
 import type { Pet } from "@/types/pets"
 
 interface FormField {
@@ -88,7 +89,6 @@ export default function AdoptionDetailPage() {
     [key: string]: any
   }) => {
     try {
-      console.log("입양신청 데이터:", requestData)
       
       // API 함수 호출 시 필요한 기본 필드들을 포함
       const apiRequestData = {
@@ -99,7 +99,6 @@ export default function AdoptionDetailPage() {
         message: requestData.message || ""
       }
       
-      console.log("API로 보낼 데이터:", apiRequestData)
       
       await adoptionRequestApi.createAdoptionRequest(apiRequestData)
       toast({
@@ -120,7 +119,6 @@ export default function AdoptionDetailPage() {
   const handleUpdateCustomFields = (fields: FormField[]) => {
     setCustomFields(fields)
     // 여기서 백엔드에 커스텀 필드 설정을 저장할 수 있습니다
-    console.log("커스텀 필드 업데이트:", fields)
   }
 
   const handleShare = () => {
