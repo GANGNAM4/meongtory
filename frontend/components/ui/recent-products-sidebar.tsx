@@ -12,6 +12,7 @@ import { recentApi } from "@/lib/api"
 interface RecentProduct {
   id: number
   productId: number
+  naverProductId?: string // 네이버 상품용
   productType: string
   company?: string
   productName: string
@@ -109,11 +110,19 @@ export function RecentProductsSidebar({
 
   // 상품 클릭 시 상세 페이지로 이동
   const handleProductClick = (product: RecentProduct) => {
-    const productId = product.productId || product.id
     if (productType === "insurance") {
+      const productId = product.productId || product.id
       router.push(`/insurance/${productId}`)
     } else {
-      router.push(`/store/${productId}`)
+      // store 타입의 경우 네이버 상품인지 확인
+      if (product.naverProductId) {
+        // 네이버 상품인 경우 naverProductId 사용
+        router.push(`/store/${product.naverProductId}`)
+      } else {
+        // 일반 상품인 경우 productId 사용
+        const productId = product.productId || product.id
+        router.push(`/store/${productId}`)
+      }
     }
   }
 

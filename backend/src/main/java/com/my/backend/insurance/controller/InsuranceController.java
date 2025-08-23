@@ -6,6 +6,8 @@ import com.my.backend.insurance.service.InsuranceService;
 import com.my.backend.insurance.schedule.InsuranceCrawlerJob;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -50,13 +52,25 @@ public class InsuranceController {
                 .body(ResponseDto.success(saved));
     }
 
-    // 수동 트리거용 (관리자 보호 필요시 ROLE 검사 추가 가능)
-    @PostMapping("/crawl-now")
-    public ResponseEntity<ResponseDto<String>> crawlNow() {
-        // 기존 데이터 정리 후 수집
-        insuranceService.deleteAll();
+    /**
+     * 수동 크롤링 (기본 데이터 + 로고 업데이트, ADMIN 전용)
+     */
+    @PostMapping("/manual-crawl")
+    public ResponseEntity<ResponseDto<String>> manualCrawl() {
+        // ADMIN 권한 체크
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || 
+            !authentication.getAuthorities().stream().anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"))) {
+            return ResponseEntity.status(403).body(ResponseDto.fail("FORBIDDEN", "ADMIN 권한이 필요합니다."));
+        }
+        
+        // 기존 데이터 업데이트 + 새 데이터 추가
         crawlerJob.runOnce();
-        return ResponseEntity.ok(ResponseDto.success("crawled"));
+        
+        // 로고 업데이트
+        insuranceService.updateAllLogos();
+        
+        return ResponseEntity.ok(ResponseDto.success("수동 크롤링 완료 (기본 데이터 + 로고 업데이트)"));
     }
 }
 

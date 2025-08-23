@@ -409,8 +409,6 @@ public class InsuranceCrawlerJob {
                     .features(allFeatures)
                     .logoUrl(logoUrl != null ? logoUrl : product.getLogoUrl())
                     .redirectUrl(product.getRedirectUrl())
-                    .benefits(benefits)
-                    .requirements(requirements)
                     .build();
                     
         } catch (Exception e) {
@@ -450,8 +448,6 @@ public class InsuranceCrawlerJob {
                     .features(allFeatures)
                     .logoUrl(logoUrl != null ? logoUrl : product.getLogoUrl())
                     .redirectUrl(product.getRedirectUrl())
-                    .benefits(benefits)
-                    .requirements(requirements)
                     .build();
                     
         } catch (Exception e) {
@@ -491,8 +487,6 @@ public class InsuranceCrawlerJob {
                     .features(allFeatures)
                     .logoUrl(logoUrl != null ? logoUrl : product.getLogoUrl())
                     .redirectUrl(product.getRedirectUrl())
-                    .benefits(benefits)
-                    .requirements(requirements)
                     .build();
                     
         } catch (Exception e) {
@@ -532,8 +526,6 @@ public class InsuranceCrawlerJob {
                     .features(allFeatures)
                     .logoUrl(logoUrl != null ? logoUrl : product.getLogoUrl())
                     .redirectUrl(product.getRedirectUrl())
-                    .benefits(benefits)
-                    .requirements(requirements)
                     .build();
                     
         } catch (Exception e) {
@@ -573,8 +565,6 @@ public class InsuranceCrawlerJob {
                     .features(allFeatures)
                     .logoUrl(logoUrl != null ? logoUrl : product.getLogoUrl())
                     .redirectUrl(product.getRedirectUrl())
-                    .benefits(benefits)
-                    .requirements(requirements)
                     .build();
                     
         } catch (Exception e) {

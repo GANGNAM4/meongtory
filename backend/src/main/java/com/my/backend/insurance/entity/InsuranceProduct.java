@@ -32,7 +32,15 @@ public class InsuranceProduct extends BaseEntity {
     @Column(length = 2000)
     private String features; // JSON 배열 문자열 또는 콤마 구분 문자열
 
+    @Column(length = 10000)
     private String logoUrl;
+
+    @Column(name = "logo_version")
+    @Builder.Default
+    private Integer logoVersion = 1;
+
+    @Column(name = "logo_updated_at")
+    private java.time.LocalDateTime logoUpdatedAt;
 
     private String redirectUrl; // 자세히 보기 시 이동할 공식 보험사 URL
 }

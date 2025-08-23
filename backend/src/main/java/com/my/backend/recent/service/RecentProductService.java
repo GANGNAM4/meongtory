@@ -141,6 +141,7 @@ public class RecentProductService {
                     .productName(product.getProductName())
                     .description(product.getDescription())
                     .logoUrl(product.getLogoUrl())
+                    .price(null) // 보험 상품은 가격 정보가 없음
                     .viewedAt(entity.getViewedAt())
                     .build();
         } else if ("store".equals(entity.getProductType())) {
@@ -155,6 +156,7 @@ public class RecentProductService {
                         .productName(product.getName())
                         .description(product.getDescription())
                         .logoUrl(product.getImageUrl())
+                        .price(product.getPrice()) // 가격 정보 추가
                         .viewedAt(entity.getViewedAt())
                         .build();
             } else if (entity.getNaverProduct() != null) {
@@ -162,12 +164,14 @@ public class RecentProductService {
                 NaverProduct naverProduct = entity.getNaverProduct();
                 return RecentProductDto.builder()
                         .id(entity.getId())
-                        .productId(naverProduct.getId())
+                        .productId(naverProduct.getId()) // PK 사용
+                        .naverProductId(naverProduct.getProductId()) // 네이버 상품 ID 사용
                         .productType(entity.getProductType())
                         .company(naverProduct.getMallName()) // 네이버 상품은 mallName을 company로 사용
                         .productName(naverProduct.getTitle())
                         .description(naverProduct.getDescription())
                         .logoUrl(naverProduct.getImageUrl())
+                        .price(naverProduct.getPrice()) // 가격 정보 추가
                         .viewedAt(entity.getViewedAt())
                         .build();
             } else {

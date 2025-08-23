@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, ExternalLink, Heart, Star, Shield, Clock, DollarSign } from "lucide-react"
 import { insuranceApi, recentApi } from "@/lib/api"
 import { useAuth } from "@/components/navigation"
+import { useToast } from "@/components/ui/use-toast"
+import { RecentProductsSidebar } from "@/components/ui/recent-products-sidebar"
+import { loadSidebarState, updateSidebarState } from "@/lib/sidebar-state"
 
 interface InsuranceProduct {
   id: number
@@ -72,6 +75,65 @@ export default function InsuranceDetailPage() {
   const [product, setProduct] = useState<InsuranceProduct | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // ADMIN 권한 체크
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  // 최근 본 상품 사이드바
+  const [showRecentSidebar, setShowRecentSidebar] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  // 사이드바 상태 로드
+  useEffect(() => {
+    const savedState = loadSidebarState()
+    if (savedState.productType === 'insurance') {
+      setShowRecentSidebar(savedState.isOpen)
+    }
+  }, [])
+
+  // 사이드바 토글 함수
+  const handleSidebarToggle = () => {
+    const newIsOpen = !showRecentSidebar
+    setShowRecentSidebar(newIsOpen)
+    updateSidebarState({ isOpen: newIsOpen, productType: 'insurance' })
+  }
+  
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken')
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        setIsAdmin(payload.role === 'ADMIN')
+      } catch (e) {
+        console.error('토큰 파싱 오류:', e)
+      }
+    }
+  }, [])
+
+  const { toast } = useToast()
+
+  // 수동 크롤링 함수
+  const handleManualCrawl = async () => {
+    try {
+      setLoading(true)
+      const result = await insuranceApi.manualCrawl()
+      toast({
+        title: "크롤링 완료",
+        description: result,
+      })
+      // 페이지 새로고침
+      window.location.reload()
+    } catch (error) {
+      console.error('크롤링 오류:', error)
+      toast({
+        title: "크롤링 실패",
+        description: "크롤링 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -79,8 +141,8 @@ export default function InsuranceDetailPage() {
         setLoading(true)
         const productId = Number(params.id)
         
-        // 먼저 기본 상품 정보 가져오기
-        const basicData = await insuranceApi.getProduct(productId)
+        // 기본 상품 정보 가져오기
+        const basicData = await insuranceApi.getById(productId)
         
         if (basicData) {
           // 기본 정보로 초기 설정
@@ -104,7 +166,7 @@ export default function InsuranceDetailPage() {
           
           // 상세 정보 크롤링 시도
           try {
-            const detailedData = await insuranceApi.getProductDetails(productId)
+            const detailedData = await insuranceApi.getDetails(productId)
             if (detailedData) {
               const detailedProduct = {
                 id: detailedData.id,
@@ -112,7 +174,7 @@ export default function InsuranceDetailPage() {
                 productName: detailedData.productName,
                 description: detailedData.description,
                 features: detailedData.features || [],
-                logo: detailedData.logoUrl || "/placeholder.svg",
+                logo: detailedData.logoUrl || initialProduct.logo,
                 redirectUrl: detailedData.redirectUrl,
                 coverage: detailedData.coverage,
                 benefits: detailedData.benefits || [],
@@ -305,6 +367,16 @@ export default function InsuranceDetailPage() {
                           실시간 로고
                         </Badge>
                       )}
+                      {/* 로고 크롤링 버튼 */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleManualCrawl}
+                        className="text-xs"
+                        disabled={loading}
+                      >
+                        {loading ? '크롤링 중...' : '수동 크롤링'}
+                      </Button>
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">{product.productName}</h1>
                     <p className="text-gray-600">{product.description}</p>
@@ -507,6 +579,27 @@ export default function InsuranceDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* 최근 본 상품 사이드바 */}
+      <RecentProductsSidebar
+        productType="insurance"
+        isOpen={showRecentSidebar}
+        onToggle={handleSidebarToggle}
+        refreshTrigger={refreshTrigger}
+      />
+
+      {/* 고정된 사이드바 토글 버튼 */}
+      <div className="fixed top-20 right-6 z-40">
+        <Button
+          onClick={handleSidebarToggle}
+          className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg rounded-full w-14 h-14 p-0"
+          title="최근 본 상품"
+        >
+          <Clock className="h-6 w-6" />
+        </Button>
+      </div>
+
+
     </div>
   )
 }

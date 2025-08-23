@@ -12,7 +12,7 @@ public interface RecentProductRepository extends JpaRepository<RecentProduct, Lo
     @Query("SELECT rp FROM RecentProduct rp WHERE rp.account.id = :accountId AND rp.productType = :productType ORDER BY rp.viewedAt DESC")
     List<RecentProduct> findByAccountIdAndProductTypeOrderByViewedAtDesc(@Param("accountId") Long accountId, @Param("productType") String productType);
     
-    @Query("SELECT rp FROM RecentProduct rp WHERE rp.account.id = :accountId AND rp.productType = :productType AND (rp.insuranceProduct.id = :productId OR rp.storeProduct.id = :productId)")
+    @Query("SELECT rp FROM RecentProduct rp WHERE rp.account.id = :accountId AND rp.productType = :productType AND (rp.insuranceProduct.id = :productId OR rp.storeProduct.id = :productId OR rp.naverProduct.id = :productId)")
     RecentProduct findByAccountIdAndProductTypeAndProductId(@Param("accountId") Long accountId, @Param("productType") String productType, @Param("productId") Long productId);
     
     void deleteByAccountIdAndProductType(Long accountId, String productType);

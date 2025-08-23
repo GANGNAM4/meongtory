@@ -8,6 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ChevronDown, ChevronUp, Clock, Eye } from "lucide-react"
 import { insuranceApi, recentApi } from "@/lib/api"
 import { RecentProductsSidebar } from "@/components/ui/recent-products-sidebar"
+import { loadSidebarState, updateSidebarState } from "@/lib/sidebar-state"
+import { useToast } from "@/components/ui/use-toast"
 
 interface InsuranceProduct {
   id: number
@@ -58,15 +60,80 @@ export default function PetInsurancePage({
   const [showRecentSidebar, setShowRecentSidebar] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
+  // 사이드바 상태 로드 및 페이지 포커스 시 동기화
+  useEffect(() => {
+    const handleFocus = () => {
+      const savedState = loadSidebarState()
+      if (savedState.productType === 'insurance') {
+        setShowRecentSidebar(savedState.isOpen)
+      }
+    }
+
+    // 페이지 포커스 시 상태 로드
+    window.addEventListener('focus', handleFocus)
+    
+    // 초기 상태 로드
+    handleFocus()
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [])
+
+  // 사이드바 토글 함수
+  const handleSidebarToggle = () => {
+    const newIsOpen = !showRecentSidebar
+    setShowRecentSidebar(newIsOpen)
+    updateSidebarState({ isOpen: newIsOpen, productType: 'insurance' })
+  }
+
   // 로그인 상태 확인 (간단한 방식)
   const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('accessToken')
+  
+  // ADMIN 권한 체크
+  const [isAdmin, setIsAdmin] = useState(false)
+  
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken')
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        setIsAdmin(payload.role === 'ADMIN')
+      } catch (e) {
+        console.error('토큰 파싱 오류:', e)
+      }
+    }
+  }, [])
+
+  // 수동 크롤링 함수
+  const handleManualCrawl = async () => {
+    try {
+      setLoading(true)
+      const result = await insuranceApi.manualCrawl()
+      toast({
+        title: "크롤링 완료",
+        description: result,
+      })
+      // 페이지 새로고침
+      window.location.reload()
+    } catch (error) {
+      console.error('크롤링 오류:', error)
+      toast({
+        title: "크롤링 실패",
+        description: "크롤링 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
         setError(null)
-        const data = await insuranceApi.getProducts()
+        const data = await insuranceApi.getAll()
         const mapped: InsuranceProduct[] = (data || []).map((d: any) => ({
           id: d.id,
           company: d.company,
@@ -107,10 +174,8 @@ export default function PetInsurancePage({
       addToLocalRecentProducts(product)
     }
     
-    // 사이드바가 열려있으면 업데이트
-    if (showRecentSidebar) {
-      setRefreshTrigger(prev => prev + 1)
-    }
+    // 사이드바 업데이트
+    setRefreshTrigger(prev => prev + 1)
     
     // 상세 페이지로 이동
     window.location.href = `/insurance/${product.id}`
@@ -185,6 +250,8 @@ export default function PetInsurancePage({
     }
   }
 
+  const { toast } = useToast()
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-yellow-100 to-yellow-50 pt-20">
       <div className="container mx-auto px-4 py-8">
@@ -199,6 +266,19 @@ export default function PetInsurancePage({
           <h2 className="text-xl font-bold text-gray-900 mb-6">다양한 보험사의 펫보험을 알아보아요!</h2>
 
           <p className="text-gray-600 mb-8">원하는 3개 업체를 선택하여 가격을 비교해보세요.</p>
+          
+          {/* ADMIN 전용 로고 크롤링 버튼 */}
+          {isAdmin && (
+            <div className="flex justify-center space-x-4 mb-4">
+              <Button
+                onClick={handleManualCrawl}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={loading}
+              >
+                {loading ? '크롤링 중...' : '로고 업데이트'}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Insurance Products Grid */}
@@ -275,7 +355,7 @@ export default function PetInsurancePage({
         <RecentProductsSidebar
           productType="insurance"
           isOpen={showRecentSidebar}
-          onToggle={() => setShowRecentSidebar(!showRecentSidebar)}
+          onToggle={handleSidebarToggle}
           refreshTrigger={refreshTrigger}
         />
       </div>
@@ -283,18 +363,15 @@ export default function PetInsurancePage({
       {/* 고정된 사이드바 토글 버튼 */}
       <div className="fixed top-20 right-6 z-40">
         <Button
-          onClick={() => {
-            setShowRecentSidebar(!showRecentSidebar)
-            if (!showRecentSidebar) {
-              setRefreshTrigger(prev => prev + 1)
-            }
-          }}
+          onClick={handleSidebarToggle}
           className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg rounded-full w-14 h-14 p-0"
           title="최근 본 보험"
         >
           <Clock className="h-6 w-6" />
         </Button>
       </div>
+
+
     </div>
   )
 }

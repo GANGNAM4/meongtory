@@ -289,20 +289,33 @@ export const adoptionRequestApi = {
 
 // 보험 API 함수들
 export const insuranceApi = {
-  getProducts: async (): Promise<any[]> => {
-    const response = await axios.get(`${getBackendUrl()}/api/insurance`)
-    // ResponseDto 형태 가정
-    return Array.isArray(response.data) ? response.data : response.data.data
+  // 기본 CRUD
+  getAll: async (): Promise<any[]> => {
+    const response = await axios.get(`${getBackendUrl()}/api/insurance`);
+    return response.data.data;
   },
-  getProduct: async (id: number): Promise<any> => {
-    const response = await axios.get(`${getBackendUrl()}/api/insurance/${id}`)
-    return response.data.data
+  
+  getById: async (id: number): Promise<any> => {
+    const response = await axios.get(`${getBackendUrl()}/api/insurance/${id}`);
+    return response.data.data;
   },
-  getProductDetails: async (id: number): Promise<any> => {
-    const response = await axios.get(`${getBackendUrl()}/api/insurance/${id}/details`)
-    return response.data.data
+  
+  getDetails: async (id: number): Promise<any> => {
+    const response = await axios.get(`${getBackendUrl()}/api/insurance/${id}/details`);
+    return response.data.data;
   },
-}
+  
+  create: async (data: any): Promise<any> => {
+    const response = await axios.post(`${getBackendUrl()}/api/insurance`, data);
+    return response.data.data;
+  },
+  
+  // 수동 크롤링 (ADMIN 전용)
+  manualCrawl: async (): Promise<string> => {
+    const response = await axios.post(`${getBackendUrl()}/api/insurance/manual-crawl`);
+    return response.data.message;
+  }
+};
 
 // 공통 Recent API 함수들
 export const recentApi = {
