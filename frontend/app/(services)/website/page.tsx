@@ -22,7 +22,6 @@ import CartPage from "../../(store)/store/cart/page";
 
 import PetInsurancePage from "../insurance/page";
 import InsuranceDetailPage from "../insurance/[id]/page";
-import InsuranceFavoritesPage from "../insurance/favorites/page";
 
 import CommunityPage from "../../(community)/community/page";
 import CommunityDetailPage from "../../(community)/community/[id]/page";
@@ -1133,16 +1132,6 @@ export default function PetServiceWebsite() {
             favoriteInsurance={favoriteInsurance}
             onAddToFavorites={addToInsuranceFavorites}
             onRemoveFromFavorites={removeFromInsuranceFavorites}
-            onViewDetails={(insurance) => setSelectedInsurance(insurance)}
-          />
-        );
-
-      case "insuranceFavorites":
-        return (
-          <InsuranceFavoritesPage
-            favoriteInsurance={favoriteInsurance}
-            onRemoveFromFavorites={removeFromInsuranceFavorites}
-            onNavigateToInsurance={() => router.push("/insurance")}
             onViewDetails={(insurance) => setSelectedInsurance(insurance)}
           />
         );

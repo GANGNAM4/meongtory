@@ -27,8 +27,9 @@ public class InsuranceService {
     }
 
     @Transactional
-    public InsuranceProductDto create(InsuranceProductDto dto) {
-        InsuranceProduct entity = new InsuranceProduct();
+    public InsuranceProductDto upsert(InsuranceProductDto dto) {
+        InsuranceProduct entity = repository.findByCompanyAndProductName(dto.getCompany(), dto.getProductName())
+                .orElseGet(InsuranceProduct::new);
         entity.setCompany(dto.getCompany());
         entity.setProductName(dto.getProductName());
         entity.setDescription(dto.getDescription());
@@ -37,6 +38,16 @@ public class InsuranceService {
         entity.setRedirectUrl(dto.getRedirectUrl());
         InsuranceProduct saved = repository.save(entity);
         return toDto(saved);
+    }
+
+    @Transactional
+    public List<InsuranceProductDto> upsertAll(List<InsuranceProductDto> dtos) {
+        return dtos.stream().map(this::upsert).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteAll() {
+        repository.deleteAllInBatch();
     }
 
     private InsuranceProductDto toDto(InsuranceProduct entity) {

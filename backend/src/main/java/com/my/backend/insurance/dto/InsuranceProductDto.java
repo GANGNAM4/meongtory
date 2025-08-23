@@ -19,5 +19,18 @@ public class InsuranceProductDto {
     private List<String> features;
     private String logoUrl;
     private String redirectUrl;
+    private List<String> benefits;
+    private List<String> requirements;
+    private CoverageInfo coverage;
+    
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CoverageInfo {
+        private String maxAmount;
+        private String coverageRate;
+        private String deductible;
+    }
 }
 

@@ -17,7 +17,7 @@ public class InsuranceDataInitializer {
     @PostConstruct
     public void init() {
         if (insuranceService.findAll().isEmpty()) {
-            insuranceService.create(InsuranceProductDto.builder()
+            insuranceService.upsert(InsuranceProductDto.builder()
                     .company("삼성화재")
                     .productName("펫보험 기본형")
                     .description("반려동물 기본적인 치료비를 보장합니다")

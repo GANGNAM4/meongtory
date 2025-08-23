@@ -5,7 +5,10 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "insurance_products")
+@Table(name = "insurance_products",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_company_product", columnNames = {"company", "product_name"})
+        })
 @Getter
 @Setter
 @Builder
@@ -20,7 +23,7 @@ public class InsuranceProduct extends BaseEntity {
     @Column(nullable = false)
     private String company;
 
-    @Column(nullable = false)
+    @Column(name = "product_name", nullable = false)
     private String productName;
 
     @Column(length = 1000)

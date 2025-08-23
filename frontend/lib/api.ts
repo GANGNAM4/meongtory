@@ -298,6 +298,24 @@ export const insuranceApi = {
     const response = await axios.get(`${getBackendUrl()}/api/insurance/${id}`)
     return response.data.data
   },
+  getProductDetails: async (id: number): Promise<any> => {
+    const response = await axios.get(`${getBackendUrl()}/api/insurance/${id}/details`)
+    return response.data.data
+  },
+}
+
+// 공통 Recent API 함수들
+export const recentApi = {
+  getRecentProducts: async (productType: string): Promise<any[]> => {
+    const response = await axios.get(`${getBackendUrl()}/api/recent?productType=${productType}`)
+    return response.data.data || []
+  },
+  addToRecent: async (productId: number, productType: string): Promise<void> => {
+    await axios.post(`${getBackendUrl()}/api/recent/${productId}?productType=${productType}`)
+  },
+  clearRecent: async (productType: string): Promise<void> => {
+    await axios.delete(`${getBackendUrl()}/api/recent?productType=${productType}`)
+  },
 }
 
 // 상품 API 함수들
@@ -370,6 +388,18 @@ export const productApi = {
 
   deleteProduct: async (productId: number): Promise<void> => {
     await axios.delete(`${getBackendUrl()}/api/products/${productId}`);
+  },
+
+  // Store 최근 본 상품 API
+  getRecentProducts: async (productType: string = "store"): Promise<any[]> => {
+    const response = await axios.get(`${getBackendUrl()}/api/recent?productType=${productType}`)
+    return response.data.data || []
+  },
+  addToRecent: async (productId: number, productType: string = "store"): Promise<void> => {
+    await axios.post(`${getBackendUrl()}/api/recent/${productId}?productType=${productType}`)
+  },
+  clearRecent: async (productType: string = "store"): Promise<void> => {
+    await axios.delete(`${getBackendUrl()}/api/recent?productType=${productType}`)
   },
 };
 

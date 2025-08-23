@@ -10,6 +10,7 @@ import axios from "axios"
 import { useRouter } from "next/navigation"
 import { ProductRecommendationCard } from "@/components/ui/product-recommendation-card"
 import { getBackendUrl } from '@/lib/api'
+import { recentApi } from '@/lib/api'
 
 // axios 인터셉터 설정 - 요청 시 인증 토큰 자동 추가
 axios.interceptors.request.use(
@@ -298,6 +299,95 @@ export default function StoreProductDetailPage({
     }
   }
 
+  // 최근 본 상품에 추가하는 함수
+  const addToRecentProducts = async (product: Product | any) => {
+    const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('accessToken')
+    
+    console.log('최근 본 상품 추가 시도:', {
+      productId: product.id,
+      productName: product.name || product.title,
+      isLoggedIn: isLoggedIn,
+      productType: 'store'
+    })
+    
+    if (isLoggedIn) {
+      // 로그인 시: DB에 저장
+      try {
+        console.log('DB에 저장 시도:', product.id, 'store')
+        await recentApi.addToRecent(product.id, "store")
+        console.log('DB 저장 성공')
+      } catch (error: any) {
+        console.error("최근 본 상품 저장 실패:", error)
+        if (error.response) {
+          console.error("에러 응답:", error.response.data)
+          console.error("에러 상태:", error.response.status)
+        }
+        // DB 저장 실패 시 localStorage에 저장
+        addToLocalRecentProducts(product)
+      }
+    } else {
+      // 비로그인 시: localStorage에 저장
+      addToLocalRecentProducts(product)
+      
+      // localStorage 변경 이벤트 발생 (다른 탭/컴포넌트에서 감지)
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'recentStoreProducts',
+        newValue: localStorage.getItem('recentStoreProducts')
+      }))
+    }
+  }
+
+  // localStorage 관련 함수들
+  type SimplifiedProduct = {
+    id: number
+    name: string
+    title?: string
+    imageUrl: string
+    type: string
+  }
+
+  const getLocalRecentProducts = (): SimplifiedProduct[] => {
+    try {
+      const stored = localStorage.getItem('recentStoreProducts')
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  }
+
+  const addToLocalRecentProducts = (product: Product | any) => {
+    try {
+      const products = getLocalRecentProducts()
+      const existingIndex = products.findIndex(p => p.id === product.id)
+      
+      if (existingIndex > -1) {
+        // 기존 항목 제거
+        products.splice(existingIndex, 1)
+      }
+      
+      // 필요한 정보만 추출하여 저장
+      const simplifiedProduct: SimplifiedProduct = {
+        id: product.id,
+        name: product.name || product.title?.replace(/<[^>]*>/g, '') || '',
+        title: product.title,
+        imageUrl: product.imageUrl,
+        type: 'store'
+      }
+      
+      // 새 항목을 맨 앞에 추가
+      products.unshift(simplifiedProduct)
+      
+      // 최대 5개만 유지
+      if (products.length > 5) {
+        products.splice(5)
+      }
+      
+      localStorage.setItem('recentStoreProducts', JSON.stringify(products))
+    } catch (error) {
+      console.error("localStorage 저장 실패:", error)
+    }
+  }
+
   // 현재 사용자 정보 가져오기
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -351,6 +441,10 @@ export default function StoreProductDetailPage({
          brand: propNaverProduct.brand || '브랜드 없음'
        }
       setProduct(naverProductAsProduct)
+      
+      // 최근 본 상품에 추가
+      addToRecentProducts(propNaverProduct)
+      
       setLoading(false)
       return
     }
@@ -392,11 +486,11 @@ export default function StoreProductDetailPage({
         
         console.log('상품 상세 데이터:', rawData);
         
-                 // 백엔드 응답을 프론트엔드 형식으로 변환
-         const data: Product = {
-           ...rawData,
-           id: rawData.id || 0,  // DB의 자동 생성 ID
-           productId: rawData.productId || String(productId),  // 네이버의 원본 productId
+        // 백엔드 응답을 프론트엔드 형식으로 변환
+        const data: Product = {
+          ...rawData,
+          id: rawData.id || Number(productId) || 0,  // DB의 자동 생성 ID 또는 URL의 productId
+          productId: rawData.productId || String(productId),  // 네이버의 원본 productId
            name: (rawData.name || rawData.title || '상품명 없음').replace(/<[^>]*>/g, ''),
            price: typeof rawData.price === 'number' ? rawData.price : 0,
            imageUrl: rawData.image || rawData.imageUrl || '/placeholder.svg',
@@ -410,7 +504,18 @@ export default function StoreProductDetailPage({
            registeredBy: rawData.registeredBy || '네이버'
          };
         
+        console.log('상품 데이터 설정:', {
+          id: data.id,
+          name: data.name,
+          productId: data.productId,
+          rawDataId: rawData.id,
+          urlProductId: productId
+        })
+        
         setProduct(data)
+        
+        // 최근 본 상품에 추가
+        addToRecentProducts(data)
       } catch (error) {
         console.error('상품 조회 오류:', error)
         setError('상품을 불러오는데 실패했습니다.')

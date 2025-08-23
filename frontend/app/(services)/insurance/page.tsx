@@ -5,8 +5,9 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ChevronDown, ChevronUp, Heart } from "lucide-react"
-import { insuranceApi } from "@/lib/api"
+import { ChevronDown, ChevronUp, Clock, Eye } from "lucide-react"
+import { insuranceApi, recentApi } from "@/lib/api"
+import { RecentProductsSidebar } from "@/components/ui/recent-products-sidebar"
 
 interface InsuranceProduct {
   id: number
@@ -19,66 +20,8 @@ interface InsuranceProduct {
 }
 
 interface PetInsurancePageProps {
-  favoriteInsurance?: number[]
-  onAddToFavorites?: (id: number) => void
-  onRemoveFromFavorites?: (id: number) => void
   onViewDetails?: (product: InsuranceProduct) => void
 }
-
-const mockInsuranceProducts: InsuranceProduct[] = [
-  {
-    id: 1,
-    company: "삼성화재",
-    productName: "펫보험 기본형",
-    description: "반려동물 기본적인 치료비를 보장합니다",
-    features: [
-      "입원비/수술비 최대 1000만 원",
-      "진료비 보장률 70%까지 선택가능",
-      "특진료비보장(응급실 등) 응급시 더안전하게",
-    ],
-    logo: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: 2,
-    company: "삼성화재",
-    productName: "펫보험 고급형",
-    description: "수술비, 입원비 등 고액 진료비를 보장합니다",
-    features: ["입원비/수술비 최대 1500만 원", "진료비 보장률 70%까지 선택가능", "응급실 및 특진료 5% 할인"],
-    logo: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: 3,
-    company: "한화손해보험",
-    productName: "LIFEPLUS 댕댕이보험 기본형",
-    description: "기본적 치료비 보장 및 특약을 통해 보장범위 확대",
-    features: ["치료비 최대 1000만원 보장", "입원비, 70% 보장범위", "한 가지 이상의 응급실 치료 기능 가능"],
-    logo: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: 4,
-    company: "현대해상",
-    productName: "하이펫보험 스탠다드",
-    description: "치료비 보장과 50%까지 보장범위",
-    features: ["치료비 최대 800만원 보장", "응급실에서 높은 치료 (최대 추가 30% 할인)", "입원비, 50% 보장범위"],
-    logo: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: 5,
-    company: "현대해상",
-    productName: "하이펫보험 프리미엄",
-    description: "프리미엄 치료비 보장 및 응급실보장",
-    features: ["치료비 최대 1500만원 보장", "응급실에서 높은 치료 (최대 추가 50% 할인)", "입원비, 80% 보장범위"],
-    logo: "/placeholder.svg?height=40&width=40",
-  },
-  {
-    id: 6,
-    company: "DB손해보험",
-    productName: "프로미라이프",
-    description: "보험 가입 후 바로 보장받을 수 있는 보험",
-    features: ["입원비/수술비 최대 1000만원 보장", "응급실에서 높은 치료 (최대 추가 30% 할인)", "입원비, 50% 보장범위"],
-    logo: "/placeholder.svg?height=40&width=40",
-  },
-]
 
 const insuranceOptions = [
   "삼성화재 펫보험 기본형",
@@ -97,9 +40,6 @@ const coverageOptions = [
 ]
 
 export default function PetInsurancePage({
-  favoriteInsurance = [],
-  onAddToFavorites,
-  onRemoveFromFavorites,
   onViewDetails,
 }: PetInsurancePageProps) {
   const [activeTab, setActiveTab] = useState<"find" | "compare">("find")
@@ -113,6 +53,13 @@ export default function PetInsurancePage({
   const [products, setProducts] = useState<InsuranceProduct[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+
+  // 최근 본 상품 사이드바
+  const [showRecentSidebar, setShowRecentSidebar] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  // 로그인 상태 확인 (간단한 방식)
+  const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('accessToken')
 
   useEffect(() => {
     const fetchData = async () => {
@@ -147,148 +94,107 @@ export default function PetInsurancePage({
     }
   }
 
-  const toggleFavorite = (productId: number) => {
-    if (favoriteInsurance.includes(productId)) {
-      onRemoveFromFavorites?.(productId)
+  const handleViewDetails = async (product: InsuranceProduct) => {
+    // 로그인 시: DB에 저장
+    if (isLoggedIn) {
+      try {
+        await recentApi.addToRecent(product.id, "insurance")
+      } catch (error) {
+        console.error("최근 본 상품 저장 실패:", error)
+      }
     } else {
-      onAddToFavorites?.(productId)
+      // 비로그인 시: localStorage에 저장
+      addToLocalRecentProducts(product)
+    }
+    
+    // 사이드바가 열려있으면 업데이트
+    if (showRecentSidebar) {
+      setRefreshTrigger(prev => prev + 1)
+    }
+    
+    // 상세 페이지로 이동
+    window.location.href = `/insurance/${product.id}`
+  }
+
+  // localStorage 관련 함수들
+  const getLocalRecentProducts = (): any[] => {
+    try {
+      const stored = localStorage.getItem('recentInsuranceProducts')
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  }
+
+  const addToLocalRecentProducts = (product: InsuranceProduct) => {
+    try {
+      const products = getLocalRecentProducts()
+      const existingIndex = products.findIndex(p => p.id === product.id)
+      
+      if (existingIndex > -1) {
+        // 기존 항목 제거
+        products.splice(existingIndex, 1)
+      }
+      
+      // 필요한 정보만 추출하여 저장
+      const simplifiedProduct = {
+        id: product.id,
+        name: product.productName,
+        company: product.company,
+        logoUrl: product.logo,
+        type: 'insurance'
+      }
+      
+      // 새 항목을 맨 앞에 추가
+      products.unshift(simplifiedProduct)
+      
+      // 최대 5개만 유지
+      if (products.length > 5) {
+        products.splice(5)
+      }
+      
+      localStorage.setItem('recentInsuranceProducts', JSON.stringify(products))
+    } catch (error) {
+      console.error("localStorage 저장 실패:", error)
+    }
+  }
+
+  const clearLocalRecentProducts = () => {
+    try {
+      localStorage.removeItem('recentInsuranceProducts')
+    } catch (error) {
+      console.error("localStorage 삭제 실패:", error)
+    }
+  }
+
+  // 회사별 이모지 반환 함수
+  const getCompanyEmoji = (companyName: string): string => {
+    switch (companyName) {
+      case "삼성화재":
+        return "⭐"
+      case "메리츠화재":
+        return "🏢"
+      case "KB손해보험":
+        return "🏦"
+      case "현대해상":
+        return "🚗"
+      case "NH농협손해보험":
+        return "🌾"
+      default:
+        return "🏢"
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-yellow-100 to-yellow-50 pt-20">
       <div className="container mx-auto px-4 py-8">
-        {/* Top Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">펫보험, 간단한 정보로 바로 확인!</h1>
-
-          {/* Insurance Finder Section - Moved up */}
-          <div className="max-w-md mx-auto mb-8">
-            <div className="bg-white rounded-lg shadow-lg">
-              {/* Tabs */}
-              <div className="flex">
-                <button
-                  onClick={() => setActiveTab("find")}
-                  className={`flex-1 py-3 px-4 font-medium ${
-                    activeTab === "find" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  내가 원하는 펫보험 찾기
-                </button>
-                <button
-                  onClick={() => setActiveTab("compare")}
-                  className={`flex-1 py-3 px-4 font-medium ${
-                    activeTab === "compare" ? "bg-yellow-400 text-black" : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  펫보험 1:1 비교
-                </button>
-              </div>
-
-              <div className="p-6 space-y-6">
-                {/* Pet Type Selection */}
-                <div className="flex justify-center space-x-4">
-                  <button
-                    onClick={() => setSelectedPetType("dog")}
-                    className={`flex flex-col items-center space-y-2 p-4 rounded-lg ${
-                      selectedPetType === "dog" ? "bg-yellow-200" : "bg-yellow-100"
-                    }`}
-                  >
-                    <span className="text-2xl">🐕</span>
-                    <span className="text-sm font-medium">강아지</span>
-                  </button>
-                  <button
-                    onClick={() => setSelectedPetType("cat")}
-                    className={`flex flex-col items-center space-y-2 p-4 rounded-lg ${
-                      selectedPetType === "cat" ? "bg-yellow-200" : "bg-yellow-100"
-                    }`}
-                  >
-                    <span className="text-2xl">🐈</span>
-                    <span className="text-sm font-medium">고양이</span>
-                  </button>
-                </div>
-
-                {activeTab === "find" ? (
-                  /* Coverage Selection */
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowCoverageDropdown(!showCoverageDropdown)}
-                        className="w-full p-3 bg-yellow-100 rounded-lg flex items-center justify-between text-left"
-                      >
-                        <span>보장 혜택 최대 3개 선택</span>
-                        {showCoverageDropdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-
-                      {showCoverageDropdown && (
-                        <div className="absolute top-full left-0 right-0 bg-white border-2 border-yellow-400 rounded-lg mt-1 shadow-lg z-10">
-                          <div className="p-4 space-y-4">
-                            {coverageOptions.map((option) => (
-                              <div
-                                key={option.id}
-                                className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0"
-                              >
-                                <span className="text-sm">{option.name}</span>
-                                <Checkbox
-                                  checked={selectedCoverages.includes(option.id)}
-                                  onCheckedChange={(checked) => handleCoverageChange(option.id, checked as boolean)}
-                                />
-                              </div>
-                            ))}
-                            <Button
-                              onClick={() => setShowCoverageDropdown(false)}
-                              className="w-full bg-yellow-400 hover:bg-yellow-500 text-black mt-4"
-                            >
-                              완료
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  /* Insurance Comparison */
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowInsuranceDropdown(!showInsuranceDropdown)}
-                        className="w-full p-3 bg-yellow-100 rounded-lg flex items-center justify-between text-left"
-                      >
-                        <span className="text-gray-700">펫보험 상품 선택</span>
-                        {showInsuranceDropdown ? (
-                          <ChevronUp className="w-4 h-4" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4" />
-                        )}
-                      </button>
-
-                      {showInsuranceDropdown && (
-                        <div className="absolute top-full left-0 right-0 bg-white border-2 border-yellow-400 rounded-lg mt-1 shadow-lg z-10 max-h-60 overflow-y-auto">
-                          <div className="p-2">
-                            {insuranceOptions.map((option, index) => (
-                              <button
-                                key={index}
-                                onClick={() => {
-                                  setSelectedInsurance(option)
-                                  setShowInsuranceDropdown(false)
-                                }}
-                                className="w-full text-left p-3 hover:bg-gray-50 rounded text-sm border-b border-gray-100 last:border-b-0"
-                              >
-                                {option}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+        {/* 헤더 */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">반려동물 보험</h1>
+          <p className="text-gray-600">반려동물을 위한 맞춤형 보험 상품을 찾아보세요</p>
         </div>
 
-        {/* Main Header */}
+        {/* Top Header */}
         <div className="text-center mb-8">
           <h2 className="text-xl font-bold text-gray-900 mb-6">다양한 보험사의 펫보험을 알아보아요!</h2>
 
@@ -302,7 +208,7 @@ export default function PetInsurancePage({
           <div className="text-center text-red-500">{error}</div>
         ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {(products.length ? products : mockInsuranceProducts).map((product) => (
+          {products.map((product) => (
             <Card key={product.id} className="bg-white shadow-lg hover:shadow-xl transition-shadow h-full">
               <CardContent className="p-6 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-4">
@@ -313,54 +219,81 @@ export default function PetInsurancePage({
                         alt={product.company}
                         width={40}
                         height={40}
-                        className="rounded"
+                        className="rounded object-contain bg-white"
+                        onError={(e) => {
+                          // 로고 로딩 실패 시 기본 아이콘 표시
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            const fallback = document.createElement('div');
+                            fallback.className = 'w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-lg';
+                            fallback.textContent = getCompanyEmoji(product.company);
+                            parent.appendChild(fallback);
+                          }
+                        }}
                       />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-500 truncate">{product.company}</p>
-                      <h3 className="font-bold text-base leading-tight">{product.productName}</h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-lg text-gray-900 truncate">{product.company}</h3>
+                      <p className="text-sm text-gray-600 truncate">{product.productName}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex-1 flex flex-col">
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">{product.description}</p>
+                <p className="text-gray-700 mb-4 flex-1">{product.description}</p>
 
-                  <div className="mb-6 flex-1">
-                    <h4 className="font-semibold text-sm mb-2 text-yellow-600">비마이펫 TIP</h4>
-                    <ul className="space-y-1">
-                      {(product.features || []).map((feature, index) => (
-                        <li key={index} className="text-xs text-gray-600 flex items-start">
-                          <span className="text-yellow-500 mr-2">•</span>
+                {product.features && product.features.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-sm text-gray-900 mb-2">주요 특징:</h4>
+                    <div className="space-y-1">
+                      {product.features.slice(0, 3).map((feature, index) => (
+                        <div key={index} className="flex items-center text-sm text-gray-600">
+                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
                           {feature}
-                        </li>
+                        </div>
                       ))}
-                    </ul>
-                  </div>
-
-                  <div className="mt-auto">
-                    <div className="text-xs text-gray-500 mb-2">
-                      해당 상품은 공식 보험사 페이지에서 확인 가능합니다.
                     </div>
-                    <Button
-                      onClick={() => {
-                        if (product.redirectUrl) {
-                          window.open(product.redirectUrl, '_blank', 'noopener,noreferrer')
-                        } else {
-                          onViewDetails?.(product)
-                        }
-                      }}
-                      className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-medium h-10"
-                    >
-                      자세히 보기
-                    </Button>
                   </div>
+                )}
+
+                <div className="mt-auto">
+                  <Button
+                    onClick={() => handleViewDetails(product)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    자세히 보기
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
         )}
+
+        {/* 최근 본 상품 사이드바 */}
+        <RecentProductsSidebar
+          productType="insurance"
+          isOpen={showRecentSidebar}
+          onToggle={() => setShowRecentSidebar(!showRecentSidebar)}
+          refreshTrigger={refreshTrigger}
+        />
+      </div>
+
+      {/* 고정된 사이드바 토글 버튼 */}
+      <div className="fixed top-20 right-6 z-40">
+        <Button
+          onClick={() => {
+            setShowRecentSidebar(!showRecentSidebar)
+            if (!showRecentSidebar) {
+              setRefreshTrigger(prev => prev + 1)
+            }
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg rounded-full w-14 h-14 p-0"
+          title="최근 본 보험"
+        >
+          <Clock className="h-6 w-6" />
+        </Button>
       </div>
     </div>
   )

@@ -7,7 +7,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Camera, Upload, Sparkles, Heart, Smile } from "lucide-react"
+import { Camera, Upload, Sparkles, Heart, Smile, Shield, ExternalLink } from "lucide-react"
 import axios from "axios"
 import { getBackendUrl } from "@/lib/api"
 

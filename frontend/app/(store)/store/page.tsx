@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus } from "lucide-react"
+import { Search, Plus, Clock } from "lucide-react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import axios from "axios" // axios 직접 import
 import { getBackendUrl } from '@/lib/api'
+import { RecentProductsSidebar } from "@/components/ui/recent-products-sidebar"
 
 // axios 인터셉터 설정 - 요청 시 인증 토큰 자동 추가
 axios.interceptors.request.use(
@@ -128,6 +129,10 @@ export default function StorePage({
   const [naverSearchLoading, setNaverSearchLoading] = useState(false)
   const [naverInitialLoading, setNaverInitialLoading] = useState(false) // 초기 네이버 상품 로딩 상태
   const [savingProducts, setSavingProducts] = useState<Set<string>>(new Set()) // 저장 중인 상품들
+
+  // 최근 본 상품 사이드바
+  const [showRecentSidebar, setShowRecentSidebar] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   // 네이버 쇼핑 API 함수들
   const naverShoppingApi = {
@@ -1184,6 +1189,30 @@ export default function StorePage({
             <p className="text-gray-400 text-sm mt-2">다른 검색어를 입력해보세요.</p>
           </div>
         )}
+      </div>
+
+      {/* 최근 본 상품 사이드바 */}
+      <RecentProductsSidebar
+        productType="store"
+        isOpen={showRecentSidebar}
+        onToggle={() => setShowRecentSidebar(!showRecentSidebar)}
+        refreshTrigger={refreshTrigger}
+      />
+
+      {/* 고정된 사이드바 토글 버튼 */}
+      <div className="fixed top-20 right-6 z-40">
+        <Button
+          onClick={() => {
+            setShowRecentSidebar(!showRecentSidebar)
+            if (!showRecentSidebar) {
+              setRefreshTrigger(prev => prev + 1)
+            }
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg rounded-full w-14 h-14 p-0"
+          title="최근 본 상품"
+        >
+          <Clock className="h-6 w-6" />
+        </Button>
       </div>
     </div>
   )

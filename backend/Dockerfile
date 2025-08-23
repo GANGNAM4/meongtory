@@ -7,7 +7,7 @@ COPY src ./src
 RUN gradle build --no-daemon -x test
 
 # 실행 스테이지
-FROM openjdk:17-jdk-slim
+FROM mcr.microsoft.com/playwright/java:v1.46.0-jammy
 WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar
 EXPOSE 8080
