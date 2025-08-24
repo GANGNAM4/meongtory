@@ -87,16 +87,16 @@ public class ImprovedInsuranceCrawler {
         // 현대해상
         COMPANY_INFO.put("현대해상", InsuranceCompanyInfo.builder()
             .companyName("현대해상")
-            .petInsuranceUrl("https://direct.hi.co.kr/service.do?m=9762101622&simpCalc=Y&PET_TYPE=dog&HDMS1=cpc&HDMS2=google&HDMS3=listing&HDMS4=%ED%8E%AB%EB%B3%B4%ED%97%98@%ED%98%84%EB%8C%80%ED%95%B4%EC%83%81%ED%8E%AB%EB%B3%B4%ED%97%98&utm_source=google&utm_medium=cpc&utm_campaign=%ED%8E%AB%EB%B3%B4%ED%97%98&utm_term=%ED%8E%AB%EB%B3%B4%ED%97%98@%ED%98%84%EB%8C%80%ED%95%B4%EC%83%81%ED%8E%AB%EB%B3%B4%ED%97%98&gad_source=1&gad_campaignid=21661669642&gbraid=0AAAAABr8i80caAh4fLU84TI_z7iMXrurr&gclid=Cj0KCQjw8KrFBhDUARIsAMvIApY5Oh4Ge_3v7FdQhlMRSQ2hlNQ7v3y3O487K-oEmE-4pndhX7BtkEkaAn3qEALw_wcB")
-            .fallbackProductName("현대해상 펫보험")
+            .petInsuranceUrl("https://direct.hi.co.kr/product/doga/dog_insurance_introduce.jsp")
+            .fallbackProductName("현대해상 굿앤굿 우리펫보험")
             .productNameSelectors(new String[]{
-                ".product-name", "h1.title", ".main-title", ".pet-title", "h1", "h2"
+                ".product-name", "h1.title", ".main-title", ".pet-title", "h1", "h2", ".product-tit"
             })
             .descriptionSelectors(new String[]{
-                ".product-summary", ".main-desc", ".pet-desc", ".intro-text", "p"
+                ".product-summary", ".main-desc", ".pet-desc", ".intro-text", ".product-intro", "p.desc"
             })
             .featureSelectors(new String[]{
-                ".benefit-list li", ".feature-list li", ".coverage-item", "li"
+                ".benefit-list li", ".feature-list li", ".coverage-item", ".point-list li", ".benefit-item"
             })
             .logoSelectors(new String[]{
                 ".header .logo img", ".company-logo img", ".top-logo img", "img[src*='logo']"
@@ -146,7 +146,7 @@ public class ImprovedInsuranceCrawler {
      * 1단계: 보험 이름 크롤링 정확도 개선
      */
     public InsuranceProductDto crawlInsuranceName(String companyName) {
-        log.info("=== 1단계: {} 보험 이름 크롤링 시작 ===", companyName);
+
         
         InsuranceCompanyInfo companyInfo = COMPANY_INFO.get(companyName);
         if (companyInfo == null) {
@@ -171,18 +171,21 @@ public class ImprovedInsuranceCrawler {
             // 3단계: 기본 특징 추출
             List<String> features = extractFeatures(doc, companyInfo);
             
-            // 4단계: 데이터 정리 및 검증
+            // 4단계: 보장내역 상세 추출
+            List<String> coverageDetails = extractCoverageDetails(doc, companyInfo);
+            
+            // 5단계: 데이터 정리 및 검증
             productName = sanitizeProductName(productName);
             description = sanitizeDescription(description);
             
-            log.info("크롤링 성공 - 상품명: {}, 설명: {}, 특징 수: {}", 
-                productName, description.substring(0, Math.min(50, description.length())), features.size());
+
             
             return InsuranceProductDto.builder()
                     .company(companyName)
                     .productName(productName)
                     .description(description)
                     .features(features)
+                    .coverageDetails(coverageDetails)
                     .logoUrl("")
                     .redirectUrl(companyInfo.getPetInsuranceUrl())
                     .build();
@@ -209,7 +212,7 @@ public class ImprovedInsuranceCrawler {
                     
                     // 유효한 상품명인지 검증
                     if (isValidProductName(text, companyInfo.getCompanyName())) {
-                        log.info("상품명 추출 성공 [{}]: {}", selector, text);
+
                         return text;
                     }
                 }
@@ -221,14 +224,14 @@ public class ImprovedInsuranceCrawler {
         // 페이지 제목에서 추출 시도
         String title = doc.title();
         if (title != null && isValidProductName(title, companyInfo.getCompanyName())) {
-            log.info("페이지 제목에서 상품명 추출: {}", title);
+            
             return title;
         }
         
         // 텍스트에서 패턴 매칭으로 추출
         String extractedFromText = extractProductNameFromText(doc.text(), companyInfo.getCompanyName());
         if (extractedFromText != null) {
-            log.info("텍스트 패턴 매칭으로 상품명 추출: {}", extractedFromText);
+            
             return extractedFromText;
         }
         
@@ -341,10 +344,6 @@ public class ImprovedInsuranceCrawler {
             }
         }
         
-        // 특징이 없으면 기본 특징 사용
-        if (features.isEmpty()) {
-            features = getDefaultFeatures(companyInfo.getCompanyName());
-        }
         
         return features;
     }
@@ -354,7 +353,7 @@ public class ImprovedInsuranceCrawler {
      */
     private boolean isValidFeature(String text) {
         if (text == null || text.isBlank()) return false;
-        if (text.length() < 5 || text.length() > 100) return false;
+        if (text.length() < 5 || text.length() > 200) return false;
         
         // 보험 관련 키워드 포함 여부
         String lowerText = text.toLowerCase();
@@ -386,7 +385,7 @@ public class ImprovedInsuranceCrawler {
     }
     
     /**
-     * 폴백 상품 생성
+     * 폴백 상품 생성 (최소한의 정보만)
      */
     private InsuranceProductDto createFallbackProduct(String companyName) {
         InsuranceCompanyInfo companyInfo = COMPANY_INFO.get(companyName);
@@ -395,8 +394,9 @@ public class ImprovedInsuranceCrawler {
         return InsuranceProductDto.builder()
                 .company(companyName)
                 .productName(productName)
-                .description(productName + " - 반려동물을 위한 보험 상품")
-                .features(getDefaultFeatures(companyName))
+                .description("") // 빈 설명
+                .features(new ArrayList<>()) // 빈 특징 리스트
+                .coverageDetails(new ArrayList<>()) // 빈 보장내역 리스트
                 .logoUrl("")
                 .redirectUrl(companyInfo != null ? companyInfo.getPetInsuranceUrl() : "")
                 .build();
@@ -472,6 +472,96 @@ public class ImprovedInsuranceCrawler {
         throw lastException;
     }
     
+    /**
+     * 보장내역 상세 추출
+     */
+    private List<String> extractCoverageDetails(Document doc, InsuranceCompanyInfo companyInfo) {
+        List<String> coverageDetails = new ArrayList<>();
+        
+        // 보장내역 관련 선택자들
+        String[] coverageSelectors = {
+            "table tr td:contains(보장)", "table tr:contains(보장)",
+            ".coverage-table tr", ".benefit-table tr", ".plan-table tr",
+            ".coverage-item", ".benefit-item", ".plan-item",
+            ".coverage-list li", ".benefit-list li", ".plan-list li",
+            "table tr:contains(치료비)", "table tr:contains(수술비)", "table tr:contains(입원비)",
+            ".coverage-detail", ".benefit-detail", ".plan-detail",
+            "table.coverage", "table.benefit", "table.plan",
+            ".product-table tr:contains(보장)", ".insurance-table tr"
+        };
+        
+        for (String selector : coverageSelectors) {
+            try {
+                Elements elements = doc.select(selector);
+                for (Element element : elements) {
+                    String text = element.text().trim();
+                    
+                    // 보장내역과 관련된 키워드가 있는지 확인
+                    if (isValidCoverageDetail(text)) {
+                        String cleanText = cleanCoverageText(text);
+                        if (!cleanText.isEmpty() && coverageDetails.size() < 15) { // 최대 15개 제한
+                            coverageDetails.add(cleanText);
+                        }
+                    }
+                }
+                
+                if (!coverageDetails.isEmpty()) {
+                    break; // 하나의 선택자에서 찾았으면 중단
+                }
+            } catch (Exception e) {
+                // 무시하고 다음 선택자 시도
+            }
+        }
+        
+        // 기본 보장내역 추가하지 않음 (실제 크롤링된 데이터만 사용)
+        
+        return coverageDetails;
+    }
+    
+    /**
+     * 보장내역 텍스트가 유효한지 확인
+     */
+    private boolean isValidCoverageDetail(String text) {
+        if (text == null || text.length() < 5 || text.length() > 500) return false;
+        
+        String lowerText = text.toLowerCase();
+        return lowerText.contains("보장") || 
+               lowerText.contains("치료비") || 
+               lowerText.contains("수술비") || 
+               lowerText.contains("입원비") ||
+               lowerText.contains("진료비") ||
+               lowerText.contains("응급비") ||
+               lowerText.contains("최대") ||
+               lowerText.contains("한도") ||
+               lowerText.contains("만원") ||
+               lowerText.contains("원까지") ||
+               lowerText.contains("%");
+    }
+    
+    /**
+     * 보장내역 텍스트 정리
+     */
+    private String cleanCoverageText(String text) {
+        if (text == null) return "";
+        
+        return text.trim()
+                .replaceAll("\\s+", " ")
+                .replaceAll("^[\\d+\\-\\*]+", "") // 숫자나 특수문자로 시작하는 부분 제거
+                .trim();
+    }
+    
+    /**
+     * 기본 보장내역 반환
+     */
+    private List<String> getDefaultCoverageDetails(String companyName) {
+        return List.of(
+            "질병/상해 치료비 보장",
+            "수술비 보장", 
+            "입원비 보장",
+            "응급처치비 보장"
+        );
+    }
+
     /**
      * 상품명 정리 및 길이 제한
      */

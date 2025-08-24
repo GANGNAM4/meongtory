@@ -35,7 +35,7 @@ public class InsuranceCrawlerJob {
                     new String[]{"펫앤미", "펫", "반려동물", "강아지", "고양이"}
             );
             list.add(dto);
-            log.info("NH농협손해보험 크롤링 완료: {}", dto.getProductName());
+    
         } catch (Exception e) {
             log.error("NH농협손해보험 크롤링 실패: {}", e.getMessage());
         }
@@ -48,7 +48,7 @@ public class InsuranceCrawlerJob {
             // 삼성화재는 실제 펫보험 페이지가 있음
             InsuranceProductDto dto = crawlSamsungFireDirect();
             list.add(dto);
-            log.info("삼성화재 크롤링 완료: {}", dto.getProductName());
+    
         } catch (Exception e) {
             log.error("삼성화재 크롤링 실패: {}", e.getMessage());
         }
@@ -103,7 +103,7 @@ public class InsuranceCrawlerJob {
                     new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이"}
             );
             list.add(dto);
-            log.info("현대해상 크롤링 완료: {}", dto.getProductName());
+    
         } catch (Exception e) {
             log.error("현대해상 크롤링 실패: {}", e.getMessage());
         }
@@ -120,7 +120,7 @@ public class InsuranceCrawlerJob {
                     new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이"}
             );
             list.add(dto);
-            log.info("DB손해보험 크롤링 완료: {}", dto.getProductName());
+    
         } catch (Exception e) {
             log.error("DB손해보험 크롤링 실패: {}", e.getMessage());
         }
@@ -137,7 +137,7 @@ public class InsuranceCrawlerJob {
                     new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이", "금쪽같은"}
             );
             list.add(dto);
-            log.info("KB손해보험 크롤링 완료: {}", dto.getProductName());
+    
         } catch (Exception e) {
             log.error("KB손해보험 크롤링 실패: {}", e.getMessage());
         }
@@ -154,7 +154,7 @@ public class InsuranceCrawlerJob {
                     new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이"}
             );
             list.add(dto);
-            log.info("메리츠화재 크롤링 완료: {}", dto.getProductName());
+    
         } catch (Exception e) {
             log.error("메리츠화재 크롤링 실패: {}", e.getMessage());
         }
@@ -184,7 +184,7 @@ public class InsuranceCrawlerJob {
             outer:
             for (String url : startUrls) {
                 try {
-                    log.info("{} 크롤링 시도: {}", company, url);
+            
                     page.navigate(url, new Page.NavigateOptions().setTimeout(20000));
                     
                     // 페이지 로딩 대기
@@ -195,11 +195,11 @@ public class InsuranceCrawlerJob {
                         try {
                             Locator l = page.locator("a:has-text('" + kw + "')").first();
                             if (l != null && l.count() > 0) {
-                                log.info("{} 링크 발견: {}", company, kw);
+        
                                 l.click(new Locator.ClickOptions().setTimeout(15000));
                                 page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(15000));
                                 finalUrl = page.url();
-                                log.info("{} 최종 URL: {}", company, finalUrl);
+        
                                 break outer;
                             }
                         } catch (Exception e) {
@@ -219,20 +219,20 @@ public class InsuranceCrawlerJob {
                 String h1 = page.locator("h1").first().innerText();
                 if (h1 != null && !h1.isBlank() && h1.length() <= 100) {
                     name = h1.trim();
-                    log.info("{} H1 제목: {}", company, name);
+
                 }
             } catch (Exception e) {
                 try {
                     String h2 = page.locator("h2").first().innerText();
                     if (h2 != null && !h2.isBlank() && h2.length() <= 100) {
                         name = h2.trim();
-                        log.info("{} H2 제목: {}", company, name);
+
                     }
                 } catch (Exception e2) {
                     String title = page.title();
                     if (title != null && !title.isBlank()) {
                         name = title.trim();
-                        log.info("{} 페이지 제목: {}", company, name);
+
                     }
                 }
             }
@@ -242,12 +242,12 @@ public class InsuranceCrawlerJob {
                 String og = page.locator("meta[property='og:description']").first().getAttribute("content");
                 if (og != null && !og.isBlank()) {
                     desc = og.trim();
-                    log.info("{} OG 설명: {}", company, desc);
+                    
                 } else {
                     String meta = page.locator("meta[name='description']").first().getAttribute("content");
                     if (meta != null && !meta.isBlank()) {
                         desc = meta.trim();
-                        log.info("{} Meta 설명: {}", company, desc);
+
                     }
                 }
             } catch (Exception e) {
@@ -356,7 +356,7 @@ public class InsuranceCrawlerJob {
     }
 
     private boolean isValidFeature(String text) {
-        if (text.length() < 5 || text.length() > 100) return false;
+        if (text.length() < 5 || text.length() > 200) return false;
         if (text.matches(".*[0-9]{4,}.*")) return false; // 너무 긴 숫자 제외
         if (text.contains("원") && text.length() < 10) return false; // 단순 가격 정보 제외
         if (text.contains("%") && text.length() < 8) return false; // 단순 퍼센트 제외
@@ -422,7 +422,7 @@ public class InsuranceCrawlerJob {
             // 키워드 매칭
             for (String keyword : keywords) {
                 if (text.contains(keyword.toLowerCase())) {
-                    log.info("펫보험 링크 발견: {} -> {}", text, href);
+                    
                     return href;
                 }
             }
@@ -462,7 +462,7 @@ public class InsuranceCrawlerJob {
     }
 
     public void runOnce() {
-        log.info("[InsuranceCrawlerJob] start");
+
         List<InsuranceProductDto> items = new ArrayList<>();
         items.addAll(crawlNhFire());
         items.addAll(crawlSamsungFire());
@@ -472,7 +472,7 @@ public class InsuranceCrawlerJob {
         items.addAll(crawlMeritz());
 
         insuranceService.upsertAll(items);
-        log.info("[InsuranceCrawlerJob] done: {} items", items.size());
+
     }
 
     @Scheduled(cron = "0 0 2 * * *", zone = "Asia/Seoul")
@@ -484,7 +484,7 @@ public class InsuranceCrawlerJob {
      * 특정 보험 상품의 상세 정보를 크롤링합니다.
      */
     public InsuranceProductDto crawlProductDetails(InsuranceProductDto product) {
-        log.info("[InsuranceCrawlerJob] 상세 정보 크롤링 시작: {}", product.getProductName());
+
         
         try {
             String url = product.getRedirectUrl();
@@ -524,9 +524,6 @@ public class InsuranceCrawlerJob {
             List<String> benefits = new ArrayList<>();
             List<String> requirements = new ArrayList<>();
             
-            // 로고 추출
-            String logoUrl = extractLogo(doc, url, "삼성화재");
-            
             // 보장 내용 추출
             Elements coverageElements = doc.select(".coverage-item, .benefit-item, .feature-item");
             for (Element element : coverageElements) {
@@ -564,7 +561,7 @@ public class InsuranceCrawlerJob {
                     .productName(product.getProductName())
                     .description(product.getDescription())
                     .features(allFeatures)
-                    .logoUrl(logoUrl != null ? logoUrl : product.getLogoUrl())
+                    .logoUrl(product.getLogoUrl())
                     .redirectUrl(product.getRedirectUrl())
                     .build();
                     
@@ -581,9 +578,6 @@ public class InsuranceCrawlerJob {
             List<String> detailedFeatures = new ArrayList<>();
             List<String> benefits = new ArrayList<>();
             List<String> requirements = new ArrayList<>();
-            
-            // 로고 추출
-            String logoUrl = extractLogo(doc, url, "메리츠화재");
             
             // 메리츠 화재 특화 크롤링
             Elements featureElements = doc.select(".product-feature, .coverage-detail, .insurance-benefit");
@@ -603,7 +597,7 @@ public class InsuranceCrawlerJob {
                     .productName(product.getProductName())
                     .description(product.getDescription())
                     .features(allFeatures)
-                    .logoUrl(logoUrl != null ? logoUrl : product.getLogoUrl())
+                    .logoUrl(product.getLogoUrl())
                     .redirectUrl(product.getRedirectUrl())
                     .build();
                     
@@ -620,9 +614,6 @@ public class InsuranceCrawlerJob {
             List<String> detailedFeatures = new ArrayList<>();
             List<String> benefits = new ArrayList<>();
             List<String> requirements = new ArrayList<>();
-            
-            // 로고 추출
-            String logoUrl = extractLogo(doc, url, "KB손해보험");
             
             // KB 손해보험 특화 크롤링
             Elements featureElements = doc.select(".product-info, .coverage-detail, .benefit-list");
@@ -642,7 +633,7 @@ public class InsuranceCrawlerJob {
                     .productName(product.getProductName())
                     .description(product.getDescription())
                     .features(allFeatures)
-                    .logoUrl(logoUrl != null ? logoUrl : product.getLogoUrl())
+                    .logoUrl(product.getLogoUrl())
                     .redirectUrl(product.getRedirectUrl())
                     .build();
                     
@@ -659,9 +650,6 @@ public class InsuranceCrawlerJob {
             List<String> detailedFeatures = new ArrayList<>();
             List<String> benefits = new ArrayList<>();
             List<String> requirements = new ArrayList<>();
-            
-            // 로고 추출
-            String logoUrl = extractLogo(doc, url, "현대해상");
             
             // 현대해상 특화 크롤링
             Elements featureElements = doc.select(".product-detail, .coverage-info, .benefit-detail");
@@ -681,7 +669,7 @@ public class InsuranceCrawlerJob {
                     .productName(product.getProductName())
                     .description(product.getDescription())
                     .features(allFeatures)
-                    .logoUrl(logoUrl != null ? logoUrl : product.getLogoUrl())
+                    .logoUrl(product.getLogoUrl())
                     .redirectUrl(product.getRedirectUrl())
                     .build();
                     
@@ -698,9 +686,6 @@ public class InsuranceCrawlerJob {
             List<String> detailedFeatures = new ArrayList<>();
             List<String> benefits = new ArrayList<>();
             List<String> requirements = new ArrayList<>();
-            
-            // 로고 추출
-            String logoUrl = extractLogo(doc, url, "NH농협손해보험");
             
             // NH농협손해보험 특화 크롤링
             Elements featureElements = doc.select(".product-detail, .coverage-detail, .benefit-info");
@@ -720,7 +705,7 @@ public class InsuranceCrawlerJob {
                     .productName(product.getProductName())
                     .description(product.getDescription())
                     .features(allFeatures)
-                    .logoUrl(logoUrl != null ? logoUrl : product.getLogoUrl())
+                    .logoUrl(product.getLogoUrl())
                     .redirectUrl(product.getRedirectUrl())
                     .build();
                     
@@ -733,80 +718,6 @@ public class InsuranceCrawlerJob {
     /**
      * 웹페이지에서 로고 이미지를 추출합니다.
      */
-    private String extractLogo(Document doc, String baseUrl, String companyName) {
-        try {
-            // 회사별 로고 선택자
-            String[] selectors = getLogoSelectors(companyName);
-            
-            for (String selector : selectors) {
-                Element logoElement = doc.selectFirst(selector);
-                if (logoElement != null) {
-                    String logoUrl = logoElement.attr("src");
-                    if (logoUrl != null && !logoUrl.isBlank()) {
-                        // 상대 URL을 절대 URL로 변환
-                        if (logoUrl.startsWith("/")) {
-                            String domain = baseUrl.replaceAll("^(https?://[^/]+).*", "$1");
-                            logoUrl = domain + logoUrl;
-                        } else if (!logoUrl.startsWith("http")) {
-                            logoUrl = baseUrl + "/" + logoUrl;
-                        }
-                        
-                        log.info("로고 URL 추출 성공: {} -> {}", companyName, logoUrl);
-                        return logoUrl;
-                    }
-                }
-            }
-            
-            log.warn("로고를 찾을 수 없습니다: {}", companyName);
-            return null;
-            
-        } catch (Exception e) {
-            log.error("로고 추출 중 오류 발생: {} - {}", companyName, e.getMessage());
-            return null;
-        }
-    }
 
-    /**
-     * 회사별 로고 선택자를 반환합니다.
-     */
-    private String[] getLogoSelectors(String companyName) {
-        switch (companyName) {
-            case "삼성화재":
-                return new String[]{
-                    ".logo img", ".header-logo img", ".company-logo img",
-                    "img[alt*='삼성화재']", "img[alt*='Samsung']",
-                    ".brand-logo img", ".site-logo img"
-                };
-            case "메리츠화재":
-                return new String[]{
-                    ".logo img", ".header-logo img", ".company-logo img",
-                    "img[alt*='메리츠']", "img[alt*='Meritz']",
-                    ".brand-logo img", ".site-logo img"
-                };
-            case "KB손해보험":
-                return new String[]{
-                    ".logo img", ".header-logo img", ".company-logo img",
-                    "img[alt*='KB']", "img[alt*='손해보험']",
-                    ".brand-logo img", ".site-logo img"
-                };
-            case "현대해상":
-                return new String[]{
-                    ".logo img", ".header-logo img", ".company-logo img",
-                    "img[alt*='현대해상']", "img[alt*='Hyundai']",
-                    ".brand-logo img", ".site-logo img"
-                };
-            case "NH농협손해보험":
-                return new String[]{
-                    ".logo img", ".header-logo img", ".company-logo img",
-                    "img[alt*='NH']", "img[alt*='농협']",
-                    ".brand-logo img", ".site-logo img"
-                };
-            default:
-                return new String[]{
-                    ".logo img", ".header-logo img", ".company-logo img",
-                    ".brand-logo img", ".site-logo img"
-                };
-        }
-    }
 }
 

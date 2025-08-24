@@ -88,7 +88,7 @@ public class CoverageSummaryCrawler {
      * 2단계: 보장요약 정보 크롤링
      */
     public InsuranceProductDto crawlCoverageSummary(String companyName, String petInsuranceUrl) {
-        log.info("=== 2단계: {} 보장요약 크롤링 시작 ===", companyName);
+
         
         try {
             Document doc = fetchWithRetry(petInsuranceUrl, 3);
@@ -102,8 +102,7 @@ public class CoverageSummaryCrawler {
             // 보장 특징 추출
             List<String> coverageFeatures = extractCoverageFeatures(doc, companyName);
             
-            log.info("보장요약 크롤링 성공 - 최대보장: {}, 보장률: {}, 주요보장: {}", 
-                coverageSummary.getMaxAmount(), coverageSummary.getCoverageRate(), keyBenefits.size());
+
             
             return InsuranceProductDto.builder()
                     .company(companyName)
@@ -282,10 +281,6 @@ public class CoverageSummaryCrawler {
             benefits = extractBenefitsFromText(doc.text(), companyName);
         }
         
-        // 4. 기본 보장 항목 사용
-        if (benefits.isEmpty()) {
-            benefits = getDefaultBenefits(companyName);
-        }
         
         return benefits.stream().distinct().limit(8).toList(); // 더 많은 보장내역 표시
     }
@@ -296,7 +291,7 @@ public class CoverageSummaryCrawler {
     private List<String> extractDetailedCoverage(Document doc, String companyName) {
         List<String> detailedCoverage = new ArrayList<>();
         
-        log.info("=== {} 상세 보장내역 추출 시작 ===", companyName);
+
         
         // 1. 회사별 특화 보장내역 테이블 추출
         detailedCoverage.addAll(extractCompanySpecificCoverage(doc, companyName));
@@ -310,7 +305,7 @@ public class CoverageSummaryCrawler {
         // 4. 딥 스캔 - 모든 텍스트에서 보장항목 패턴 추출
         detailedCoverage.addAll(extractCoverageFromDeepScan(doc, companyName));
         
-        log.info("{} 보장내역 추출 완료: {}개 항목", companyName, detailedCoverage.size());
+
         
         return detailedCoverage.stream()
             .distinct()
@@ -537,7 +532,7 @@ public class CoverageSummaryCrawler {
                 Elements elements = doc.select(selector);
                 for (Element element : elements) {
                     String text = element.text().trim();
-                    if (isCoverageText(text) && text.length() > 8 && text.length() < 100) {
+                    if (isCoverageText(text) && text.length() > 8 && text.length() < 500) {
                         items.add(text);
                     }
                 }
@@ -566,7 +561,7 @@ public class CoverageSummaryCrawler {
      * 보장내역 텍스트인지 확인
      */
     private boolean isCoverageText(String text) {
-        if (text == null || text.length() < 5) return false;
+        if (text == null || text.length() < 5 || text.length() > 500) return false;
         
         String lower = text.toLowerCase();
         return (lower.contains("보장") || lower.contains("치료") || lower.contains("혜택") ||
@@ -593,7 +588,7 @@ public class CoverageSummaryCrawler {
             Matcher matcher = pattern.matcher(text);
             if (matcher.find()) {
                 String benefit = matcher.group();
-                if (benefit.length() <= 50) {
+                if (benefit.length() <= 200) {
                     benefits.add(benefit);
                     if (benefits.size() >= 3) break;
                 }
@@ -658,7 +653,7 @@ public class CoverageSummaryCrawler {
      */
     private boolean isValidCoverageFeature(String text) {
         if (text == null || text.isBlank()) return false;
-        if (text.length() < 8 || text.length() > 80) return false;
+        if (text.length() < 8 || text.length() > 200) return false;
         
         // 보장과 관련된 특징인지 확인
         String lowerText = text.toLowerCase();
@@ -759,14 +754,14 @@ public class CoverageSummaryCrawler {
     }
     
     /**
-     * 폴백 보장 상품 생성
+     * 폴백 보장 상품 생성 (최소한의 정보만)
      */
     private InsuranceProductDto createFallbackCoverageProduct(String companyName, String url) {
         return InsuranceProductDto.builder()
                 .company(companyName)
                 .productName(getProductNameFromPreviousStep(companyName))
-                .description("반려동물을 위한 종합 보장 보험")
-                .features(getDefaultBenefits(companyName))
+                .description("")
+                .features(new ArrayList<>()) // 빈 특징 리스트
                 .logoUrl("")
                 .redirectUrl(url)
                 .build();

@@ -19,6 +19,7 @@ interface InsuranceProduct {
   productName: string
   description: string
   features: string[]
+  coverageDetails?: string[] // 보장내역 상세 정보
   logo: string
   redirectUrl?: string
   coverage?: {
@@ -34,38 +35,39 @@ interface InsuranceProduct {
 const insuranceCompanySites = {
   "삼성화재": {
     name: "삼성화재",
-    logo: "⭐",
     url: "https://direct.samsungfire.com/m/fp/pet.html",
     description: "국내 최대 보험사의 반려동물 보험",
     features: ["다양한 보장 옵션", "우수한 고객 서비스", "안정적인 보험사"]
   },
   "메리츠 화재": {
     name: "메리츠 화재",
-    logo: "🏢",
     url: "https://www.meritzfire.com/fire-and-life/pet/direct-pet.do#!/",
     description: "메리츠 화재의 반려동물 보험 상품",
     features: ["다양한 보장 옵션", "온라인 가입 가능", "24시간 상담 서비스"]
   },
   "KB 손해보험": {
     name: "KB 손해보험",
-    logo: "🏦",
     url: "https://www.kbinsure.co.kr/CG313010001.ec",
     description: "KB 손해보험의 반려동물 보험 상품",
     features: ["안정적인 보험사", "다양한 할인 혜택", "빠른 보험금 지급"]
   },
   "현대해상": {
     name: "현대해상",
-    logo: "🚗",
     url: "https://www.hi.co.kr/serviceAction.do?view=bin/SP/08/HHSP08000M",
     description: "현대해상의 반려동물 보험 상품",
     features: ["종합 보장", "온라인 서비스", "고객 만족도 높음"]
   },
   "NH 손해보험": {
     name: "NH 손해보험",
-    logo: "🌾",
     url: "https://nhfire.co.kr/product/retrieveProduct.nhfire?pdtCd=D314511",
     description: "NH 손해보험의 반려동물 보험 상품",
     features: ["농협 그룹", "안정적인 서비스", "합리적인 보험료"]
+  },
+  "DB손해보험": {
+    name: "DB손해보험",
+    url: "https://www.dbins.co.kr/",
+    description: "DB손해보험의 반려동물 보험 상품",
+    features: ["다양한 보장 옵션", "온라인 서비스", "고객 만족도 높음"]
   }
 }
 
@@ -118,7 +120,7 @@ export default function InsuranceDetailPage() {
       setLoading(true)
       const result = await insuranceApi.manualCrawl()
       toast({
-        title: "크롤링 완료",
+        title: "데이터 업데이트 완료",
         description: result,
       })
       // 페이지 새로고침
@@ -126,7 +128,7 @@ export default function InsuranceDetailPage() {
     } catch (error) {
       console.error('크롤링 오류:', error)
       toast({
-        title: "크롤링 실패",
+        title: "데이터 업데이트 실패",
         description: "크롤링 중 오류가 발생했습니다.",
         variant: "destructive",
       })
@@ -152,6 +154,7 @@ export default function InsuranceDetailPage() {
             productName: basicData.productName,
             description: basicData.description,
             features: basicData.features || [],
+            coverageDetails: basicData.coverageDetails || [],
             logo: basicData.logoUrl || "/placeholder.svg",
             redirectUrl: basicData.redirectUrl,
             coverage: basicData.coverage,
@@ -242,24 +245,6 @@ export default function InsuranceDetailPage() {
     }
   }
 
-  // 회사별 이모지 반환 함수
-  const getCompanyEmoji = (companyName: string): string => {
-    switch (companyName) {
-      case "삼성화재":
-        return "⭐"
-      case "메리츠화재":
-        return "🏢"
-      case "KB손해보험":
-        return "🏦"
-      case "현대해상":
-        return "🚗"
-      case "NH농협손해보험":
-        return "🌾"
-      default:
-        return "🏢"
-    }
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pt-20">
@@ -313,45 +298,13 @@ export default function InsuranceDetailPage() {
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
-                  <div className="relative">
-                    {product.logo && product.logo.startsWith('http') ? (
-                      <img
-                        src={product.logo}
-                        alt={product.company}
-                        width={100}
-                        height={100}
-                        className="rounded-lg object-contain bg-white"
-                        onError={(e) => {
-                          // 로고 로딩 실패 시 기본 아이콘 표시
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const parent = target.parentElement;
-                          if (parent) {
-                            const fallback = document.createElement('div');
-                            fallback.className = 'w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-2xl';
-                            fallback.textContent = getCompanyEmoji(product.company);
-                            parent.appendChild(fallback);
-                          }
-                        }}
-                        crossOrigin="anonymous"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-2xl">
-                        {getCompanyEmoji(product.company)}
-                      </div>
-                    )}
-                  </div>
+
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
                         {product.company}
                       </Badge>
-                      {product.logo && product.logo.startsWith('http') && (
-                        <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
-                          실시간 로고
-                        </Badge>
-                      )}
-                      {/* 로고 크롤링 버튼 */}
+                      {/* 크롤링 버튼 */}
                       <Button
                         size="sm"
                         variant="outline"
@@ -359,7 +312,7 @@ export default function InsuranceDetailPage() {
                         className="text-xs"
                         disabled={loading}
                       >
-                        {loading ? '크롤링 중...' : '수동 크롤링'}
+                        {loading ? '크롤링 중...' : '데이터 업데이트'}
                       </Button>
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">{product.productName}</h1>
@@ -388,6 +341,35 @@ export default function InsuranceDetailPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Coverage Details */}
+            {product.coverageDetails && Array.isArray(product.coverageDetails) && product.coverageDetails.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Shield className="w-5 h-5 mr-2 text-blue-500" />
+                    보장내역
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {product.coverageDetails.map((coverage, index) => (
+                      <div key={`coverage-detail-${index}`} className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 hover:shadow-md transition-all duration-200 hover:scale-105">
+                        <div className="flex items-center mb-3">
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                            <Shield className="w-4 h-4 text-white" />
+                          </div>
+                          <h4 className="font-semibold text-blue-800 text-sm">보장 항목 {index + 1}</h4>
+                        </div>
+                        <p className="text-gray-700 text-sm leading-relaxed break-words">
+                          {coverage}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Coverage Details */}
             {product.coverage && (
@@ -486,7 +468,6 @@ export default function InsuranceDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <span className="text-2xl mr-2">{companyInfo.logo}</span>
                     {companyInfo.name}
                   </CardTitle>
                 </CardHeader>

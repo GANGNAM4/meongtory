@@ -259,18 +259,20 @@ export function RecentProductsSidebar({
               >
                 <CardContent className="p-3">
                   <div className="flex items-start gap-3">
-                    <div className="relative w-12 h-12 flex-shrink-0">
-                      <Image
-                        src={product.logoUrl || product.imageUrl || "/placeholder.svg"}
-                        alt={product.productName}
-                        fill
-                        className="object-cover rounded"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.src = "/placeholder.svg"
-                        }}
-                      />
-                    </div>
+                    {productType === "store" && (
+                      <div className="relative w-12 h-12 flex-shrink-0">
+                        <Image
+                          src={product.logoUrl || product.imageUrl || "/placeholder.svg"}
+                          alt={product.productName}
+                          fill
+                          className="object-cover rounded"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.src = "/placeholder.svg"
+                          }}
+                        />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">

@@ -17,6 +17,7 @@ public class InsuranceProductDto {
     private String productName;
     private String description;
     private List<String> features;
+    private List<String> coverageDetails; // 보장내역 상세 정보
     private String logoUrl;
     private String redirectUrl;
 }

@@ -17,7 +17,6 @@ import java.util.stream.Collectors;
 public class InsuranceService {
 
     private final InsuranceProductRepository repository;
-    private final InsuranceLogoService logoService;
 
     public List<InsuranceProductDto> findAll() {
         return repository.findAll().stream()
@@ -43,44 +42,17 @@ public class InsuranceService {
         entity.setProductName(dto.getProductName());
         entity.setDescription(dto.getDescription());
         entity.setFeatures(String.join(",", dto.getFeatures() != null ? dto.getFeatures() : List.of()));
+        entity.setCoverageDetails(String.join(",", dto.getCoverageDetails() != null ? dto.getCoverageDetails() : List.of()));
         entity.setRedirectUrl(dto.getRedirectUrl());
 
-        // 실시간 로고 URL 설정
-        if (dto.getLogoUrl() != null && !dto.getLogoUrl().isEmpty() && !dto.getLogoUrl().contains("placeholder")) {
-            entity.setLogoUrl(dto.getLogoUrl());
-            log.info("실시간 로고 URL 설정: {} -> {}", dto.getCompany(), dto.getLogoUrl());
-        } else {
-            // 기본 로고 URL 사용
-            String defaultLogoUrl = logoService.getCompanyLogoUrl(dto.getCompany());
-            entity.setLogoUrl(defaultLogoUrl);
-            log.info("기본 로고 URL 설정: {} -> {}", dto.getCompany(), defaultLogoUrl);
-        }
+        // 로고 URL 설정 (이모지 기반 아이콘 사용으로 단순화)
+        entity.setLogoUrl("");
 
         InsuranceProduct saved = repository.save(entity);
         return toDto(saved);
     }
 
-    /**
-     * 모든 보험사의 로고를 기본 로고로 업데이트
-     */
-    @Transactional
-    public void updateAllLogos() {
-        List<InsuranceProduct> allProducts = repository.findAll();
-        int updatedCount = 0;
-        
-        for (InsuranceProduct product : allProducts) {
-            String defaultLogoUrl = logoService.getCompanyLogoUrl(product.getCompany());
-            if (defaultLogoUrl != null && !defaultLogoUrl.equals(product.getLogoUrl())) {
-                product.setLogoUrl(defaultLogoUrl);
-                log.info("보험사 로고 업데이트 성공: {} -> {}", product.getCompany(), defaultLogoUrl);
-                updatedCount++;
-            } else {
-                log.info("보험사 로고 업데이트 불필요: {}", product.getCompany());
-            }
-        }
-        repository.saveAll(allProducts);
-        log.info("모든 보험사 로고 업데이트 완료 - 업데이트: {}", updatedCount);
-    }
+
 
     /**
      * 여러 보험 상품을 일괄 upsert
@@ -97,12 +69,22 @@ public class InsuranceService {
                 ? List.of()
                 : List.of(entity.getFeatures().split(","));
                 
+        // 보장내역 파싱
+        List<String> coverageDetails = entity.getCoverageDetails() != null && !entity.getCoverageDetails().isBlank() 
+                ? List.of(entity.getCoverageDetails().split(","))
+                        .stream()
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList()
+                : List.of();
+        
         return InsuranceProductDto.builder()
                 .id(entity.getId())
                 .company(entity.getCompany())
                 .productName(entity.getProductName())
                 .description(entity.getDescription())
                 .features(features)
+                .coverageDetails(coverageDetails)
                 .logoUrl(entity.getLogoUrl())
                 .redirectUrl(entity.getRedirectUrl())
                 .build();
@@ -149,6 +131,7 @@ public class InsuranceService {
                 .productName(productName)
                 .description(description)
                 .features(dto.getFeatures())
+                .coverageDetails(dto.getCoverageDetails())
                 .logoUrl(dto.getLogoUrl())
                 .redirectUrl(redirectUrl)
                 .build();

@@ -30,12 +30,9 @@ public class IntegratedInsuranceCrawler {
     private final ImprovedInsuranceCrawler insuranceNameCrawler = new ImprovedInsuranceCrawler();
     private final CoverageSummaryCrawler coverageCrawler = new CoverageSummaryCrawler();
     private final DetailedInfoCrawler detailedCrawler = new DetailedInfoCrawler();
-    private final LogoCrawler logoCrawler;
-    
-    // LogoCrawler는 기본 생성자 사용
+
     public IntegratedInsuranceCrawler(InsuranceService insuranceService) {
         this.insuranceService = insuranceService;
-        this.logoCrawler = new LogoCrawler();
     }
     
     // 병렬 처리를 위한 스레드 풀
@@ -52,7 +49,7 @@ public class IntegratedInsuranceCrawler {
         "삼성화재", "https://direct.samsungfire.com/m/fp/pet.html",
         "NH농협손해보험", "https://nhfire.co.kr/product/retrieveProduct.nhfire?pdtCd=D314511",
         "KB손해보험", "https://www.kbinsure.co.kr/CG313010001.ec",
-        "현대해상", "https://www.hi.co.kr/serviceAction.do?view=bin/SP/08/HHSP08000M",
+        "현대해상", "https://direct.hi.co.kr/product/doga/dog_insurance_introduce.jsp",
         "메리츠화재", "https://www.meritzfire.com/fire-and-life/pet/direct-pet.do#!/",
         "DB손해보험", "https://www.dbins.co.kr/"
     );
@@ -62,7 +59,6 @@ public class IntegratedInsuranceCrawler {
      * 보험 이름 + 보장요약 + 로고 (기본)
      */
     public List<InsuranceProductDto> crawlForMainPage() {
-        log.info("=== 메인 페이지용 크롤링 시작 ===");
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         
         List<CompletableFuture<InsuranceProductDto>> futures = new ArrayList<>();
@@ -88,8 +84,7 @@ public class IntegratedInsuranceCrawler {
             }
         }
         
-        log.info("메인 페이지 크롤링 완료: {}개 보험사, 완료 시간: {}", 
-            results.size(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
         
         return results;
     }
@@ -99,7 +94,6 @@ public class IntegratedInsuranceCrawler {
      * 모든 정보 + 로고 (상세) + 추가 정보
      */
     public InsuranceProductDto crawlForDetailPage(String companyName) {
-        log.info("=== 상세 페이지용 크롤링 시작: {} ===", companyName);
         
         String petInsuranceUrl = COMPANY_URLS.get(companyName);
         if (petInsuranceUrl == null) {
@@ -118,16 +112,14 @@ public class IntegratedInsuranceCrawler {
             DetailedInfoCrawler.DetailedInsuranceInfo detailedInfo = 
                 detailedCrawler.crawlDetailedInfo(companyName, petInsuranceUrl);
             
-            // 4단계: 상세 로고 크롤링 (실시간)
-            String logoUrl = logoCrawler.crawlLogoForDetailPage(companyName, petInsuranceUrl);
-            log.info("상세 실시간 로고 크롤링 완료: {} -> {}", companyName, logoUrl);
+            // 4단계: 로고 크롤링 제거됨
+            String logoUrl = "";
             
             // 모든 정보 통합
             InsuranceProductDto integratedProduct = integrateAllInformation(
                 basicInfo, coverageInfo, detailedInfo, logoUrl
             );
             
-            log.info("상세 페이지 크롤링 완료: {}", companyName);
             return integratedProduct;
             
         } catch (Exception e) {
@@ -146,7 +138,6 @@ public class IntegratedInsuranceCrawler {
         }
         
         try {
-            log.info("메인 페이지 크롤링 시작: {}", companyName);
             
             // 병렬로 기본 정보와 로고 크롤링
             CompletableFuture<InsuranceProductDto> basicInfoFuture = 
@@ -161,14 +152,7 @@ public class IntegratedInsuranceCrawler {
             
             CompletableFuture<String> logoFuture = 
                 CompletableFuture.supplyAsync(() -> {
-                    try {
-                        String logoUrl = logoCrawler.crawlLogoForMainPage(companyName, petInsuranceUrl);
-                        log.info("실시간 로고 크롤링 완료: {} -> {}", companyName, logoUrl);
-                        return logoUrl;
-                    } catch (Exception e) {
-                        log.warn("로고 크롤링 실패: {} - {}", companyName, e.getMessage());
-                        return "/placeholder-logo.png";
-                    }
+                    return "";
                 });
             
             // 결과 통합
@@ -184,7 +168,6 @@ public class IntegratedInsuranceCrawler {
             // 로고 URL 설정
             basicInfo.setLogoUrl(logoUrl);
             
-            log.info("메인 페이지 크롤링 완료: {} - {}", companyName, basicInfo.getProductName());
             return basicInfo;
             
         } catch (Exception e) {
@@ -288,7 +271,6 @@ public class IntegratedInsuranceCrawler {
      * 수동 실행 메서드 (API에서 호출)
      */
     public void runMainPageCrawling() {
-        log.info("=== 수동 메인 페이지 크롤링 실행 ===");
         List<InsuranceProductDto> results = crawlForMainPage();
         
         // 실제 크롤링 성공한 것만 필터링
@@ -304,7 +286,7 @@ public class IntegratedInsuranceCrawler {
         if (!successfulResults.isEmpty()) {
             try {
                 insuranceService.upsertAll(successfulResults);
-                log.info("크롤링 성공 결과 저장 완료: {}개 상품", successfulResults.size());
+        
             } catch (Exception e) {
                 log.error("크롤링 결과 저장 실패: {}", e.getMessage());
             }
@@ -319,9 +301,7 @@ public class IntegratedInsuranceCrawler {
             );
         }
         
-        log.info("=== 크롤링 요약 ===");
-        log.info("전체 시도: {}개, 성공: {}개, 실패: {}개", 
-            results.size(), successfulResults.size(), failedResults.size());
+        
     }
     
     /**
@@ -358,7 +338,6 @@ public class IntegratedInsuranceCrawler {
      */
     @Scheduled(cron = "0 0 2 * * *", zone = "Asia/Seoul")
     public void scheduledCrawling() {
-        log.info("=== 스케줄된 크롤링 시작 ===");
         runMainPageCrawling();
     }
     

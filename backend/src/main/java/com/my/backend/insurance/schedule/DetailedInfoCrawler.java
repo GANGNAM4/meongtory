@@ -77,7 +77,7 @@ public class DetailedInfoCrawler {
      * 3단계: 상세정보 크롤링
      */
     public DetailedInsuranceInfo crawlDetailedInfo(String companyName, String petInsuranceUrl) {
-        log.info("=== 3단계: {} 상세정보 크롤링 시작 ===", companyName);
+
         
         try {
             Document doc = fetchWithRetry(petInsuranceUrl, 3);
@@ -100,8 +100,7 @@ public class DetailedInfoCrawler {
             // 연락처 정보 추출
             ContactInfo contactInfo = extractContactInfo(doc, companyName);
             
-            log.info("상세정보 크롤링 성공 - 상세보장: {}, 가입조건: {}, 특별혜택: {}", 
-                detailedBenefits.size(), requirements.size(), specialBenefits.size());
+
             
             return DetailedInsuranceInfo.builder()
                     .companyName(companyName)

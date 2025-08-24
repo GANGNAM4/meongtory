@@ -32,6 +32,9 @@ public class InsuranceProduct extends BaseEntity {
     @Column(length = 2000)
     private String features; // JSON 배열 문자열 또는 콤마 구분 문자열
 
+    @Column(name = "coverage_details", length = 3000)
+    private String coverageDetails; // 보장내역 상세 정보 (JSON 배열 문자열 또는 콤마 구분 문자열)
+
     @Column(length = 10000)
     private String logoUrl;
 

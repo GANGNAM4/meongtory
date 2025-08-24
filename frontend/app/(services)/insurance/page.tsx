@@ -17,6 +17,7 @@ interface InsuranceProduct {
   productName: string
   description: string
   features: string[]
+  coverageDetails?: string[] // 보장내역 상세 정보
   logo: string
   redirectUrl?: string
 }
@@ -111,7 +112,7 @@ export default function PetInsurancePage({
       setLoading(true)
       const result = await insuranceApi.manualCrawl()
       toast({
-        title: "크롤링 완료",
+        title: "데이터 업데이트 완료",
         description: result,
       })
       // 페이지 새로고침
@@ -119,7 +120,7 @@ export default function PetInsurancePage({
     } catch (error) {
       console.error('크롤링 오류:', error)
       toast({
-        title: "크롤링 실패",
+        title: "데이터 업데이트 실패",
         description: "크롤링 중 오류가 발생했습니다.",
         variant: "destructive",
       })
@@ -183,6 +184,7 @@ export default function PetInsurancePage({
           productName: d.productName,
           description: d.description,
           features: d.features || [],
+          coverageDetails: d.coverageDetails || [],
           logo: d.logoUrl || "",
           redirectUrl: d.redirectUrl,
         }))
@@ -275,23 +277,7 @@ export default function PetInsurancePage({
     }
   }
 
-  // 회사별 이모지 반환 함수
-  const getCompanyEmoji = (companyName: string): string => {
-    switch (companyName) {
-      case "삼성화재":
-        return "⭐"
-      case "메리츠화재":
-        return "🏢"
-      case "KB손해보험":
-        return "🏦"
-      case "현대해상":
-        return "🚗"
-      case "NH농협손해보험":
-        return "🌾"
-      default:
-        return "🏢"
-    }
-  }
+
 
   const { toast } = useToast()
 
@@ -310,7 +296,7 @@ export default function PetInsurancePage({
 
           <p className="text-gray-600 mb-8">원하는 3개 업체를 선택하여 가격을 비교해보세요.</p>
           
-          {/* ADMIN 전용 로고 크롤링 버튼 */}
+          {/* ADMIN 전용 크롤링 버튼 */}
           {isAdmin && (
             <div className="flex justify-center space-x-4 mb-4">
               <Button
@@ -318,7 +304,7 @@ export default function PetInsurancePage({
                 className="bg-blue-600 hover:bg-blue-700 text-white"
                 disabled={loading}
               >
-                {loading ? '크롤링 중...' : '로고 업데이트'}
+                {loading ? '크롤링 중...' : '데이터 업데이트'}
               </Button>
               <Button
                 onClick={handleTestCrawl}
@@ -350,34 +336,6 @@ export default function PetInsurancePage({
               <CardContent className="p-6 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    <div className="flex-shrink-0">
-                      {product.logo && product.logo.startsWith('http') ? (
-                        <img
-                          src={product.logo}
-                          alt={product.company}
-                          width={80}
-                          height={80}
-                          className="rounded object-contain bg-white"
-                          onError={(e) => {
-                            // 로고 로딩 실패 시 기본 아이콘 표시
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            const parent = target.parentElement;
-                            if (parent) {
-                              const fallback = document.createElement('div');
-                              fallback.className = 'w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-lg';
-                              fallback.textContent = getCompanyEmoji(product.company);
-                              parent.appendChild(fallback);
-                            }
-                          }}
-                          crossOrigin="anonymous"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-lg">
-                          {getCompanyEmoji(product.company)}
-                        </div>
-                      )}
-                    </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-lg text-gray-900 truncate">{product.company}</h3>
                       <p className="text-sm text-gray-600 truncate">{product.productName}</p>
@@ -392,14 +350,16 @@ export default function PetInsurancePage({
                     <h4 className="font-medium text-sm text-gray-900 mb-2">주요 특징:</h4>
                     <div className="space-y-1">
                       {product.features.slice(0, 6).map((feature, index) => (
-                        <div key={index} className="flex items-center text-sm text-gray-600">
-                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
-                          {feature}
+                        <div key={index} className="flex items-start text-sm text-gray-600">
+                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2 mt-2 flex-shrink-0"></div>
+                          <span className="break-words leading-relaxed">{feature}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
+
+
 
                 <div className="mt-auto">
                   <Button
