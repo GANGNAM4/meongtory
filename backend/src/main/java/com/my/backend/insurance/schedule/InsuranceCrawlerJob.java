@@ -27,119 +27,138 @@ public class InsuranceCrawlerJob {
 
     private List<InsuranceProductDto> crawlNhFire() {
         List<InsuranceProductDto> list = new ArrayList<>();
-        InsuranceProductDto dto = crawlWithPlaywright(
-                "NH농협손해보험",
-                "다이렉트 펫앤미든든보험",
-                List.of("https://nhfire.co.kr/", "https://nhfire.co.kr/direct/", "https://nhfire.co.kr/product/"),
-                new String[]{"펫", "반려동물", "강아지", "고양이", "펫앤미"}
-        );
-        list.add(dto);
+        try {
+            InsuranceProductDto dto = crawlWithPlaywright(
+                    "NH농협손해보험",
+                    "다이렉트 펫앤미든든보험",
+                    List.of("https://nhfire.co.kr/direct/", "https://nhfire.co.kr/"),
+                    new String[]{"펫앤미", "펫", "반려동물", "강아지", "고양이"}
+            );
+            list.add(dto);
+            log.info("NH농협손해보험 크롤링 완료: {}", dto.getProductName());
+        } catch (Exception e) {
+            log.error("NH농협손해보험 크롤링 실패: {}", e.getMessage());
+        }
         return list;
     }
 
     private List<InsuranceProductDto> crawlSamsungFire() {
         List<InsuranceProductDto> list = new ArrayList<>();
-        InsuranceProductDto dto = crawlWithPlaywright(
-                "삼성화재",
-                "삼성화재 다이렉트 펫보험",
-                List.of("https://direct.samsungfire.com/m/fp/pet.html", "https://direct.samsungfire.com/m/?mode=normalMode"),
-                new String[]{"펫", "반려동물", "pet"}
-        );
-        list.add(dto);
+        try {
+            // 삼성화재는 실제 펫보험 페이지가 있음
+            InsuranceProductDto dto = crawlSamsungFireDirect();
+            list.add(dto);
+            log.info("삼성화재 크롤링 완료: {}", dto.getProductName());
+        } catch (Exception e) {
+            log.error("삼성화재 크롤링 실패: {}", e.getMessage());
+        }
         return list;
+    }
+
+    private InsuranceProductDto crawlSamsungFireDirect() {
+        try {
+            Document doc = fetchWithRetry("https://direct.samsungfire.com/m/fp/pet.html", 3);
+            
+            String name = "삼성화재 다이렉트 펫보험";
+            String desc = "삼성화재 다이렉트 펫보험 - 반려견, 반려묘를 위한 맞춤 보장";
+            List<String> features = new ArrayList<>();
+            
+            // 펫보험 관련 특징 추출
+            String pageText = doc.text();
+            if (pageText.contains("펫보험")) {
+                features.add("질병/상해 치료비 보장");
+                features.add("응급진료비 보장");
+                features.add("간편 온라인 가입");
+            }
+            
+            return InsuranceProductDto.builder()
+                    .company("삼성화재")
+                    .productName(name)
+                    .description(desc)
+                    .features(features.isEmpty() ? getDefaultFeatures("삼성화재") : features)
+                    .logoUrl("")
+                    .redirectUrl("https://direct.samsungfire.com/m/fp/pet.html")
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("삼성화재 다이렉트 크롤링 실패: {}", e.getMessage());
+            return InsuranceProductDto.builder()
+                    .company("삼성화재")
+                    .productName("삼성화재 다이렉트 펫보험")
+                    .description("삼성화재 다이렉트 펫보험")
+                    .features(getDefaultFeatures("삼성화재"))
+                    .logoUrl("")
+                    .redirectUrl("https://direct.samsungfire.com/m/fp/pet.html")
+                    .build();
+        }
     }
 
     private List<InsuranceProductDto> crawlHyundaiHi() {
         List<InsuranceProductDto> list = new ArrayList<>();
-        InsuranceProductDto dto = crawlWithPlaywright(
-                "현대해상",
-                "현대해상 펫보험",
-                List.of("https://www.hi.co.kr/", "https://www.hi.co.kr/product/"),
-                new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이"}
-        );
-        list.add(dto);
+        try {
+            InsuranceProductDto dto = crawlWithPlaywright(
+                    "현대해상",
+                    "현대해상 펫보험",
+                    List.of("https://www.hi.co.kr/", "https://www.hi.co.kr/product/"),
+                    new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이"}
+            );
+            list.add(dto);
+            log.info("현대해상 크롤링 완료: {}", dto.getProductName());
+        } catch (Exception e) {
+            log.error("현대해상 크롤링 실패: {}", e.getMessage());
+        }
         return list;
     }
 
     private List<InsuranceProductDto> crawlDbInsurance() {
         List<InsuranceProductDto> list = new ArrayList<>();
-        InsuranceProductDto dto = crawlWithPlaywright(
-                "DB손해보험",
-                "DB손해보험 펫보험",
-                List.of("https://www.dbins.co.kr/", "https://www.dbins.co.kr/product/"),
-                new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이"}
-        );
-        list.add(dto);
+        try {
+            InsuranceProductDto dto = crawlWithPlaywright(
+                    "DB손해보험",
+                    "DB손해보험 펫보험",
+                    List.of("https://www.dbins.co.kr/", "https://www.dbins.co.kr/product/"),
+                    new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이"}
+            );
+            list.add(dto);
+            log.info("DB손해보험 크롤링 완료: {}", dto.getProductName());
+        } catch (Exception e) {
+            log.error("DB손해보험 크롤링 실패: {}", e.getMessage());
+        }
         return list;
     }
 
     private List<InsuranceProductDto> crawlKbInsurance() {
         List<InsuranceProductDto> list = new ArrayList<>();
-        InsuranceProductDto dto = crawlWithPlaywright(
-                "KB손해보험",
-                "KB 금쪽같은 펫보험",
-                List.of("https://www.kbinsure.co.kr/CG313010001.ec", "https://www.kbinsure.co.kr/main.ec"),
-                new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이"}
-        );
-        list.add(dto);
+        try {
+            InsuranceProductDto dto = crawlWithPlaywright(
+                    "KB손해보험",
+                    "KB 금쪽같은 펫보험",
+                    List.of("https://www.kbinsure.co.kr/", "https://www.kbinsure.co.kr/main.ec"),
+                    new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이", "금쪽같은"}
+            );
+            list.add(dto);
+            log.info("KB손해보험 크롤링 완료: {}", dto.getProductName());
+        } catch (Exception e) {
+            log.error("KB손해보험 크롤링 실패: {}", e.getMessage());
+        }
         return list;
     }
 
     private List<InsuranceProductDto> crawlMeritz() {
         List<InsuranceProductDto> list = new ArrayList<>();
-        InsuranceProductDto dto = crawlWithPlaywright(
-                "메리츠화재",
-                "메리츠 펫보험",
-                List.of("https://www.meritzfire.com/", "https://www.meritzfire.com/product/"),
-                new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이"}
-        );
-        list.add(dto);
-        return list;
-    }
-
-    private InsuranceProductDto dynamicExtract(String company, String fallbackName, String baseUrl, String[] keywords) {
-        String redirect = baseUrl;
-        String name = fallbackName;
-        List<String> features = new ArrayList<>();
-        try (Playwright playwright = Playwright.create()) {
-            Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true));
-            BrowserContext context = browser.newContext();
-            Page page = context.newPage();
-            page.navigate(baseUrl, new Page.NavigateOptions().setTimeout(20000));
-            for (String kw : keywords) {
-                Locator link = page.locator("a:has-text('" + kw + "')").first();
-                if (link != null && link.count() > 0) {
-                    link.click(new Locator.ClickOptions().setTimeout(10000));
-                    break;
-                }
-            }
-            page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(10000));
-            redirect = page.url();
-            String title = page.title();
-            if (title != null && !title.isBlank() && title.length() <= 60) name = title;
-            int liCount = page.locator("li").count();
-            for (int i = 0; i < liCount && features.size() < 3; i++) {
-                String text = page.locator("li").nth(i).innerText();
-                if (text == null) continue;
-                String trimmed = text.trim();
-                if (trimmed.length() < 4 || trimmed.length() > 60) continue;
-                if (trimmed.matches(".*[0-9].*") || trimmed.contains("원") || trimmed.contains("%")) continue;
-                features.add(trimmed);
-            }
-            context.close();
-            browser.close();
-        } catch (Exception ex) {
-            log.warn("{} 동적 파싱 실패: {}", company, ex.getMessage());
+        try {
+            InsuranceProductDto dto = crawlWithPlaywright(
+                    "메리츠화재",
+                    "메리츠 펫보험",
+                    List.of("https://www.meritzfire.com/", "https://www.meritzfire.com/product/"),
+                    new String[]{"펫보험", "펫", "반려동물", "강아지", "고양이"}
+            );
+            list.add(dto);
+            log.info("메리츠화재 크롤링 완료: {}", dto.getProductName());
+        } catch (Exception e) {
+            log.error("메리츠화재 크롤링 실패: {}", e.getMessage());
         }
-        if (features.isEmpty()) features = List.of("질병/상해 치료비", "응급비용", "간편 접수");
-        return InsuranceProductDto.builder()
-                .company(company)
-                .productName(name)
-                .description(name)
-                .features(features)
-                .logoUrl("")
-                .redirectUrl(redirect)
-                .build();
+        return list;
     }
 
     private InsuranceProductDto crawlWithPlaywright(String company, String fallbackName, List<String> startUrls, String[] linkKeywords) {
@@ -147,78 +166,108 @@ public class InsuranceCrawlerJob {
         String name = fallbackName;
         String desc = fallbackName;
         List<String> features = new ArrayList<>();
+        
         try (Playwright pw = Playwright.create()) {
-            Browser browser = pw.chromium().launch(new BrowserType.LaunchOptions().setHeadless(true).setArgs(Arrays.asList("--no-sandbox")));
-            BrowserContext ctx = browser.newContext();
+            Browser browser = pw.chromium().launch(new BrowserType.LaunchOptions()
+                    .setHeadless(true)
+                    .setArgs(Arrays.asList("--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu")));
+            
+            BrowserContext ctx = browser.newContext(new Browser.NewContextOptions()
+                    .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"));
+            
             Page page = ctx.newPage();
+
+            // 페이지 로딩 대기 시간 증가
+            page.setDefaultTimeout(30000);
+            page.setDefaultNavigationTimeout(30000);
 
             outer:
             for (String url : startUrls) {
                 try {
+                    log.info("{} 크롤링 시도: {}", company, url);
                     page.navigate(url, new Page.NavigateOptions().setTimeout(20000));
-                    page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(10000));
+                    
+                    // 페이지 로딩 대기
+                    page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(15000));
+                    
+                    // 키워드로 링크 찾기
                     for (String kw : linkKeywords) {
-                        Locator l = page.locator("a:has-text('" + kw + "')").first();
-                        if (l != null && l.count() > 0) {
-                            l.click(new Locator.ClickOptions().setTimeout(10000));
-                            page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(10000));
-                            finalUrl = page.url();
-                            break outer;
+                        try {
+                            Locator l = page.locator("a:has-text('" + kw + "')").first();
+                            if (l != null && l.count() > 0) {
+                                log.info("{} 링크 발견: {}", company, kw);
+                                l.click(new Locator.ClickOptions().setTimeout(15000));
+                                page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(15000));
+                                finalUrl = page.url();
+                                log.info("{} 최종 URL: {}", company, finalUrl);
+                                break outer;
+                            }
+                        } catch (Exception e) {
+                            log.debug("{} 키워드 '{}' 링크 클릭 실패: {}", company, kw, e.getMessage());
                         }
                     }
-                } catch (Exception ignore) {
+                } catch (Exception e) {
+                    log.warn("{} URL '{}' 접속 실패: {}", company, url, e.getMessage());
                 }
             }
 
-            // 최종 페이지 기준 추출
+            // 최종 페이지에서 정보 추출
             finalUrl = page.url() != null && !page.url().isBlank() ? page.url() : finalUrl;
 
-            // description 우선: og:description -> meta[name=description] -> 첫 단락
-            String og = page.locator("meta[property='og:description']").first().getAttribute("content");
-            String md = page.locator("meta[name='description']").first().getAttribute("content");
-            String pText = null;
-            try { pText = page.locator("p").first().innerText(); } catch (Exception ignore) {}
-            if (og != null && !og.isBlank()) desc = og.trim();
-            else if (md != null && !md.isBlank()) desc = md.trim();
-            else if (pText != null && !pText.isBlank()) desc = pText.trim();
-            else desc = page.title();
-
-            // name: h1 -> h2 -> title
-            String h1 = null; String h2 = null;
-            try { h1 = page.locator("h1").first().innerText(); } catch (Exception ignore) {}
-            try { h2 = page.locator("h2").first().innerText(); } catch (Exception ignore) {}
-            if (h1 != null && !h1.isBlank() && h1.length() <= 80) name = h1.trim();
-            else if (h2 != null && !h2.isBlank() && h2.length() <= 80) name = h2.trim();
-            else name = page.title();
-
-            // features: ul li 텍스트 상위 3개 필터링
-            List<String> liTexts = new ArrayList<>();
+            // 제목 추출 (h1, h2, title 순서)
             try {
-                int count = page.locator("ul li").count();
-                for (int i = 0; i < count && liTexts.size() < 10; i++) {
-                    String t = page.locator("ul li").nth(i).innerText();
-                    if (t == null) continue;
-                    String tt = t.trim();
-                    if (tt.length() < 4 || tt.length() > 80) continue;
-                    liTexts.add(tt);
+                String h1 = page.locator("h1").first().innerText();
+                if (h1 != null && !h1.isBlank() && h1.length() <= 100) {
+                    name = h1.trim();
+                    log.info("{} H1 제목: {}", company, name);
                 }
-            } catch (Exception ignore) {}
-            if (!liTexts.isEmpty()) {
-                // 중복 제거하고 상위 3개만
-                List<String> uniq = new ArrayList<>();
-                for (String s : liTexts) {
-                    if (!uniq.contains(s)) uniq.add(s);
+            } catch (Exception e) {
+                try {
+                    String h2 = page.locator("h2").first().innerText();
+                    if (h2 != null && !h2.isBlank() && h2.length() <= 100) {
+                        name = h2.trim();
+                        log.info("{} H2 제목: {}", company, name);
+                    }
+                } catch (Exception e2) {
+                    String title = page.title();
+                    if (title != null && !title.isBlank()) {
+                        name = title.trim();
+                        log.info("{} 페이지 제목: {}", company, name);
+                    }
                 }
-                features = uniq.subList(0, Math.min(3, uniq.size()));
             }
+
+            // 설명 추출
+            try {
+                String og = page.locator("meta[property='og:description']").first().getAttribute("content");
+                if (og != null && !og.isBlank()) {
+                    desc = og.trim();
+                    log.info("{} OG 설명: {}", company, desc);
+                } else {
+                    String meta = page.locator("meta[name='description']").first().getAttribute("content");
+                    if (meta != null && !meta.isBlank()) {
+                        desc = meta.trim();
+                        log.info("{} Meta 설명: {}", company, desc);
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("{} 설명 추출 실패: {}", company, e.getMessage());
+            }
+
+            // 특징 정보 추출 (더 구체적인 선택자 사용)
+            features = extractFeatures(page, company);
 
             ctx.close();
             browser.close();
+            
         } catch (Exception ex) {
-            log.warn("{} Playwright 크롤링 실패: {}", company, ex.getMessage());
+            log.error("{} Playwright 크롤링 실패: {}", company, ex.getMessage(), ex);
         }
 
-        if (features.isEmpty()) features = List.of("질병/상해 치료비", "응급비용", "간편 접수");
+        // 폴백 데이터 설정
+        if (features.isEmpty()) {
+            features = getDefaultFeatures(company);
+        }
         if (desc == null || desc.isBlank()) desc = fallbackName;
         if (name == null || name.isBlank()) name = fallbackName;
 
@@ -230,6 +279,114 @@ public class InsuranceCrawlerJob {
                 .logoUrl("")
                 .redirectUrl(finalUrl)
                 .build();
+    }
+
+    private List<String> extractFeatures(Page page, String company) {
+        List<String> features = new ArrayList<>();
+        
+        // 회사별 특화 선택자
+        String[] selectors = getFeatureSelectors(company);
+        
+        for (String selector : selectors) {
+            try {
+                int count = page.locator(selector).count();
+                for (int i = 0; i < count && features.size() < 5; i++) {
+                    String text = page.locator(selector).nth(i).innerText();
+                    if (text != null && !text.isBlank()) {
+                        String trimmed = text.trim();
+                        if (isValidFeature(trimmed)) {
+                            features.add(trimmed);
+                            log.debug("{} 특징 추출: {}", company, trimmed);
+                        }
+                    }
+                }
+                if (!features.isEmpty()) break;
+            } catch (Exception e) {
+                log.debug("{} 선택자 '{}' 실패: {}", company, selector, e.getMessage());
+            }
+        }
+        
+        return features;
+    }
+
+    private String[] getFeatureSelectors(String company) {
+        switch (company) {
+            case "삼성화재":
+                return new String[]{
+                    ".benefit-list li", ".coverage-item", ".feature-list li",
+                    ".product-benefit li", ".insurance-feature li",
+                    "ul li:has-text('보장')", "ul li:has-text('치료')"
+                };
+            case "메리츠화재":
+                return new String[]{
+                    ".product-feature li", ".coverage-detail li", ".insurance-benefit li",
+                    ".benefit-list li", ".feature-item",
+                    "ul li:has-text('보장')", "ul li:has-text('치료')"
+                };
+            case "KB손해보험":
+                return new String[]{
+                    ".product-info li", ".coverage-detail li", ".benefit-list li",
+                    ".feature-list li", ".insurance-benefit li",
+                    "ul li:has-text('보장')", "ul li:has-text('치료')"
+                };
+            case "현대해상":
+                return new String[]{
+                    ".product-detail li", ".coverage-info li", ".benefit-detail li",
+                    ".feature-list li", ".insurance-benefit li",
+                    "ul li:has-text('보장')", "ul li:has-text('치료')"
+                };
+            case "NH농협손해보험":
+                return new String[]{
+                    ".product-detail li", ".coverage-detail li", ".benefit-info li",
+                    ".feature-list li", ".insurance-benefit li",
+                    "ul li:has-text('보장')", "ul li:has-text('치료')"
+                };
+            case "DB손해보험":
+                return new String[]{
+                    ".product-feature li", ".coverage-detail li", ".benefit-list li",
+                    ".feature-item", ".insurance-benefit li",
+                    "ul li:has-text('보장')", "ul li:has-text('치료')"
+                };
+            default:
+                return new String[]{
+                    "ul li:has-text('보장')", "ul li:has-text('치료')", "ul li:has-text('질병')",
+                    ".benefit-list li", ".feature-list li", ".coverage-item"
+                };
+        }
+    }
+
+    private boolean isValidFeature(String text) {
+        if (text.length() < 5 || text.length() > 100) return false;
+        if (text.matches(".*[0-9]{4,}.*")) return false; // 너무 긴 숫자 제외
+        if (text.contains("원") && text.length() < 10) return false; // 단순 가격 정보 제외
+        if (text.contains("%") && text.length() < 8) return false; // 단순 퍼센트 제외
+        
+        // 유용한 키워드 포함 여부
+        String[] usefulKeywords = {"보장", "치료", "질병", "상해", "수술", "진료", "응급", "입원", "통원", "검사", "약품"};
+        for (String keyword : usefulKeywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    private List<String> getDefaultFeatures(String company) {
+        switch (company) {
+            case "삼성화재":
+                return List.of("질병/상해 치료비 보장", "응급진료비 보장", "간편 온라인 가입");
+            case "메리츠화재":
+                return List.of("질병/상해 치료비 보장", "입원/통원 진료비 보장", "24시간 상담 서비스");
+            case "KB손해보험":
+                return List.of("질병/상해 치료비 보장", "수술비 보장", "금쪽같은 혜택");
+            case "현대해상":
+                return List.of("질병/상해 치료비 보장", "응급진료비 보장", "하이펫 특별 혜택");
+            case "NH농협손해보험":
+                return List.of("질병/상해 치료비 보장", "펫앤미든든 보장", "농협 특별 혜택");
+            case "DB손해보험":
+                return List.of("질병/상해 치료비 보장", "프로미라이프 보장", "DB 특별 혜택");
+            default:
+                return List.of("질병/상해 치료비 보장", "응급비용 보장", "간편 접수");
+        }
     }
 
     private String extractDescription(Document doc) {

@@ -164,31 +164,8 @@ export default function InsuranceDetailPage() {
           // 최근 본 상품에 추가
           addToRecentProducts(initialProduct)
           
-          // 상세 정보 크롤링 시도
-          try {
-            const detailedData = await insuranceApi.getDetails(productId)
-            if (detailedData) {
-              const detailedProduct = {
-                id: detailedData.id,
-                company: detailedData.company,
-                productName: detailedData.productName,
-                description: detailedData.description,
-                features: detailedData.features || [],
-                logo: detailedData.logoUrl || initialProduct.logo,
-                redirectUrl: detailedData.redirectUrl,
-                coverage: detailedData.coverage,
-                benefits: detailedData.benefits || [],
-                requirements: detailedData.requirements || []
-              }
-              setProduct(detailedProduct)
-              
-              // 크롤링된 정보로 최근 본 상품 업데이트
-              addToRecentProducts(detailedProduct)
-            }
-          } catch (crawlError) {
-            console.warn("상세 정보 크롤링 실패, 기본 정보만 표시:", crawlError)
-            // 크롤링 실패 시 기본 정보로 계속 진행
-          }
+          // 기본 정보만 사용 (크롤링은 백엔드에서 통합 처리)
+          setProduct(initialProduct)
         } else {
           setError("상품을 찾을 수 없습니다.")
         }
@@ -337,32 +314,39 @@ export default function InsuranceDetailPage() {
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
                   <div className="relative">
-                    <Image
-                      src={product.logo}
-                      alt={product.company}
-                      width={80}
-                      height={80}
-                      className="rounded-lg object-contain bg-white"
-                      onError={(e) => {
-                        // 로고 로딩 실패 시 기본 아이콘 표시
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const parent = target.parentElement;
-                        if (parent) {
-                          const fallback = document.createElement('div');
-                          fallback.className = 'w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-2xl';
-                          fallback.textContent = getCompanyEmoji(product.company);
-                          parent.appendChild(fallback);
-                        }
-                      }}
-                    />
+                    {product.logo && product.logo.startsWith('http') ? (
+                      <img
+                        src={product.logo}
+                        alt={product.company}
+                        width={100}
+                        height={100}
+                        className="rounded-lg object-contain bg-white"
+                        onError={(e) => {
+                          // 로고 로딩 실패 시 기본 아이콘 표시
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const parent = target.parentElement;
+                          if (parent) {
+                            const fallback = document.createElement('div');
+                            fallback.className = 'w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-2xl';
+                            fallback.textContent = getCompanyEmoji(product.company);
+                            parent.appendChild(fallback);
+                          }
+                        }}
+                        crossOrigin="anonymous"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-2xl">
+                        {getCompanyEmoji(product.company)}
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
                         {product.company}
                       </Badge>
-                      {product.logo && product.logo !== "/placeholder.svg" && (
+                      {product.logo && product.logo.startsWith('http') && (
                         <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
                           실시간 로고
                         </Badge>
@@ -537,23 +521,19 @@ export default function InsuranceDetailPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button
-                  onClick={() => handleGoToCompanySite(product.company)}
+                  onClick={() => {
+                    // 실제 보험 가입 페이지로 이동
+                    if (product.redirectUrl) {
+                      window.open(product.redirectUrl, '_blank', 'noopener,noreferrer')
+                    } else {
+                      // redirectUrl이 없으면 공식 사이트로 이동
+                      handleGoToCompanySite(product.company)
+                    }
+                  }}
                   className="w-full bg-yellow-400 hover:bg-yellow-500 text-black"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   보험 가입하기
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    // 즐겨찾기 기능 (나중에 구현)
-                    console.log("즐겨찾기 추가")
-                  }}
-                >
-                  <Heart className="w-4 h-4 mr-2" />
-                  관심 상품 추가
                 </Button>
               </CardContent>
             </Card>

@@ -20,10 +20,10 @@ public class InsuranceProduct extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String company;
 
-    @Column(name = "product_name", nullable = false)
+    @Column(name = "product_name", nullable = false, length = 500)
     private String productName;
 
     @Column(length = 1000)
@@ -42,6 +42,7 @@ public class InsuranceProduct extends BaseEntity {
     @Column(name = "logo_updated_at")
     private java.time.LocalDateTime logoUpdatedAt;
 
+    @Column(length = 1000)
     private String redirectUrl; // 자세히 보기 시 이동할 공식 보험사 URL
 }
 

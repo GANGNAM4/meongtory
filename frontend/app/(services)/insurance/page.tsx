@@ -128,6 +128,49 @@ export default function PetInsurancePage({
     }
   }
 
+  // 크롤링 테스트 함수
+  const handleTestCrawl = async () => {
+    try {
+      setLoading(true)
+      const result = await insuranceApi.testCrawl()
+      toast({
+        title: "크롤링 테스트 완료",
+        description: result,
+      })
+    } catch (error) {
+      console.error('크롤링 테스트 오류:', error)
+      toast({
+        title: "크롤링 테스트 실패",
+        description: "크롤링 테스트 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 크롤링 상태 확인 함수
+  const handleCheckCrawlingStatus = async () => {
+    try {
+      setLoading(true)
+      const status = await insuranceApi.getCrawlingStatus()
+      toast({
+        title: "크롤링 상태",
+        description: `${status.status} (${status.successfulCrawls}/${status.totalCompanies})`,
+        duration: 5000,
+      })
+    } catch (error) {
+      console.error('크롤링 상태 확인 오류:', error)
+      toast({
+        title: "상태 확인 실패",
+        description: "크롤링 상태를 확인할 수 없습니다.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -140,7 +183,7 @@ export default function PetInsurancePage({
           productName: d.productName,
           description: d.description,
           features: d.features || [],
-          logo: d.logoUrl || "/placeholder.svg?height=40&width=40",
+          logo: d.logoUrl || "",
           redirectUrl: d.redirectUrl,
         }))
         setProducts(mapped)
@@ -277,6 +320,20 @@ export default function PetInsurancePage({
               >
                 {loading ? '크롤링 중...' : '로고 업데이트'}
               </Button>
+              <Button
+                onClick={handleTestCrawl}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                disabled={loading}
+              >
+                {loading ? '크롤링 중...' : '크롤링 테스트'}
+              </Button>
+              <Button
+                onClick={handleCheckCrawlingStatus}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                disabled={loading}
+              >
+                {loading ? '확인 중...' : '상태 확인'}
+              </Button>
             </div>
           )}
         </div>
@@ -294,25 +351,32 @@ export default function PetInsurancePage({
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
                     <div className="flex-shrink-0">
-                      <Image
-                        src={product.logo || "/placeholder.svg"}
-                        alt={product.company}
-                        width={40}
-                        height={40}
-                        className="rounded object-contain bg-white"
-                        onError={(e) => {
-                          // 로고 로딩 실패 시 기본 아이콘 표시
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const parent = target.parentElement;
-                          if (parent) {
-                            const fallback = document.createElement('div');
-                            fallback.className = 'w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-lg';
-                            fallback.textContent = getCompanyEmoji(product.company);
-                            parent.appendChild(fallback);
-                          }
-                        }}
-                      />
+                      {product.logo && product.logo.startsWith('http') ? (
+                        <img
+                          src={product.logo}
+                          alt={product.company}
+                          width={80}
+                          height={80}
+                          className="rounded object-contain bg-white"
+                          onError={(e) => {
+                            // 로고 로딩 실패 시 기본 아이콘 표시
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent) {
+                              const fallback = document.createElement('div');
+                              fallback.className = 'w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-lg';
+                              fallback.textContent = getCompanyEmoji(product.company);
+                              parent.appendChild(fallback);
+                            }
+                          }}
+                          crossOrigin="anonymous"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-lg">
+                          {getCompanyEmoji(product.company)}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-lg text-gray-900 truncate">{product.company}</h3>
@@ -327,7 +391,7 @@ export default function PetInsurancePage({
                   <div className="mb-4">
                     <h4 className="font-medium text-sm text-gray-900 mb-2">주요 특징:</h4>
                     <div className="space-y-1">
-                      {product.features.slice(0, 3).map((feature, index) => (
+                      {product.features.slice(0, 6).map((feature, index) => (
                         <div key={index} className="flex items-center text-sm text-gray-600">
                           <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></div>
                           {feature}
