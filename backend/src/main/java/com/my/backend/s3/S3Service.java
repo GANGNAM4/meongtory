@@ -8,6 +8,9 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import java.util.UUID;
 
 @Service
@@ -373,6 +376,38 @@ public class S3Service {
             extension = originalFileName.substring(originalFileName.lastIndexOf("."));
         }
         return "products/" + UUID.randomUUID().toString() + extension;
+    }
+
+    // S3 파일 다운로드 메서드
+    public byte[] downloadFile(String filePathOrUrl) {
+        try {
+            if (s3Client == null) {
+                log.warn("S3Client is null - cannot download file: {}", filePathOrUrl);
+                throw new RuntimeException("S3 client not available");
+            }
+
+            // 전체 URL이면 key 부분만 추출
+            String key = filePathOrUrl;
+            if (filePathOrUrl.startsWith("http")) {
+                key = filePathOrUrl.substring(filePathOrUrl.indexOf(".com/") + 5);
+            }
+
+            log.info("Downloading file from S3: bucket={}, key={}", bucketName, key);
+
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(key)
+                    .build();
+
+            ResponseInputStream<GetObjectResponse> response = s3Client.getObject(getObjectRequest);
+            byte[] fileData = response.readAllBytes();
+            
+            log.info("File downloaded successfully from S3: {} ({} bytes)", key, fileData.length);
+            return fileData;
+        } catch (Exception e) {
+            log.error("Failed to download file from S3: {}", e.getMessage());
+            throw new RuntimeException("S3 download failed", e);
+        }
     }
 
     // S3 파일 삭제 메서드 (URL이든 Key든 모두 지원)

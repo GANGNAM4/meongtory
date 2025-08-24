@@ -85,6 +85,12 @@ export default function GrowthDiaryPage({
     window.location.href = `/diary/edit/${diaryId}`;
   };
 
+  const handleViewEntry = (diaryId: number) => {
+    console.log("=== handleViewEntry called ===");
+    console.log("Diary ID:", diaryId);
+    router.push(`/diary/${diaryId}`);
+  };
+
   const handleDelete = async (diaryId: number) => {
     setDiaryToDelete(diaryId);
     setShowDeleteConfirm(true);
@@ -182,11 +188,7 @@ export default function GrowthDiaryPage({
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">성장일기</h1>
-            {isLoggedIn && (
-              <p className="text-sm text-gray-600 mt-1">
-                {localStorage.getItem("userRole") === "ADMIN" ? "관리자 모드 - 모든 사용자의 일기를 볼 수 있습니다" : "내 일기 목록"}
-              </p>
-            )}
+          
           </div>
           {isLoggedIn && (
             <Button
@@ -201,7 +203,11 @@ export default function GrowthDiaryPage({
         <div className="grid gap-6">
           {userEntries.length > 0 ? (
             userEntries.map((entry) => (
-              <Card key={entry.diaryId} className="hover:shadow-md transition-shadow">
+              <Card 
+                key={entry.diaryId} 
+                className="hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => handleViewEntry(entry.diaryId)}
+              >
                 <CardContent className="p-6">
                   <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1">

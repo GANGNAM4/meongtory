@@ -41,6 +41,7 @@ export function RecentProductsSidebar({
   const router = useRouter()
   const [recentProducts, setRecentProducts] = useState<RecentProduct[]>([])
   const [loading, setLoading] = useState(false)
+  const [displayCount, setDisplayCount] = useState(5) // 표시할 상품 개수
 
   // 로그인 상태 확인 (간단한 방식)
   const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('accessToken')
@@ -107,6 +108,23 @@ export function RecentProductsSidebar({
       clearLocalRecentProducts(productType)
     }
   }
+
+  // 더보기 버튼 클릭 시
+  const handleLoadMore = () => {
+    setDisplayCount(prev => prev + 5)
+  }
+
+  // 표시할 상품들 (최대 displayCount개)
+  const displayedProducts = recentProducts.slice(0, displayCount)
+  const hasMore = recentProducts.length > displayCount
+  
+  // 디버깅용 로그
+  console.log('RecentProductsSidebar Debug:', {
+    totalProducts: recentProducts.length,
+    displayCount,
+    displayedProducts: displayedProducts.length,
+    hasMore
+  })
 
   // 상품 클릭 시 상세 페이지로 이동
   const handleProductClick = (product: RecentProduct) => {
@@ -233,7 +251,7 @@ export function RecentProductsSidebar({
           </div>
         ) : (
           <div className="space-y-3">
-            {recentProducts.map((product) => (
+            {displayedProducts.map((product) => (
               <Card 
                 key={product.id} 
                 className="cursor-pointer hover:shadow-md transition-shadow"
@@ -288,6 +306,18 @@ export function RecentProductsSidebar({
                 </CardContent>
               </Card>
             ))}
+            
+            {/* 더보기 버튼 */}
+            {hasMore && (
+              <Button
+                onClick={handleLoadMore}
+                variant="outline"
+                size="sm"
+                className="w-full mt-3 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+              >
+                더보기 ({recentProducts.length - displayCount}개 더)
+              </Button>
+            )}
           </div>
         )}
       </div>

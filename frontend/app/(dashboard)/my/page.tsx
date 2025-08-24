@@ -128,29 +128,64 @@ export default function MyPage() {
       
       console.log('사용자별 주문 데이터:', response.data)
       
-      // 백엔드에서 받은 데이터를 프론트엔드 형식으로 변환 (결제 완료된 주문만)
-      const convertedOrders = response.data
-        .filter((order: any) => order.status === 'PAID') // 결제 완료된 주문만 필터링
-        .map((order: any) => ({
-          orderId: order.id,
-          userId: order.accountId,
-          amount: order.amount,
-          paymentStatus: 'COMPLETED', // 결제 완료된 주문만 표시하므로 항상 COMPLETED
-          orderedAt: order.createdAt,
-          orderItems: [{
+      // 백엔드에서 받은 데이터를 프론트엔드 형식으로 변환 (결제 완료 및 취소된 주문 포함)
+      const orderData = response.data.data || response.data
+      
+      // 주문 ID별로 그룹화하여 중복 제거
+      const orderGroups = new Map()
+      
+      orderData
+        .filter((order: any) => order.status === 'PAID' || order.status === 'CANCELED')
+        .forEach((order: any) => {
+          const orderId = order.id
+          
+          if (!orderGroups.has(orderId)) {
+            // 주문 상태에 따른 paymentStatus 결정
+            let paymentStatus: "PENDING" | "COMPLETED" | "CANCELLED";
+            if (order.status === 'PAID') {
+              paymentStatus = 'COMPLETED';
+            } else if (order.status === 'CANCELED') {
+              paymentStatus = 'CANCELLED';
+            } else {
+              paymentStatus = 'PENDING';
+            }
+            
+            // 새로운 주문 그룹 생성
+            orderGroups.set(orderId, {
+              orderId: order.id,
+              userId: order.accountId,
+              amount: order.amount,
+              paymentStatus: paymentStatus,
+              orderedAt: order.createdAt,
+              orderItems: []
+            })
+          }
+          
+          // 주문 그룹에 상품 추가
+          const orderGroup = orderGroups.get(orderId)
+          orderGroup.orderItems.push({
             id: order.id,
             productId: order.productId,
             productName: order.productName,
             price: order.amount,
             quantity: order.quantity,
             orderDate: order.createdAt,
-            status: 'completed', // 결제 완료된 주문만 표시하므로 항상 completed
+            status: orderGroup.paymentStatus === 'COMPLETED' ? 'completed' : orderGroup.paymentStatus === 'CANCELLED' ? 'cancelled' : 'pending',
             ImageUrl: order.imageUrl || "/placeholder.svg"
-          }]
-        }))
+          })
+        })
       
-      console.log('변환된 주문 데이터:', convertedOrders)
-      setOrders(convertedOrders)
+      const convertedOrders = Array.from(orderGroups.values())
+      
+      // 최신순으로 정렬 (orderedAt 기준 내림차순)
+      const sortedOrders = convertedOrders.sort((a: any, b: any) => {
+        const dateA = new Date(a.orderedAt).getTime()
+        const dateB = new Date(b.orderedAt).getTime()
+        return dateB - dateA // 내림차순 (최신순)
+      })
+      
+      console.log('변환된 주문 데이터:', sortedOrders)
+      setOrders(sortedOrders)
     } catch (error) {
       console.error('주문 내역을 가져오는데 실패했습니다:', error)
       if (axios.isAxiosError(error)) {
@@ -582,20 +617,8 @@ export default function MyPage() {
 
           {/* 주문 내역 Tab */}
           <TabsContent value="orders" className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div>
               <h2 className="text-2xl font-bold">주문 내역</h2>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchOrders}
-                className="flex items-center gap-2"
-                disabled={ordersLoading}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {ordersLoading ? '로딩 중...' : '새로고침'}
-              </Button>
             </div>
             {ordersLoading ? (
               <div className="text-center py-8">

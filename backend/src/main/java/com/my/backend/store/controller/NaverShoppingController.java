@@ -126,6 +126,22 @@ public class NaverShoppingController {
     }
 
     /**
+     * 네이버 상품 개수 조회
+     */
+    @GetMapping("/products/count")
+    public ResponseEntity<ResponseDto> getNaverProductCount() {
+        try {
+            log.info("네이버 상품 개수 조회 요청");
+            
+            long count = naverShoppingService.getNaverProductCount();
+            return ResponseEntity.ok(ResponseDto.success(count));
+        } catch (Exception e) {
+            log.error("네이버 상품 개수 조회 실패: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ResponseDto.fail("COUNT_FAILED", "네이버 상품 개수 조회에 실패했습니다: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 네이버 상품 상세 조회
      */
     @GetMapping("/products/{productId}")

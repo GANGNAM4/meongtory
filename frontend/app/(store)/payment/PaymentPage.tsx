@@ -80,82 +80,60 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
       let response;
       let currentToken = accessToken;
       
-      // 백엔드 장바구니 상품들과 네이버 상품들을 분리
-      const backendCartItems = items.filter(item => 
-        !item.isNaverProduct && 
-        !item.id.toString().startsWith('naver-') && 
-        !item.id.toString().startsWith('backend-naver-') &&
-        item.product && item.product.id
-      );
+      // 모든 상품을 bulk-all로 주문 생성 (결제는 첫 번째 주문 ID만 사용)
+      console.log('전체 주문 생성 시작 (결제용)');
+      
+      const orderItems = items.map(item => {
+        if (item.isNaverProduct) {
+          // 네이버 상품인 경우 - item.id가 데이터베이스에 저장된 네이버 상품 ID
+          return { 
+            type: 'naver', 
+            naverProductId: item.id, 
+            quantity: item.quantity, 
+            name: item.name 
+          };
+        } else {
+          // 일반 상품인 경우
+          return { 
+            type: 'regular', 
+            productId: item.product?.id || item.id, 
+            quantity: item.quantity, 
+            name: item.name 
+          };
+        }
+      });
 
-      const naverItems = items.filter(item => 
-        item.isNaverProduct || 
-        item.id.toString().startsWith('naver-') || 
-        item.id.toString().startsWith('backend-naver-')
-      );
+      const orderData = {
+        accountId: userData.id,
+        items: orderItems
+      };
 
-      console.log('백엔드 장바구니 상품:', backendCartItems);
-      console.log('네이버 상품:', naverItems);
+      console.log('전체 주문 생성 요청:', orderData);
 
-      // 1. 백엔드 장바구니 상품들이 있으면 bulk API 사용
-      if (backendCartItems.length > 0) {
-        console.log('Bulk 주문 생성 시작');
-        const bulkOrderData = {
-          accountId: userData.id
-        };
+      response = await axios.post(`${getBackendUrl()}/api/orders/bulk-all`, orderData, {
+        headers: {
+          'Access_Token': currentToken
+        }
+      });
 
-        const bulkResponse = await axios.post(`${getBackendUrl()}/api/orders/bulk`, bulkOrderData, {
-          headers: {
-            'Access_Token': currentToken
-          }
-        });
-
-        console.log('Bulk 주문 생성 응답:', bulkResponse.data);
-        response = bulkResponse;
-      }
-      // 2. 네이버 상품들이 있으면 첫 번째 네이버 상품으로 주문 생성 (결제용)
-      else if (naverItems.length > 0) {
-        console.log('네이버 상품 주문 생성 (결제용)');
-        const firstNaverItem = naverItems[0];
-        
-        const orderData = {
-          accountId: userData.id,
-          naverProductId: firstNaverItem.naverProduct?.id || firstNaverItem.id,
-          quantity: firstNaverItem.quantity
-        };
-
-        console.log('네이버 상품 주문 생성 요청:', orderData);
-        
-        response = await axios.post(`${getBackendUrl()}/api/orders/naver-product`, orderData, {
-          headers: {
-            'Access_Token': currentToken
-          }
-        });
-      }
-      // 3. 일반 상품이 있으면 첫 번째 일반 상품으로 주문 생성 (결제용)
-      else {
-        console.log('일반 상품 주문 생성 (결제용)');
-        const firstItem = items[0];
-        
-        const orderData = {
-          accountId: userData.id,
-          productId: firstItem.product?.id || firstItem.id,
-          quantity: firstItem.quantity
-        };
-
-        console.log('일반 상품 주문 생성 요청:', orderData);
-        
-        response = await axios.post(`${getBackendUrl()}/api/orders`, orderData, {
-          headers: {
-            'Access_Token': currentToken
-          }
-        });
-      }
+      console.log('전체 주문 생성 응답:', response.data);
 
       console.log('주문 생성 응답:', response.data);
       
-      // 백엔드에서 직접 OrderResponseDto를 반환하므로 success 필드가 없음
-      const createdOrder = response.data;
+      // bulk-all API는 여러 주문을 반환하므로 첫 번째 주문의 ID를 사용
+      const responseData = response.data;
+      let createdOrder;
+      
+      if (responseData.orders && responseData.orders.length > 0) {
+        // bulk-all 응답인 경우
+        createdOrder = responseData.orders[0]; // 첫 번째 주문 사용
+        console.log('전체 주문 생성 완료, 첫 번째 주문 ID 사용:', createdOrder.merchantOrderId);
+        console.log('생성된 전체 주문 수:', responseData.orders.length);
+      } else {
+        // 단일 주문 응답인 경우 (기존 방식)
+        createdOrder = responseData;
+      }
+      
       setOrderId(createdOrder.merchantOrderId);
       console.log('주문 ID 설정:', createdOrder.merchantOrderId);
     } catch (error) {

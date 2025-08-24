@@ -5,6 +5,9 @@ import com.my.backend.store.dto.OrderRequestDto;
 import com.my.backend.store.dto.OrderResponseDto;
 import com.my.backend.store.dto.PaymentOrderRequest;
 import com.my.backend.store.dto.NaverProductOrderRequest;
+import com.my.backend.store.dto.BulkAllOrderRequestDto;
+import com.my.backend.store.dto.BulkAllOrderResponseDto;
+import com.my.backend.global.dto.ResponseDto;
 import com.my.backend.store.entity.OrderStatus;
 import com.my.backend.store.service.OrderService;
 import com.my.backend.global.security.user.UserDetailsImpl;
@@ -28,12 +31,6 @@ public class OrderController {
     // 단일 주문 생성
     @PostMapping
     public ResponseEntity<OrderResponseDto> createOrder(@Valid @RequestBody OrderRequestDto requestDto) {
-        System.out.println("=== OrderController.createOrder ===");
-        System.out.println("받은 요청 데이터: " + requestDto);
-        System.out.println("AccountId: " + requestDto.getAccountId());
-        System.out.println("ProductId: " + requestDto.getProductId());
-        System.out.println("Quantity: " + requestDto.getQuantity());
-        
         try {
             // 요청 데이터 검증
             if (requestDto.getAccountId() == null) {
@@ -47,7 +44,6 @@ public class OrderController {
             }
             
             OrderResponseDto responseDto = orderService.createOrder(requestDto);
-            System.out.println("주문 생성 성공: " + responseDto.getId());
             return ResponseEntity.ok(responseDto);
         } catch (Exception e) {
             System.out.println("주문 생성 실패: " + e.getMessage());
@@ -71,12 +67,6 @@ public class OrderController {
     // 네이버 상품 주문 생성
     @PostMapping("/naver-product")
     public ResponseEntity<OrderResponseDto> createNaverProductOrder(@RequestBody NaverProductOrderRequest request) {
-        System.out.println("=== OrderController.createNaverProductOrder ===");
-        System.out.println("받은 요청 데이터: " + request);
-        System.out.println("AccountId: " + request.getAccountId());
-        System.out.println("NaverProductId: " + request.getNaverProductId());
-        System.out.println("Quantity: " + request.getQuantity());
-        
         try {
             // 요청 데이터 검증
             if (request.getAccountId() == null) {
@@ -94,7 +84,6 @@ public class OrderController {
                 request.getNaverProductId(), 
                 request.getQuantity()
             );
-            System.out.println("네이버 상품 주문 생성 성공: " + responseDto.getId());
             return ResponseEntity.ok(responseDto);
         } catch (Exception e) {
             System.out.println("네이버 상품 주문 생성 실패: " + e.getMessage());
@@ -113,14 +102,14 @@ public class OrderController {
 
     // 사용자의 전체 주문 조회
     @GetMapping
-    public ResponseEntity<List<OrderResponseDto>> getAllOrders() {
+    public ResponseEntity<ResponseDto<List<OrderResponseDto>>> getAllOrders() {
         List<OrderResponseDto> list = orderService.getAllOrders();
-        return ResponseEntity.ok(list);
+        return ResponseEntity.ok(ResponseDto.success(list));
     }
 
     // 특정 사용자의 주문 조회
     @GetMapping("/user/{accountId}")
-    public ResponseEntity<List<OrderResponseDto>> getUserOrders(@PathVariable Long accountId) {
+    public ResponseEntity<ResponseDto<List<OrderResponseDto>>> getUserOrders(@PathVariable Long accountId) {
         try {
             // 현재 로그인한 사용자의 권한 확인
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -132,9 +121,6 @@ public class OrderController {
             String userRole = userDetails.getAccount().getRole();
             Long currentUserId = userDetails.getAccount().getId();
             
-            System.out.println("사용자별 주문 조회 요청 - 요청자: " + userDetails.getAccount().getEmail() + 
-                             ", 요청된 accountId: " + accountId + ", 현재 사용자 ID: " + currentUserId);
-            
             // 관리자이거나 본인의 주문만 조회 가능
             if (!"ADMIN".equals(userRole) && !currentUserId.equals(accountId)) {
                 System.out.println("권한이 없습니다. 본인의 주문만 조회 가능합니다.");
@@ -142,8 +128,7 @@ public class OrderController {
             }
             
             List<OrderResponseDto> userOrders = orderService.getUserOrders(accountId);
-            System.out.println("사용자별 주문 조회 성공: " + userOrders.size() + "개 주문");
-            return ResponseEntity.ok(userOrders);
+            return ResponseEntity.ok(ResponseDto.success(userOrders));
         } catch (Exception e) {
             System.out.println("사용자별 주문 조회 실패: " + e.getMessage());
             e.printStackTrace();
@@ -154,10 +139,6 @@ public class OrderController {
     // 장바구니 기반 전체 주문 생성
     @PostMapping("/bulk")
     public ResponseEntity<List<OrderResponseDto>> createOrdersFromCart(@Valid @RequestBody CartOrderRequestDto requestDto) {
-        System.out.println("=== OrderController.createOrdersFromCart ===");
-        System.out.println("받은 요청 데이터: " + requestDto);
-        System.out.println("AccountId: " + requestDto.getAccountId());
-        
         try {
             // 요청 데이터 검증
             if (requestDto.getAccountId() == null) {
@@ -165,7 +146,6 @@ public class OrderController {
             }
             
             List<OrderResponseDto> responseDtos = orderService.createOrdersFromCart(requestDto.getAccountId());
-            System.out.println("Bulk 주문 생성 성공: " + responseDtos.size() + "개 주문");
             return ResponseEntity.ok(responseDtos);
         } catch (Exception e) {
             System.out.println("Bulk 주문 생성 실패: " + e.getMessage());
@@ -175,9 +155,49 @@ public class OrderController {
         }
     }
 
-    // 관리자용 모든 사용자의 주문 조회
+    // 전체 상품 일괄 주문 생성 (일반 상품 + 네이버 상품)
+    @PostMapping("/bulk-all")
+    public ResponseEntity<BulkAllOrderResponseDto> createBulkAllOrders(@Valid @RequestBody BulkAllOrderRequestDto requestDto) {
+        try {
+            // 요청 데이터 검증
+            if (requestDto.getAccountId() == null) {
+                throw new IllegalArgumentException("AccountId는 필수입니다.");
+            }
+            if (requestDto.getItems() == null || requestDto.getItems().isEmpty()) {
+                throw new IllegalArgumentException("주문할 상품 목록은 비어있을 수 없습니다.");
+            }
+            
+            List<OrderResponseDto> responseDtos = orderService.createBulkAllOrders(requestDto);
+            
+            BulkAllOrderResponseDto response = BulkAllOrderResponseDto.builder()
+                    .success(true)
+                    .message("전체 주문이 성공적으로 생성되었습니다.")
+                    .orders(responseDtos)
+                    .totalItems(responseDtos.size())
+                    .build();
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.out.println("Bulk All 주문 생성 실패: " + e.getMessage());
+            e.printStackTrace();
+            
+            BulkAllOrderResponseDto errorResponse = BulkAllOrderResponseDto.builder()
+                    .success(false)
+                    .message("주문 생성에 실패했습니다: " + e.getMessage())
+                    .orders(null)
+                    .totalItems(0)
+                    .build();
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(errorResponse);
+        }
+    }
+
+    // 관리자용 모든 사용자의 주문 조회 (페이징 지원)
     @GetMapping("/admin/all")
-    public ResponseEntity<List<OrderResponseDto>> getAllOrdersForAdmin() {
+    public ResponseEntity<ResponseDto<List<OrderResponseDto>>> getAllOrdersForAdmin(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         try {
             // 현재 로그인한 사용자의 권한 확인
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -188,16 +208,13 @@ public class OrderController {
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             String userRole = userDetails.getAccount().getRole();
             
-            System.out.println("관리자 주문 조회 요청 - 사용자: " + userDetails.getAccount().getEmail() + ", 권한: " + userRole);
-            
             if (!"ADMIN".equals(userRole)) {
                 System.out.println("관리자 권한이 없습니다: " + userRole);
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             
-            List<OrderResponseDto> allOrders = orderService.getAllOrders(); // 서비스에서 전체 조회
-            System.out.println("관리자 주문 조회 성공: " + allOrders.size() + "개 주문");
-            return ResponseEntity.ok(allOrders);
+            List<OrderResponseDto> orders = orderService.getAllOrdersWithPaging(page, size);
+            return ResponseEntity.ok(ResponseDto.success(orders));
         } catch (Exception e) {
             System.out.println("관리자 주문 조회 실패: " + e.getMessage());
             e.printStackTrace();
@@ -217,8 +234,28 @@ public class OrderController {
     public ResponseEntity<OrderResponseDto> updateOrderStatus(
             @PathVariable Long id,
             @RequestParam OrderStatus status) {
-        OrderResponseDto updatedOrder = orderService.updateOrderStatus(id, status);
-        return ResponseEntity.ok(updatedOrder);
+        try {
+            // 현재 로그인한 사용자의 권한 확인
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            String userRole = userDetails.getAccount().getRole();
+            
+            if (!"ADMIN".equals(userRole)) {
+                System.out.println("관리자 권한이 없습니다: " + userRole);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            
+            OrderResponseDto updatedOrder = orderService.updateOrderStatus(id, status);
+            return ResponseEntity.ok(updatedOrder);
+        } catch (Exception e) {
+            System.out.println("주문 상태 변경 실패: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
 }

@@ -3,6 +3,8 @@ package com.my.backend.s3;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -79,6 +81,35 @@ public class S3UploadController {
             return ResponseEntity.ok("File deleted successfully");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("File deletion failed: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/download")
+    public ResponseEntity<byte[]> downloadFile(@RequestParam("fileUrl") String fileUrl) {
+        try {
+            byte[] fileData = s3Service.downloadFile(fileUrl);
+            
+            // 파일 확장자에 따른 Content-Type 설정
+            String contentType = "application/octet-stream";
+            if (fileUrl.toLowerCase().endsWith(".jpg") || fileUrl.toLowerCase().endsWith(".jpeg")) {
+                contentType = "image/jpeg";
+            } else if (fileUrl.toLowerCase().endsWith(".png")) {
+                contentType = "image/png";
+            } else if (fileUrl.toLowerCase().endsWith(".gif")) {
+                contentType = "image/gif";
+            } else if (fileUrl.toLowerCase().endsWith(".webp")) {
+                contentType = "image/webp";
+            }
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(contentType));
+            headers.setContentLength(fileData.length);
+            
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(fileData);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(("File download failed: " + e.getMessage()).getBytes());
         }
     }
 } 

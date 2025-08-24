@@ -10,7 +10,7 @@ import PaymentPage from "../../payment/PaymentPage"
 import { getBackendUrl } from "@/lib/api";
 
 interface CartItem {
-  id: number
+  id: number | string
   name: string
   brand: string
   price: number
@@ -20,6 +20,26 @@ interface CartItem {
 
   order: number // 순서 고정을 위한 필드
   isNaverProduct?: boolean // 네이버 상품 여부
+  naverProduct?: {
+    id: number
+    title: string
+    price: number
+    imageUrl: string
+    mallName: string
+    brand: string
+    maker: string
+    category1: string
+  }
+
+  naverProductInfo?: {
+    title: string
+    price: number
+    imageUrl: string
+    mallName: string
+    brand: string
+    maker: string
+    category1: string
+  }
 
   product?: {
     id: number
@@ -57,19 +77,8 @@ export default function CartPage() {
           })
 
           if (response.status === 200) {
-            cartData = response.data
-            console.log("=== 백엔드 장바구니 데이터 ===");
-            console.log("전체 cartData:", cartData);
-            console.log("cartData 길이:", cartData.length);
-            
-            cartData.forEach((item, index) => {
-              console.log(`아이템 ${index}:`, {
-                id: item.id,
-                product: item.product,
-                naverProduct: item.naverProduct,
-                quantity: item.quantity
-              });
-            });
+            // 백엔드에서 List<CartDto>를 직접 반환하므로 response.data가 바로 배열
+            cartData = Array.isArray(response.data) ? response.data : []
           }
         } catch (error) {
           console.log("백엔드 장바구니 조회 실패, 로컬 스토리지만 사용")
@@ -83,6 +92,7 @@ export default function CartPage() {
         productId: item.id,
         quantity: item.quantity,
         isNaverProduct: true,
+        order: index, // 로컬 네이버 상품은 인덱스를 order로 사용
         naverProductInfo: {
           title: item.name,
           price: item.price,
@@ -94,71 +104,63 @@ export default function CartPage() {
         }
       }))
 
-             // 백엔드 데이터 구조 분석
-       console.log("=== 백엔드 데이터 분석 ===");
-       console.log("전체 cartData:", cartData);
-       console.log("cartData 길이:", cartData.length);
-       
-       cartData.forEach((item, index) => {
-         console.log(`항목 ${index}:`, {
-           id: item.id,
-           product: item.product ? '있음' : '없음',
-           naverProduct: item.naverProduct ? '있음' : '없음',
-           quantity: item.quantity
-         });
-       });
+
 
       // 백엔드에서 가져온 네이버 상품 처리
       const backendNaverItems = cartData
         .filter((item: any) => item.naverProduct)
-        .map((item: any) => ({
-          id: `backend-naver-${item.id}`,
-          productId: item.naverProduct.id,
-          quantity: item.quantity,
-          isNaverProduct: true,
-          naverProduct: item.naverProduct, // 원본 naverProduct 객체 보존
-          naverProductInfo: {
-            title: item.naverProduct.title || '네이버 상품',
-            price: item.naverProduct.price || 0,
-            imageUrl: item.naverProduct.imageUrl || "/placeholder.svg",
-            mallName: item.naverProduct.mallName || '',
-            brand: item.naverProduct.brand || "브랜드 없음",
-            maker: item.naverProduct.maker || '',
-            category1: item.naverProduct.category1 || "네이버 쇼핑"
-          }
-        }));
+        .map((item: any, index: number) => {
+          const cartId = `backend-naver-${item.id}`;
+          return {
+            id: cartId,
+            productId: item.naverProduct.id,
+            quantity: item.quantity,
+            isNaverProduct: true,
+            naverProduct: item.naverProduct, // 원본 naverProduct 객체 보존
+            naverProductInfo: {
+              title: item.naverProduct.title || '네이버 상품',
+              price: item.naverProduct.price || 0,
+              imageUrl: item.naverProduct.imageUrl || "/placeholder.svg",
+              mallName: item.naverProduct.mallName || '',
+              brand: item.naverProduct.brand || "브랜드 없음",
+              maker: item.naverProduct.maker || '',
+              category1: item.naverProduct.category1 || "네이버 쇼핑"
+            },
+            order: typeof item.id === 'number' ? item.id : parseInt(item.id.toString()) || 0, // Cart ID를 order로 사용하여 위치 고정
+            cartId: item.id // 원본 Cart ID 보존
+          };
+        });
 
       // 백엔드에서 가져온 일반 상품 처리
       const backendRegularItems = cartData.filter((item: any) => item.product && !item.naverProduct);
 
       // 백엔드 일반 상품을 CartItem 형태로 변환
-      const backendRegularCartItems = backendRegularItems.map((item: any, index: number) => ({
-        id: item.id,
-        name: item.product.name,
-        brand: "브랜드 없음",
-        price: item.product.price,
-        image: item.product.imageUrl || "/placeholder.svg",
-        category: item.product.category || "카테고리 없음",
-        quantity: item.quantity,
-        order: index,
-        isNaverProduct: false,
-        product: {
-          id: item.product.id,
+      const backendRegularCartItems = backendRegularItems.map((item: any, index: number) => {
+        return {
+          id: item.id,
           name: item.product.name,
-          description: item.product.description || '',
+          brand: "브랜드 없음",
           price: item.product.price,
-          stock: item.product.stock || 0,
-          imageUrl: item.product.imageUrl || '/placeholder.svg',
-          category: item.product.category || '카테고리 없음',
-          registrationDate: item.product.registrationDate || '',
-          registeredBy: item.product.registeredBy || '',
-        }
-      }));
+          image: item.product.imageUrl || "/placeholder.svg",
+          category: item.product.category || "카테고리 없음",
+          quantity: item.quantity,
+          order: typeof item.id === 'number' ? item.id : parseInt(item.id.toString()) || 0, // Cart ID를 order로 사용하여 위치 고정
+          isNaverProduct: false,
+          product: {
+            id: item.product.id,
+            name: item.product.name,
+            description: item.product.description || '',
+            price: item.product.price,
+            stock: item.product.stock || 0,
+            imageUrl: item.product.imageUrl || '/placeholder.svg',
+            category: item.product.category || '카테고리 없음',
+            registrationDate: item.product.registrationDate || '',
+            registeredBy: item.product.registeredBy || '',
+          }
+        };
+      });
 
-      console.log("=== 처리 결과 ===");
-      console.log("네이버 상품 개수:", backendNaverItems.length);
-      console.log("일반 상품 개수:", backendRegularItems.length);
-      console.log("변환된 일반 상품 개수:", backendRegularCartItems.length);
+
 
       // 백엔드 장바구니와 네이버 장바구니 합치기
       const allCartData = [...backendRegularCartItems, ...backendNaverItems, ...naverItems]
@@ -172,7 +174,12 @@ export default function CartPage() {
       })
       
       const items: CartItem[] = validCartData
-        .sort((a: any, b: any) => a.id - b.id)
+        .sort((a: any, b: any) => {
+          // order 필드를 기준으로 정렬하여 일관된 순서 유지
+          const orderA = typeof a.order === 'number' ? a.order : parseInt(a.order?.toString()) || 0;
+          const orderB = typeof b.order === 'number' ? b.order : parseInt(b.order?.toString()) || 0;
+          return orderA - orderB;
+        })
         .map((item: any, index: number) => {
           // 네이버 상품인지 확인
           const isNaverProduct = item.isNaverProduct || (item.naverProductInfo && Object.keys(item.naverProductInfo).length > 0)
@@ -231,13 +238,6 @@ export default function CartPage() {
         })
 
       setCartItems(items)
-      console.log("장바구니 설정 완료:", items.length, "개")
-      console.log("백엔드 장바구니 데이터:", cartData)
-      console.log("백엔드 네이버 상품:", backendNaverItems)
-      console.log("백엔드 일반 상품:", backendRegularItems)
-      console.log("로컬 네이버 상품:", naverItems)
-      console.log("유효한 장바구니 데이터:", validCartData)
-      console.log("최종 장바구니 아이템:", items)
     } catch (error: any) {
       console.error("장바구니 조회 오류:", error)
       setCartItems([])
@@ -313,8 +313,8 @@ export default function CartPage() {
     try {
       // 백엔드 네이버 상품인지 확인
       if (typeof cartId === 'string' && cartId.startsWith('backend-naver-')) {
-        // 백엔드 네이버 상품은 백엔드에서 수량 업데이트
         const actualCartId = cartId.replace('backend-naver-', '')
+        
         const accessToken = localStorage.getItem("accessToken")
         if (!accessToken) {
           alert("로그인이 필요합니다")
@@ -335,12 +335,16 @@ export default function CartPage() {
 
       // 로컬 네이버 상품인지 확인 (ID가 문자열로 시작하는 경우)
       if (typeof cartId === 'string' && cartId.startsWith('naver-')) {
-        // 네이버 상품은 로컬 스토리지에서 수량 업데이트
         const naverCartData = JSON.parse(localStorage.getItem('naverCart') || '[]')
         const index = parseInt(cartId.replace('naver-', ''))
-        naverCartData[index].quantity = quantity
-        localStorage.setItem('naverCart', JSON.stringify(naverCartData))
-        await fetchCartItems()
+        
+                  if (naverCartData[index]) {
+            naverCartData[index].quantity = quantity
+            localStorage.setItem('naverCart', JSON.stringify(naverCartData))
+            await fetchCartItems()
+          } else {
+            alert("상품을 찾을 수 없습니다")
+          }
         return
       }
 
@@ -362,16 +366,17 @@ export default function CartPage() {
       }
     } catch (error: any) {
       console.error("수량 업데이트 오류:", error)
-      alert("수량 업데이트에 실패했습니다")
+      if (error.response?.data?.message) {
+        alert(`수량 업데이트에 실패했습니다: ${error.response.data.message}`)
+      } else {
+        alert("수량 업데이트에 실패했습니다")
+      }
     }
   }
 
   // 전체 구매
   const onPurchaseAll = async (items: CartItem[]) => {
     try {
-      console.log("=== onPurchaseAll 시작 ===");
-      console.log("전체 아이템:", items);
-      console.log("전체 아이템 개수:", items.length);
       
       const accessToken = localStorage.getItem("accessToken")
       if (!accessToken) {
@@ -392,106 +397,59 @@ export default function CartPage() {
         return
       }
 
-      // 백엔드 장바구니에 있는 상품들만 필터링 (네이버 상품 제외)
-      const backendCartItems = items.filter(item => 
-        !item.isNaverProduct && 
-        !item.id.toString().startsWith('naver-') && 
-        !item.id.toString().startsWith('backend-naver-') &&
-        item.product && item.product.id // product 정보가 있는 일반 상품만
-      )
-
-      // 네이버 상품들
-      const naverItems = items.filter(item => 
-        item.isNaverProduct || 
-        item.id.toString().startsWith('naver-') || 
-        item.id.toString().startsWith('backend-naver-')
-      )
-
-      console.log("백엔드 장바구니 상품들:", backendCartItems);
-      console.log("네이버 상품들:", naverItems);
-      console.log("백엔드 상품 개수:", backendCartItems.length);
-      console.log("네이버 상품 개수:", naverItems.length);
-
-      const createdOrders: any[] = []
-
-      // 1. 백엔드 장바구니 상품들은 bulk API 사용
-      if (backendCartItems.length > 0) {
-        console.log("Bulk API 호출 시작");
-        try {
-          const bulkOrderData = {
-            accountId: currentUserId
-          }
-
-          console.log("Bulk 주문 데이터:", bulkOrderData);
-
-          const bulkResponse = await axios.post(`${getBackendUrl()}/api/orders/bulk`, bulkOrderData, {
-            headers: { "Access_Token": accessToken }
-          })
-
-          console.log("Bulk API 응답:", bulkResponse.data);
-
-          if (bulkResponse.data && Array.isArray(bulkResponse.data)) {
-            createdOrders.push(...bulkResponse.data)
-            console.log("Bulk 주문 생성 성공:", bulkResponse.data.length, "개")
-          }
-        } catch (error) {
-          console.error("Bulk 주문 생성 실패:", error)
-          alert("일부 상품 주문에 실패했습니다")
-          return
-        }
-      } else {
-        console.log("백엔드 장바구니 상품이 없어서 bulk API 호출하지 않음");
-      }
-
-      // 2. 네이버 상품들은 개별 주문
-      for (const item of naverItems) {
-        try {
-          console.log("네이버 상품 주문 처리:", item);
-          
-          // 네이버 상품 ID를 올바르게 가져오기
+      // 모든 상품을 배열로 준비
+      const orderItems = items.map(item => {
+        if (item.isNaverProduct || 
+            item.id.toString().startsWith('naver-') || 
+            item.id.toString().startsWith('backend-naver-')) {
+          // 네이버 상품
           let naverProductId: number;
           if (item.naverProduct && item.naverProduct.id) {
-            // naverProduct 객체에서 ID 가져오기
-            naverProductId = item.naverProduct.id;
+            naverProductId = Number(item.naverProduct.id);
           } else if (item.product && item.product.id) {
-            // product 객체에서 ID 가져오기 (네이버 상품이 product 형태로 저장된 경우)
-            naverProductId = item.product.id;
+            naverProductId = Number(item.product.id);
           } else {
-            // 마지막 fallback으로 item.id 사용
-            naverProductId = item.id;
+            naverProductId = Number(item.id);
           }
           
-          const orderData = {
-            accountId: currentUserId,
+          return {
+            type: 'naver',
             naverProductId: naverProductId,
             quantity: item.quantity,
-          }
-
-          console.log("네이버 상품 주문 데이터:", orderData);
-
-          const response = await axios.post(`${getBackendUrl()}/api/orders/naver-product`, orderData, {
-            headers: { "Access_Token": accessToken }
-          })
-
-          console.log("네이버 상품 주문 응답:", response.data);
-
-          if (response.data) {
-            createdOrders.push(response.data)
-            console.log("네이버 상품 주문 성공:", item.name);
-          }
-        } catch (error) {
-          console.error("네이버 상품 주문 실패:", error)
-          alert(`${item.name} 주문에 실패했습니다`)
+            name: item.name
+          };
+        } else {
+          // 일반 상품
+          return {
+            type: 'regular',
+            productId: item.product?.id || item.id,
+            quantity: item.quantity,
+            name: item.name
+          };
         }
-      }
+      });
 
-      // 3. 장바구니 비우기
-      for (const item of items) {
-        await onRemoveFromCart(item.id)
-      }
+      // 모든 상품을 한 번에 전송
+      const orderData = {
+        accountId: currentUserId,
+        items: orderItems
+      };
 
-      alert(`전체 구매가 완료되었습니다. (${createdOrders.length}개 주문)`)
-      router.push("/my")
+      const response = await axios.post(`${getBackendUrl()}/api/orders/bulk-all`, orderData, {
+        headers: { "Access_Token": accessToken }
+      });
+
+      if (response.data && response.data.success) {
+        // 장바구니 비우기
+        for (const item of items) {
+          await onRemoveFromCart(item.id)
+        }
+
+        alert(`전체 구매가 완료되었습니다. (${orderItems.length}개 상품)`)
+        router.push("/my")
+      } else {
+        throw new Error("주문 처리에 실패했습니다")
+      }
     } catch (error: any) {
       console.error("전체 구매 오류:", error)
       alert("전체 구매에 실패했습니다")
@@ -536,7 +494,6 @@ export default function CartPage() {
     
     // 결제 완료 후 장바구니 새로고침을 위한 이벤트 리스너
     const handleCartUpdate = () => {
-      console.log('장바구니 업데이트 이벤트 수신')
       fetchCartItems()
     }
     
@@ -547,15 +504,7 @@ export default function CartPage() {
     }
   }, [])
 
-  // 디버깅: cartItems 배열 확인
-  console.log('CartPage - cartItems:', cartItems);
-  if (cartItems) {
-    const ids = cartItems.map(item => item.id);
-    const uniqueIds = new Set(ids);
-    if (ids.length !== uniqueIds.size) {
-      console.warn('CartPage - 중복된 ID가 있습니다:', ids);
-    }
-  }
+
 
   const handlePurchaseAll = () => {
     setPaymentItems(cartItems)
@@ -568,10 +517,6 @@ export default function CartPage() {
   }
 
   const handlePaymentSuccess = async (paymentInfo: any) => {
-    console.log("=== 결제 성공 처리 시작 ===");
-    console.log("결제 성공:", paymentInfo);
-    console.log("결제된 상품들:", paymentItems);
-    console.log("전체 장바구니 상품들:", cartItems);
     
     try {
       // 결제 성공 후 나머지 상품들을 모두 주문
@@ -582,24 +527,12 @@ export default function CartPage() {
         )
       );
       
-      console.log("=== 나머지 상품 분석 ===");
-      console.log("결제된 상품:", paymentItems);
-      console.log("나머지 상품:", remainingItems);
-      console.log("나머지 상품 개수:", remainingItems.length);
-      
       if (remainingItems.length > 0) {
-        console.log("=== 나머지 상품들 주문 시작 ===");
-        
         // onPurchaseAll 함수를 호출하여 나머지 상품들 주문
         await onPurchaseAll(remainingItems);
-        
-        console.log("=== 나머지 상품들 주문 완료 ===");
-      } else {
-        console.log("나머지 상품이 없습니다.");
       }
       
       // 결제된 상품 장바구니에서 제거
-      console.log("=== 장바구니에서 결제된 상품 제거 ===");
       paymentItems.forEach(item => onRemoveFromCart(item.id))
       
       setShowPayment(false)
@@ -610,7 +543,6 @@ export default function CartPage() {
       router.push("/my")
       
     } catch (error) {
-      console.error("=== 나머지 상품 주문 실패 ===");
       console.error("나머지 상품 주문 실패:", error)
       alert("일부 상품 주문에 실패했습니다. 장바구니를 확인해주세요.")
     }
@@ -627,25 +559,27 @@ export default function CartPage() {
     setPaymentItems([])
   }
 
-  // PaymentPage가 표시되어야 하는 경우
-  if (showPayment) {
-    return (
-      <PaymentPage
-        items={paymentItems.map(item => ({
-          id: item.product?.id || item.id, // 실제 상품 ID 사용
-          name: item.name.replace(/<[^>]*>/g, ''), // HTML 태그 제거
-          price: item.price,
-          quantity: item.quantity,
-          image: item.image,
+        // PaymentPage가 표시되어야 하는 경우
+      if (showPayment) {
+        return (
+          <PaymentPage
+            items={paymentItems.map(item => ({
+              id: typeof item.product?.id === 'number' ? item.product.id : 
+                   typeof item.id === 'number' ? item.id : 
+                   parseInt(item.id.toString()) || 0, // 문자열 ID를 숫자로 변환
+              name: item.name.replace(/<[^>]*>/g, ''), // HTML 태그 제거
+              price: item.price,
+              quantity: item.quantity,
+              image: item.image,
 
-          isNaverProduct: item.isNaverProduct || false
-        }))}
-        onSuccess={handlePaymentSuccess}
-        onFail={handlePaymentFail}
-        onBack={handleBackFromPayment}
-      />
-    )
-  }
+              isNaverProduct: item.isNaverProduct || false
+            }))}
+            onSuccess={handlePaymentSuccess}
+            onFail={handlePaymentFail}
+            onBack={handleBackFromPayment}
+          />
+        )
+      }
 
   // 로딩 중
   if (loading) {
@@ -791,7 +725,9 @@ export default function CartPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                          onClick={() => {
+                            onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))
+                          }}
                           className="w-8 h-8 p-0"
                         >
                           -

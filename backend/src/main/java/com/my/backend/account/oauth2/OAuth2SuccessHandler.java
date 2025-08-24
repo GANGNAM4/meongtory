@@ -22,6 +22,9 @@ import java.nio.charset.StandardCharsets;
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
     private final JwtUtil jwtUtil;
 
+    @Value("${frontend.url:https://meongtory.shop}")
+    private String frontendUrl;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
@@ -31,7 +34,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         TokenDto tokenDto = jwtUtil.createAllToken(email, userDetails.getAccount().getRole());
         String targetUrl = String.format(
-                "http://localhost:3000/?success=true&accessToken=%s&refreshToken=%s",
+                "%s/?success=true&accessToken=%s&refreshToken=%s",
+                frontendUrl,
                 URLEncoder.encode(tokenDto.getAccessToken(), StandardCharsets.UTF_8),
                 URLEncoder.encode(tokenDto.getRefreshToken(), StandardCharsets.UTF_8)
         );

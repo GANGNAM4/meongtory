@@ -115,12 +115,12 @@ public class RecentProductService {
 
         recentProductRepository.save(recentProduct);
 
-        // 최대 5개만 유지
+        // 최대 15개만 유지
         List<RecentProduct> allRecent = recentProductRepository
                 .findByAccountIdAndProductTypeOrderByViewedAtDesc(accountId, productType);
         
-        if (allRecent.size() > 5) {
-            List<RecentProduct> toDelete = allRecent.subList(5, allRecent.size());
+        if (allRecent.size() > 15) {
+            List<RecentProduct> toDelete = allRecent.subList(15, allRecent.size());
             recentProductRepository.deleteAll(toDelete);
         }
     }
@@ -168,8 +168,8 @@ public class RecentProductService {
                         .naverProductId(naverProduct.getProductId()) // 네이버 상품 ID 사용
                         .productType(entity.getProductType())
                         .company(naverProduct.getMallName()) // 네이버 상품은 mallName을 company로 사용
-                        .productName(naverProduct.getTitle())
-                        .description(naverProduct.getDescription())
+                        .productName(removeHtmlTags(naverProduct.getTitle()))
+                        .description(removeHtmlTags(naverProduct.getDescription()))
                         .logoUrl(naverProduct.getImageUrl())
                         .price(naverProduct.getPrice()) // 가격 정보 추가
                         .viewedAt(entity.getViewedAt())
@@ -180,5 +180,15 @@ public class RecentProductService {
         } else {
             throw new IllegalArgumentException("유효하지 않은 RecentProduct 엔티티입니다.");
         }
+    }
+    
+    /**
+     * HTML 태그를 제거하는 유틸리티 메서드
+     */
+    private String removeHtmlTags(String text) {
+        if (text == null) {
+            return null;
+        }
+        return text.replaceAll("<[^>]*>", "");
     }
 } 

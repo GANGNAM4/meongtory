@@ -213,9 +213,9 @@ export default function PetInsurancePage({
       // 새 항목을 맨 앞에 추가
       products.unshift(simplifiedProduct)
       
-      // 최대 5개만 유지
-      if (products.length > 5) {
-        products.splice(5)
+      // 최대 15개만 유지
+      if (products.length > 15) {
+        products.splice(15)
       }
       
       localStorage.setItem('recentInsuranceProducts', JSON.stringify(products))

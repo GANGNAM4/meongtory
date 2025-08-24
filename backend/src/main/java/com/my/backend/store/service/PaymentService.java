@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -118,10 +119,30 @@ public class PaymentService {
         
         // 결제 성공 시 주문 상태 업데이트
         if (status == TossPaymentStatus.DONE) {
+            // 현재 주문을 PAID로 업데이트
             order.setStatus(OrderStatus.PAID);
             order.setPaidAt(LocalDateTime.now());
             orderRepository.save(order);
             log.info("주문 상태 업데이트 완료: orderId={}, status=PAID", request.orderId());
+            
+            // 같은 사용자의 다른 CREATED 상태 주문들도 함께 PAID로 업데이트
+            List<Order> relatedOrders = orderRepository.findByAccountAndStatusAndCreatedAtBetween(
+                account, 
+                OrderStatus.CREATED, 
+                order.getCreatedAt().minusMinutes(5), // 5분 이내 생성된 주문들
+                order.getCreatedAt().plusMinutes(5)
+            );
+            
+            for (Order relatedOrder : relatedOrders) {
+                if (!relatedOrder.getId().equals(order.getId())) {
+                    relatedOrder.setStatus(OrderStatus.PAID);
+                    relatedOrder.setPaidAt(LocalDateTime.now());
+                    orderRepository.save(relatedOrder);
+                    log.info("관련 주문 상태 업데이트 완료: orderId={}, status=PAID", relatedOrder.getMerchantOrderId());
+                }
+            }
+            
+            log.info("총 {}개의 주문이 PAID 상태로 업데이트되었습니다.", relatedOrders.size() + 1);
         }
         
         return savedPayment;

@@ -51,9 +51,7 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
   // URL에서 productId를 우선적으로 사용, 없으면 props에서 사용
   const actualProductId = urlProductId ? parseInt(urlProductId) : propProductId;
   
-  console.log('Product ID from URL:', urlProductId);
-  console.log('Product ID from props:', propProductId);
-  console.log('Actual Product ID to use:', actualProductId);
+
   
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,8 +69,6 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        console.log('Fetching product with ID:', actualProductId, 'Type:', typeof actualProductId);
-        
         const accessToken = localStorage.getItem("accessToken");
         if (!accessToken) {
           throw new Error('인증 토큰이 없습니다.');
@@ -85,9 +81,13 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
             'Refresh_Token': localStorage.getItem("refreshToken") || '',
           },
         });
-        console.log('Raw product data from API:', JSON.stringify(response.data, null, 2));
 
-        const productData = response.data;
+        // ResponseDto 형태로 응답이 오므로 response.data.data를 사용
+        if (!response.data || !response.data.success) {
+          throw new Error(response.data?.error?.message || "API 응답이 올바르지 않습니다.");
+        }
+        
+        const productData = response.data.data;
         const convertedProduct: Product = {
           id: productData.id || productData.productId || actualProductId,
           name: productData.name || productData.productName || '이름 없음',
@@ -108,20 +108,15 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
         };
 
         setProduct(convertedProduct);
-        console.log('Converted product:', convertedProduct);
 
         // 이미지 미리보기 설정
         const imageUrl = convertedProduct.image;
         if (imageUrl && imageUrl !== '/placeholder.svg') {
-          console.log('Setting image preview:', imageUrl);
           setImagePreview(imageUrl);
           
           // 파일명 추출
           const fileName = imageUrl.split('/').pop() || `product-${actualProductId}.jpg`;
           setSelectedFileName(fileName);
-          console.log('Extracted file name:', fileName);
-        } else {
-          console.log('No valid image URL, using placeholder');
         }
       } catch (err) {
         console.error('Error fetching product:', err);
@@ -157,24 +152,19 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
   };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('File input change:', e.target.files);
-    
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      console.log('Selected file:', file.name, 'Size:', file.size, 'Type:', file.type);
       
       setImageFile(file);
       setSelectedFileName(file.name);
       
       const reader = new FileReader();
       reader.onloadend = () => {
-        console.log('File read completed');
         setImagePreview(reader.result as string);
       };
       reader.onerror = () => console.error('File read error');
       reader.readAsDataURL(file);
     } else {
-      console.log('File selection cancelled');
       setImageFile(null);
       if (!product?.image || product.image === '/placeholder.svg') {
         setImagePreview(null);
@@ -209,7 +199,6 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
 
         imageUrl: imageUrl,
       };
-      console.log('Sending update data:', updateData);
 
       const accessToken = localStorage.getItem("accessToken");
       if (!accessToken) {
@@ -397,7 +386,6 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
                     height={192}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      console.log('Image load failed:', imagePreview || product.image);
                       e.currentTarget.src = "/placeholder.svg";
                     }}
                   />

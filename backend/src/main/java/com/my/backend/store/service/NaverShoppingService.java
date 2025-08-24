@@ -453,6 +453,24 @@ public class NaverShoppingService {
     }
 
     /**
+     * 네이버 상품 개수 조회
+     */
+    public long getNaverProductCount() {
+        try {
+            log.info("네이버 상품 개수 조회 시작");
+            
+            long count = naverProductRepository.count();
+            
+            log.info("네이버 상품 개수 조회 완료: 총 {}개 상품", count);
+            return count;
+            
+        } catch (Exception e) {
+            log.error("네이버 상품 개수 조회 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("네이버 상품 개수 조회에 실패했습니다: " + e.getMessage());
+        }
+    }
+
+    /**
      * 네이버 상품 삭제
      */
     @Transactional

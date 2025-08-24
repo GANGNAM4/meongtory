@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,7 +57,7 @@ const refreshAccessToken = async () => {
   }
 };
 
-export default function CommunityWritePage({ onShowLogin }: CommunityWritePageProps) {
+function CommunityWritePageContent({ onShowLogin }: CommunityWritePageProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const boardType: "Q&A" | "자유게시판" = "자유게시판";
@@ -65,10 +65,71 @@ export default function CommunityWritePage({ onShowLogin }: CommunityWritePagePr
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
   const [currentUserEmail, setCurrentUserEmail] = useState("");
+  const [sharedFromDiary, setSharedFromDiary] = useState<any>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const fetchUserInfo = async () => {
+    useEffect(() => {
+    const initializePage = async () => {
+      // URL 파라미터에서 성장일기 ID 확인
+      const sharedFromDiaryId = searchParams.get('sharedFromDiary');
+      
+             if (sharedFromDiaryId) {
+         try {
+           // 성장일기 데이터 가져오기
+           const token = localStorage.getItem("accessToken");
+           const response = await axios.get(`${getBackendUrl()}/api/diary/${sharedFromDiaryId}`, {
+             headers: {
+               Access_Token: token,
+             },
+           });
+           
+           const diary = response.data;
+           setSharedFromDiary(diary);
+           setTitle(diary.title || "");
+           setContent(diary.text || "");
+           
+                       // 성장일기 이미지를 백엔드를 통해 다운로드하여 업로드 준비
+            if (diary.imageUrl) {
+              try {
+                // 백엔드를 통해 이미지 다운로드 (CORS 문제 해결)
+                const imageResponse = await axios.get(`${getBackendUrl()}/api/s3/download`, {
+                  params: { fileUrl: diary.imageUrl },
+                  responseType: 'blob',
+                  headers: {
+                    Access_Token: token,
+                  },
+                });
+                
+                const imageBlob = imageResponse.data;
+                
+                // 파일명 추출 (URL에서 마지막 부분)
+                const urlParts = diary.imageUrl.split('/');
+                const fileName = urlParts[urlParts.length - 1] || 'diary-image.jpg';
+                
+                // Blob을 File 객체로 변환
+                const imageFile = new File([imageBlob], fileName, { type: imageBlob.type });
+                
+                // 미리보기용 URL 생성
+                const previewUrl = URL.createObjectURL(imageBlob);
+                setImages([previewUrl]);
+                setImageFiles([imageFile]);
+                
+                toast.success("성장일기에서 공유된 내용과 이미지가 자동으로 채워졌습니다!");
+              } catch (imageError) {
+                console.error("이미지 다운로드 실패:", imageError);
+                toast.error("이미지를 불러오는데 실패했습니다.");
+              }
+            } else {
+              toast.success("성장일기에서 공유된 내용이 자동으로 채워졌습니다!");
+            }
+         } catch (error) {
+           console.error("성장일기 로드 실패:", error);
+           toast.error("성장일기 정보를 불러오는데 실패했습니다.");
+         }
+       }
+
+      // 사용자 정보 가져오기
       try {
         if (typeof window === "undefined") {
           setError("클라이언트 환경에서만 로그인 확인 가능");
@@ -147,8 +208,19 @@ export default function CommunityWritePage({ onShowLogin }: CommunityWritePagePr
       }
     };
 
-    fetchUserInfo();
-  }, [router, onShowLogin]);
+         initializePage();
+   }, [router, onShowLogin, searchParams]);
+
+   // 컴포넌트 언마운트 시 blob URL 정리
+   useEffect(() => {
+     return () => {
+       images.forEach((imageUrl) => {
+         if (imageUrl && imageUrl.startsWith('blob:')) {
+           URL.revokeObjectURL(imageUrl);
+         }
+       });
+     };
+   }, [images]);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -160,7 +232,14 @@ export default function CommunityWritePage({ onShowLogin }: CommunityWritePagePr
   };
 
   const handleRemoveImage = (indexToRemove: number) => {
-    setImages((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setImages((prev) => {
+      const newImages = prev.filter((_, index) => index !== indexToRemove);
+      // URL 해제 (메모리 누수 방지)
+      if (prev[indexToRemove] && prev[indexToRemove].startsWith('blob:')) {
+        URL.revokeObjectURL(prev[indexToRemove]);
+      }
+      return newImages;
+    });
     setImageFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
@@ -202,6 +281,7 @@ export default function CommunityWritePage({ onShowLogin }: CommunityWritePagePr
         category: "일반",
         boardType,
         tags: [],
+        sharedFromDiaryId: sharedFromDiary?.diaryId || undefined,
       };
 
       formData.append(
@@ -317,6 +397,12 @@ export default function CommunityWritePage({ onShowLogin }: CommunityWritePagePr
         <form onSubmit={handleSubmit}>
           <Card className="p-6">
             <CardContent className="space-y-6">
+              {/* 성장일기 공유 배지 */}
+              {sharedFromDiary && (
+                <div className="flex items-center gap-2 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                  <span className="text-yellow-800 font-medium">🐾 성장일기에서 공유됨</span>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="title">제목</Label>
                 <Input
@@ -396,7 +482,15 @@ export default function CommunityWritePage({ onShowLogin }: CommunityWritePagePr
             </CardContent>
           </Card>
         </form>
-      </div>
-    </div>
+             </div>
+     </div>
+   );
+ }
+
+export default function CommunityWritePage({ onShowLogin }: CommunityWritePageProps) {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">로딩 중...</div>}>
+      <CommunityWritePageContent onShowLogin={onShowLogin} />
+    </Suspense>
   );
 }

@@ -13,8 +13,13 @@ interface ProductRecommendationCardProps {
     imageUrl: string;
     category: string;
     recommendationReason: string;
+    source?: string; // 네이버 상품 여부 확인용
+    externalProductUrl?: string;
+    externalMallName?: string;
+    brand?: string;
+    description?: string;
   };
-  onAddToCart?: (productId: number) => void;
+  onAddToCart?: (productId: number, productInfo?: any) => void;
 }
 
 export function ProductRecommendationCard({
@@ -26,8 +31,13 @@ export function ProductRecommendationCard({
   const handleCardClick = () => {
     const productId = product.id || product.productId;
     if (productId) {
-      // 모든 상품을 동일한 라우트로 이동 (네이버 상품도 일반 상품과 동일하게 처리)
-      router.push(`/store/${productId}`);
+      // 네이버 상품인 경우 네이버 전용 URL로 이동
+      if (product.source === 'NAVER') {
+        router.push(`/store/naver/${productId}`);
+      } else {
+        // 일반 상품인 경우 기존 URL로 이동
+        router.push(`/store/${productId}`);
+      }
     }
   };
 
@@ -46,6 +56,11 @@ export function ProductRecommendationCard({
           <Badge className="absolute top-2 left-2 bg-orange-500 hover:bg-orange-600">
             AI 추천
           </Badge>
+          {product.source === 'NAVER' && (
+            <Badge className="absolute top-2 right-2 bg-green-500 hover:bg-green-600">
+              네이버
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-4 pt-2">
@@ -79,7 +94,7 @@ export function ProductRecommendationCard({
               product: product,
               onAddToCart: typeof onAddToCart
             });
-            onAddToCart?.(productId);
+            onAddToCart?.(productId, product);
           }}
           className="w-full bg-yellow-400 hover:bg-yellow-500 text-black"
           size="sm"

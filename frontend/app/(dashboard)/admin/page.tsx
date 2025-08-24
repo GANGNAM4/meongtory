@@ -34,7 +34,7 @@ import OrdersTab from "@/components/admin/OrdersTab"
 import ContractsTab from "@/components/admin/ContractsTab"
 
 
-import { getBackendUrl, petApi, handleApiError, s3Api, adoptionRequestApi, productApi } from "@/lib/api"
+import { getBackendUrl, petApi, handleApiError, s3Api, adoptionRequestApi, productApi, naverProductApi } from "@/lib/api"
 import axios from "axios"
 import { formatToKST, formatToKSTWithTime, getCurrentKSTDate } from "@/lib/utils"
 import { toast } from "sonner"
@@ -192,6 +192,7 @@ export default function AdminPage({
   const [inquiriesLoading, setInquiriesLoading] = useState(false)
   const [products, setProducts] = useState<Product[]>([]);
   const [adoptionRequests, setAdoptionRequests] = useState<AdoptionRequest[]>([]);
+  const [naverProductCount, setNaverProductCount] = useState<number>(0);
 
   // 계약서 관련 state 변수들 (입양관리에서 계약서 보기용)
   const [selectedContract, setSelectedContract] = useState<any>(null)
@@ -412,6 +413,21 @@ export default function AdminPage({
     };
 
     fetchAdoptionRequests();
+  }, []);
+
+  // 네이버 상품 개수를 백엔드에서 가져오기
+  useEffect(() => {
+    const fetchNaverProductCount = async () => {
+      try {
+        const count = await naverProductApi.getNaverProductCount();
+        setNaverProductCount(count);
+      } catch (error) {
+        console.error("Error fetching naver product count:", error);
+        setNaverProductCount(0);
+      }
+    };
+
+    fetchNaverProductCount();
   }, []);
 
   // if (!isAdmin) {
@@ -680,8 +696,10 @@ export default function AdminPage({
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{products?.length ?? 0}</div>
-                  <p className="text-xs text-muted-foreground">전체 상품 수</p>
+                  <div className="text-2xl font-bold">{(products?.length ?? 0) + naverProductCount}</div>
+                  <p className="text-xs text-muted-foreground">
+                    우리사이트: {products?.length ?? 0}개 / 네이버: {naverProductCount}개
+                  </p>
                 </CardContent>
               </Card>
 

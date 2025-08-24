@@ -36,40 +36,53 @@ export function useAdminOrders() {
       const response = await axios.get(`${getBackendUrl()}/api/orders/admin/all`, { headers })
       console.log('주문 API 응답:', response)
       
-      const data: any[] = response.data
+      const data: any[] = response.data.data || response.data
       console.log('받은 주문 데이터:', data)
       
       // 백엔드에서 받은 데이터를 프론트엔드 형식으로 변환 (결제 완료된 주문만)
-      const ordersWithItems: AdminOrder[] = data
-        .filter((order: any) => order.status === 'PAID') // 결제 완료된 주문만 필터링
-        .map((order: any) => {
+      // 주문 ID별로 그룹화하여 중복 제거
+      const orderGroups = new Map()
+      
+      data
+        .filter((order: any) => order.status === 'PAID')
+        .forEach((order: any) => {
+          const orderId = order.id || order.orderId
           console.log('변환 중인 주문 데이터:', order)
           
-          return {
-            id: order.id || order.orderId, // 백엔드에서는 id 필드 사용
-            userId: order.accountId || order.userId,
-            orderDate: order.createdAt || order.orderedAt,
-            status: 'completed', // 결제 완료된 주문만 표시하므로 항상 completed
-            totalAmount: order.amount, // 백엔드에서는 amount 필드 사용
-            items: [{
-              id: order.id,
-              productId: order.productId,
-              productName: order.productName,
-              price: order.amount,
-              quantity: order.quantity,
-              orderDate: order.createdAt,
+          if (!orderGroups.has(orderId)) {
+            // 새로운 주문 그룹 생성
+            orderGroups.set(orderId, {
+              id: orderId,
+              userId: order.accountId || order.userId,
+              orderDate: order.createdAt || order.orderedAt,
               status: 'completed', // 결제 완료된 주문만 표시하므로 항상 completed
-              ImageUrl: order.imageUrl || "/placeholder.svg"
-            }],
-            // AdminOrder 추가 필드
-            orderId: order.id || order.orderId,
-            paymentStatus: 'COMPLETED', // 결제 완료된 주문만 표시하므로 항상 COMPLETED
-            orderedAt: order.createdAt || order.orderedAt,
+              totalAmount: order.amount, // 백엔드에서는 amount 필드 사용
+              items: [],
+              // AdminOrder 추가 필드
+              orderId: orderId,
+              paymentStatus: 'COMPLETED', // 결제 완료된 주문만 표시하므로 항상 COMPLETED
+              orderedAt: order.createdAt || order.orderedAt,
+            })
           }
+          
+          // 주문 그룹에 상품 추가
+          const orderGroup = orderGroups.get(orderId)
+          orderGroup.items.push({
+            id: order.id,
+            productId: order.productId,
+            productName: order.productName,
+            price: order.amount,
+            quantity: order.quantity,
+            orderDate: order.createdAt,
+            status: 'completed', // 결제 완료된 주문만 표시하므로 항상 completed
+            ImageUrl: order.imageUrl || "/placeholder.svg"
+          })
         })
       
+      const ordersWithItems: AdminOrder[] = Array.from(orderGroups.values())
+      
       // 최신순으로 정렬 (orderedAt 기준 내림차순)
-      const sortedOrders = ordersWithItems.sort((a, b) => {
+      const sortedOrders = ordersWithItems.sort((a: any, b: any) => {
         const dateA = new Date(a.orderedAt).getTime()
         const dateB = new Date(b.orderedAt).getTime()
         return dateB - dateA // 내림차순 (최신순)

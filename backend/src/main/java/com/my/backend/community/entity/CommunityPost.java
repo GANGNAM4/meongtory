@@ -44,6 +44,8 @@ public class CommunityPost {
     @Column(name = "image_url")
     private List<String> images;
 
+    @Column(name = "shared_from_diary_id")
+    private Long sharedFromDiaryId;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CommunityComment> commentsList;

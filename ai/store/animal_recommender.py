@@ -78,7 +78,7 @@ class AnimalRecommender:
                                    product_name: str = None, recommendation_type: str = None) -> str:
         """추천 프롬프트를 구성합니다."""
         prompt = f"""
-다음 정보를 바탕으로 반려동물 상품을 추천해주세요:
+다음 정보를 바탕으로 네이버 쇼핑에서 구할 수 있는 반려동물 상품을 추천해주세요:
 
 펫 정보:
 - 나이: {age}살
@@ -91,12 +91,14 @@ class AnimalRecommender:
 - 상품 카테고리: {product_category or '전체'}
 - 상품명: {product_name or '없음'}
 
+중요: 네이버 쇼핑에서 실제로 판매되는 상품만 추천해주세요. 
 다음 형식으로 추천해주세요:
 1. [추천 상품명] - [추천 이유]
 2. [추천 상품명] - [추천 이유]
 3. [추천 상품명] - [추천 이유]
 
 추천 이유는 펫의 나이, 품종, 계절 등을 고려하여 구체적으로 설명해주세요.
+네이버 쇼핑에서 검색 가능한 실제 상품명을 사용해주세요.
 """
         return prompt
 

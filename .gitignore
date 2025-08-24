@@ -8,6 +8,7 @@ __pycache__/
 env/
 venv/
 .env
+.env.production
 backend/.env
 ai/.env
 frontend/.env
@@ -77,3 +78,11 @@ CLAUDE.md
 *.rar
 *.7z
 meongtory_backup_*.tar.gz
+
+# PostgreSQL configuration files (보안 설정 포함)
+db/init-db/pg_hba.conf
+db/init-db/pg_hba.conf.bak
+
+# Docker Compose (환경별 설정)
+docker-compose.yml
+docker-compose.production.yml

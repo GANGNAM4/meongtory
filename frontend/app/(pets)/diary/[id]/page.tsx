@@ -1,136 +1,255 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Edit, Trash2, Save, X, Mic, MicOff, Play, Pause, Camera } from "lucide-react"
+import { ArrowLeft, Edit, Trash2, Save, X, Mic, MicOff, Play, Pause, Camera, Share2 } from "lucide-react"
 import Image from "next/image"
-import type { DiaryEntry } from "./diary";   
+import { fetchDiary, updateDiary, deleteDiary, uploadImageToS3, uploadAudioToS3 } from "@/lib/diary"
+import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/components/navigation"
 
+export default function DiaryEntryDetail() {
+  const router = useRouter()
+  const params = useParams()
+  const { toast } = useToast()
+  const { currentUser } = useAuth()
+  
+  const diaryId = Number(params.id)
+  
+  const [entry, setEntry] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedEntry, setEditedEntry] = useState({
+    title: "",
+    content: "",
+    images: [] as string[],
+  })
 
+  const [audioUrl, setAudioUrl] = useState<string>("")
+  const [isRecording, setIsRecording] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-interface DiaryEntryDetailProps {
-  entry: DiaryEntry;
-  onBack: () => void;
-  onUpdate: (updatedEntry: DiaryEntry) => void;
-  onDelete: (entryId: number) => void;
-  currentUserId?: number;
-}
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-export default function DiaryEntryDetail({ entry, onBack, onUpdate, onDelete, currentUserId }: DiaryEntryDetailProps) {
-  const [isEditing, setIsEditing] = useState(false);
-const [editedEntry, setEditedEntry] = useState({
-  title: entry.title || "",
-  content: entry.text || "",
-  images: entry.images && entry.images.length > 0 ? entry.images : [],
-});
+  useEffect(() => {
+    const loadDiary = async () => {
+      if (!diaryId) return
+      
+      try {
+        setIsLoading(true)
+        const data = await fetchDiary(diaryId)
+        setEntry(data)
+        setEditedEntry({
+          title: data.title || "",
+          content: data.text || "",
+          images: data.imageUrl ? [data.imageUrl] : [],
+        })
+        setAudioUrl(data.audioUrl || "")
+      } catch (error: any) {
+        console.error("일기 불러오기 실패:", error)
+        toast({
+          title: "오류",
+          description: "일기를 불러오는데 실패했습니다.",
+          variant: "destructive",
+        })
+        router.push("/diary")
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-
-  const [audioUrl, setAudioUrl] = useState<string>(entry.audioUrl || "");
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+    loadDiary()
+  }, [diaryId, router, toast])
 
   const startRecording = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream);
-    mediaRecorderRef.current = mediaRecorder;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
 
-    const chunks: BlobPart[] = [];
-    mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      const chunks: BlobPart[] = []
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data)
 
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(chunks, { type: "audio/wav" });
-      const url = URL.createObjectURL(blob);
-      setAudioUrl(url);
-    };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "audio/wav" })
+        const url = URL.createObjectURL(blob)
+        setAudioUrl(url)
+      }
 
-    mediaRecorder.start();
-    setIsRecording(true);
-  };
+      mediaRecorder.start()
+      setIsRecording(true)
+    } catch (error) {
+      console.error("녹음 시작 실패:", error)
+      toast({
+        title: "오류",
+        description: "마이크 권한이 필요합니다.",
+        variant: "destructive",
+      })
+    }
+  }
 
   const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setIsRecording(false);
-  };
+    mediaRecorderRef.current?.stop()
+    setIsRecording(false)
+  }
 
   const toggleAudioPlayback = () => {
     if (audioRef.current) {
       if (isPlaying) {
-        audioRef.current.pause();
+        audioRef.current.pause()
       } else {
-        audioRef.current.play();
+        audioRef.current.play()
       }
-      setIsPlaying(!isPlaying);
+      setIsPlaying(!isPlaying)
     }
-  };
+  }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const fileUrl = URL.createObjectURL(e.target.files[0]);
-      setEditedEntry((prev) => ({ ...prev, images: [...prev.images, fileUrl] }));
+      try {
+        const uploadedUrl = await uploadImageToS3(e.target.files[0])
+        setEditedEntry((prev) => ({ ...prev, images: [...prev.images, uploadedUrl] }))
+        toast({
+          title: "성공",
+          description: "이미지가 업로드되었습니다.",
+        })
+      } catch (error) {
+        console.error("이미지 업로드 실패:", error)
+        toast({
+          title: "오류",
+          description: "이미지 업로드에 실패했습니다.",
+          variant: "destructive",
+        })
+      }
     }
-  };
+  }
 
   const removeImage = (index: number) => {
     setEditedEntry((prev) => ({
       ...prev,
       images: prev.images.filter((_: string, i: number) => i !== index),
-    }));
-  };
+    }))
+  }
 
-  const handleSave = () => {
-      const updatedEntry: DiaryEntry = {
-    ...entry,
-    title: editedEntry.title,
-    text: editedEntry.content,
-    images: editedEntry.images,
-    audioUrl: audioUrl || null,
-  };
-    onUpdate(updatedEntry);
-    setIsEditing(false);
-  };
+  const handleSave = async () => {
+    try {
+      const updateData = {
+        title: editedEntry.title,
+        text: editedEntry.content,
+        imageUrl: editedEntry.images.length > 0 ? editedEntry.images[0] : undefined,
+        audioUrl: audioUrl || undefined,
+      }
 
-const handleCancel = () => {
-  setIsEditing(false);
-  setEditedEntry({
-    title: entry.title || "",
-    content: entry.text || "",
-    images: entry.images && entry.images.length > 0 ? entry.images : [],
-  });
-  setAudioUrl(entry.audioUrl || "");
-};
+      const updatedEntry = await updateDiary(diaryId, updateData)
+      setEntry(updatedEntry)
+      setIsEditing(false)
+      
+      toast({
+        title: "성공",
+        description: "일기가 수정되었습니다.",
+      })
+    } catch (error: any) {
+      console.error("일기 수정 실패:", error)
+      toast({
+        title: "오류",
+        description: "일기 수정에 실패했습니다.",
+        variant: "destructive",
+      })
+    }
+  }
 
+  const handleCancel = () => {
+    setIsEditing(false)
+    setEditedEntry({
+      title: entry.title || "",
+      content: entry.text || "",
+      images: entry.imageUrl ? [entry.imageUrl] : [],
+    })
+    setAudioUrl(entry.audioUrl || "")
+  }
 
-  const handleDelete = () => {
-    onDelete(entry.diaryId);
-    onBack();
-  };
+  const handleDelete = async () => {
+    try {
+      await deleteDiary(diaryId)
+      toast({
+        title: "성공",
+        description: "일기가 삭제되었습니다.",
+      })
+      router.push("/diary")
+    } catch (error: any) {
+      console.error("일기 삭제 실패:", error)
+      toast({
+        title: "오류",
+        description: "일기 삭제에 실패했습니다.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleBack = () => {
+    router.push("/diary")
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="flex items-center justify-center">
+            <p className="text-gray-500">로딩 중...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!entry) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-20">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="flex items-center justify-center">
+            <p className="text-gray-500">일기를 찾을 수 없습니다.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={onBack} className="p-2">
+            <Button variant="ghost" onClick={handleBack} className="p-2">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <h1 className="text-2xl font-bold text-gray-900">성장일기</h1>
           </div>
-          {!isEditing && currentUserId === entry.userId && (
+          {!isEditing && (
             <div className="flex space-x-2">
-              <Button variant="outline" onClick={() => setIsEditing(true)}>
-                <Edit className="w-4 h-4 mr-2" />수정
-              </Button>
-              <Button variant="outline" onClick={() => setShowDeleteConfirm(true)} className="text-red-600">
-                <Trash2 className="w-4 h-4 mr-2" />삭제
+              {currentUser?.id === entry.userId && (
+                <>
+                  <Button variant="outline" onClick={() => setIsEditing(true)}>
+                    <Edit className="w-4 h-4 mr-2" />수정
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowDeleteConfirm(true)} className="text-red-600">
+                    <Trash2 className="w-4 h-4 mr-2" />삭제
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/community/write?sharedFromDiary=${diaryId}`)}
+                className="bg-yellow-400 hover:bg-yellow-500 text-black border-yellow-400"
+              >
+                <Share2 className="w-4 h-4 mr-2" />커뮤니티에 공유
               </Button>
             </div>
           )}
@@ -207,7 +326,7 @@ const handleCancel = () => {
                       {editedEntry.images.map((image: string, index: number) => (
                         <div key={index} className="relative">
                           <Image
-                            src={image || "/placeholder.svg"}
+                            src={image}
                             alt={`Upload ${index + 1}`}
                             width={100}
                             height={100}
@@ -244,21 +363,18 @@ const handleCancel = () => {
                     <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap">{entry.text}</p>
                   </div>
                 )}
-                {entry.images && entry.images.length > 0 && (
+                {entry.imageUrl && (
                   <div>
                     <h4 className="font-semibold mb-2">사진</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {entry.images.map((image: string, index: number) => (
-                        <Image
-                          key={index}
-                          src={image || "/placeholder.svg"}
-                          alt={`Diary image ${index + 1}`}
-                          width={200}
-                          height={200}
-                          className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => window.open(image, "_blank")}
-                        />
-                      ))}
+                      <Image
+                        src={entry.imageUrl}
+                        alt="Diary image"
+                        width={200}
+                        height={200}
+                        className="w-full h-48 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(entry.imageUrl, "_blank")}
+                      />
                     </div>
                   </div>
                 )}
@@ -291,5 +407,5 @@ const handleCancel = () => {
         )}
       </div>
     </div>
-  );
+  )
 }

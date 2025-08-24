@@ -176,50 +176,17 @@ public class StoreAiService {
         }
     }
     
-    // 5. 추천 상품 생성
+    // 5. 추천 상품 생성 (네이버 상품만 추천)
     private List<Product> generateRecommendations(Product currentProduct, MyPet pet, 
                                                 RecommendationType type, String aiSuggestion) {
-        List<Product> recommendations = new ArrayList<>();
+        // 네이버 API 상품만 가져오기 (멍토리 상품은 제외)
+        List<Product> recommendations = getNaverProducts(pet, type);
         
-        switch (type) {
-            case SIMILAR:
-                if (currentProduct != null) {
-                    recommendations = productService.findByCategory(currentProduct.getCategory());
-                } else {
-                    // 현재 상품이 없으면 전체 상품에서 추천
-                    recommendations = productService.getAllProducts();
-                }
-                break;
-            case COMPLEMENTARY:
-                if (currentProduct != null) {
-                    recommendations = findComplementaryProducts(currentProduct);
-                } else {
-                    recommendations = productService.getAllProducts();
-                }
-                break;
-            case SEASONAL:
-                if (currentProduct != null) {
-                    recommendations = findSeasonalProducts(currentProduct);
-                } else {
-                    recommendations = findSeasonalProducts(null);
-                }
-                break;
-            case BREED_SPECIFIC:
-                recommendations = findBreedSpecificProducts(pet);
-                break;
-            case AGE_SPECIFIC:
-                recommendations = findAgeSpecificProducts(pet);
-                break;
-        }
-        
-        // AI 서버 호출 실패 시에도 기본 추천 상품 반환
+        // 네이버 상품이 없으면 빈 리스트 반환
         if (recommendations.isEmpty()) {
-            recommendations = productService.getAllProducts();
+            log.warn("네이버 상품을 찾을 수 없습니다.");
+            return new ArrayList<>();
         }
-        
-        // 네이버 API 상품도 함께 가져오기
-        List<Product> naverProducts = getNaverProducts(pet, type);
-        recommendations.addAll(naverProducts);
         
         return filterAndSortByAiSuggestion(recommendations, aiSuggestion, pet);
     }
@@ -420,43 +387,56 @@ public class StoreAiService {
             .collect(Collectors.toList());
     }
     
-    // 16. 네이버 API 상품 가져오기
+    // 16. 네이버 API 상품 가져오기 (다양한 키워드로 검색)
     private List<Product> getNaverProducts(MyPet pet, RecommendationType type) {
         List<Product> naverProducts = new ArrayList<>();
         
         try {
-            // 펫 정보를 바탕으로 검색 키워드 생성
-            String searchKeyword = generateSearchKeyword(pet, type);
+            // 여러 키워드로 검색하여 다양한 상품 가져오기
+            List<String> searchKeywords = generateMultipleSearchKeywords(pet, type);
             
-            // 네이버 쇼핑 API로 상품 검색
-            var searchRequest = NaverShoppingSearchRequestDto.builder()
-                .query(searchKeyword)
-                .display(10)
-                .start(1)
-                .sort("sim")
-                .build();
-            
-            var naverResponse = naverShoppingService.searchProducts(searchRequest);
-            
-            if (naverResponse != null && naverResponse.getItems() != null) {
-                // 네이버 상품을 Product 엔티티로 변환하고 DB에 저장
-                for (var item : naverResponse.getItems()) {
-                    // 먼저 네이버 상품을 DB에 저장
-                    NaverProduct savedNaverProduct = saveNaverProductToDb(item);
-                    
-                    // Product 엔티티로 변환
-                    Product product = Product.builder()
-                        .name(item.getTitle())
-                        .description(item.getTitle())
-                        .price(parsePrice(item.getLprice()))
-                        .imageUrl(item.getImage())
-                        .category(Category.용품) // 기본값
-                        .source(ProductSource.NAVER)
-                        .externalProductId(item.getProductId()) // 네이버 상품 ID를 externalProductId로 저장
-                        .externalProductUrl(item.getLink())
-                        .externalMallName(item.getMallName())
+            for (String searchKeyword : searchKeywords) {
+                try {
+                    // 네이버 쇼핑 API로 상품 검색
+                    var searchRequest = NaverShoppingSearchRequestDto.builder()
+                        .query(searchKeyword)
+                        .display(5) // 각 키워드당 5개씩
+                        .start(1)
+                        .sort("sim")
                         .build();
-                    naverProducts.add(product);
+                    
+                    var naverResponse = naverShoppingService.searchProducts(searchRequest);
+                    
+                    if (naverResponse != null && naverResponse.getItems() != null) {
+                        // 네이버 상품을 Product 엔티티로 변환하고 DB에 저장
+                        for (var item : naverResponse.getItems()) {
+                            // 중복 상품 체크
+                            boolean isDuplicate = naverProducts.stream()
+                                .anyMatch(p -> p.getExternalProductId() != null && 
+                                             p.getExternalProductId().equals(item.getProductId()));
+                            
+                            if (!isDuplicate) {
+                                // 먼저 네이버 상품을 DB에 저장
+                                NaverProduct savedNaverProduct = saveNaverProductToDb(item);
+                                
+                                // Product 엔티티로 변환
+                                Product product = Product.builder()
+                                    .name(item.getTitle())
+                                    .description(item.getTitle())
+                                    .price(parsePrice(item.getLprice()))
+                                    .imageUrl(item.getImage())
+                                    .category(Category.용품) // 기본값
+                                    .source(ProductSource.NAVER)
+                                    .externalProductId(item.getProductId()) // 네이버 상품 ID를 externalProductId로 저장
+                                    .externalProductUrl(item.getLink())
+                                    .externalMallName(item.getMallName())
+                                    .build();
+                                naverProducts.add(product);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("키워드 '{}'로 네이버 API 검색 실패: {}", searchKeyword, e.getMessage());
                 }
             }
         } catch (Exception e) {
@@ -466,7 +446,91 @@ public class StoreAiService {
         return naverProducts;
     }
     
-    // 17. 검색 키워드 생성
+    // 17. 여러 검색 키워드 생성 (네이버 상품 다양성 확보)
+    private List<String> generateMultipleSearchKeywords(MyPet pet, RecommendationType type) {
+        List<String> keywords = new ArrayList<>();
+        
+        if (pet == null) {
+            // 펫 정보가 없으면 기본 키워드들
+            keywords.add("반려동물 용품");
+            keywords.add("강아지 간식");
+            keywords.add("고양이 사료");
+            keywords.add("반려동물 장난감");
+            keywords.add("강아지 의류");
+            return keywords;
+        }
+        
+        // 펫 타입에 따른 기본 키워드
+        String petType = pet.getType() != null ? pet.getType().toLowerCase() : "dog";
+        String petTypeKorean = petType.equals("dog") ? "강아지" : "고양이";
+        
+        // 품종별 키워드
+        if (pet.getBreed() != null && !pet.getBreed().trim().isEmpty()) {
+            keywords.add(pet.getBreed() + " " + petTypeKorean + " 용품");
+            keywords.add(pet.getBreed() + " " + petTypeKorean + " 간식");
+            keywords.add(pet.getBreed() + " " + petTypeKorean + " 사료");
+        }
+        
+        // 나이별 키워드
+        if (pet.getAge() != null) {
+            if (pet.getAge() <= 1) {
+                keywords.add("유아용 " + petTypeKorean + " 사료");
+                keywords.add("퍼피 " + petTypeKorean + " 용품");
+            } else if (pet.getAge() >= 7) {
+                keywords.add("시니어 " + petTypeKorean + " 사료");
+                keywords.add("시니어 " + petTypeKorean + " 건강관리");
+            }
+        }
+        
+        // 계절별 키워드
+        int currentMonth = LocalDate.now().getMonthValue();
+        if (currentMonth >= 6 && currentMonth <= 8) {
+            keywords.add("여름 " + petTypeKorean + " 용품");
+            keywords.add("쿨링 " + petTypeKorean + " 매트");
+        } else if (currentMonth >= 12 || currentMonth <= 2) {
+            keywords.add("겨울 " + petTypeKorean + " 의류");
+            keywords.add("보온 " + petTypeKorean + " 매트");
+        }
+        
+        // 추천 타입별 키워드
+        switch (type) {
+            case BREED_SPECIFIC:
+                if (pet.getBreed() != null) {
+                    keywords.add(pet.getBreed() + " 전용 " + petTypeKorean + " 용품");
+                }
+                break;
+            case AGE_SPECIFIC:
+                if (pet.getAge() != null) {
+                    if (pet.getAge() <= 1) {
+                        keywords.add("유아용 " + petTypeKorean + " 장난감");
+                    } else if (pet.getAge() >= 7) {
+                        keywords.add("시니어 " + petTypeKorean + " 영양제");
+                    }
+                }
+                break;
+            case SEASONAL:
+                if (currentMonth >= 6 && currentMonth <= 8) {
+                    keywords.add("여름 " + petTypeKorean + " 쿨링");
+                } else if (currentMonth >= 12 || currentMonth <= 2) {
+                    keywords.add("겨울 " + petTypeKorean + " 보온");
+                }
+                break;
+        }
+        
+        // 기본 카테고리 키워드들 추가
+        String[] categories = {"용품", "의류", "건강관리", "사료", "간식", "장난감", "영양제"};
+        for (String category : categories) {
+            keywords.add(petTypeKorean + " " + category);
+        }
+        
+        // 중복 제거 및 최대 8개 키워드로 제한
+        return keywords.stream()
+            .distinct()
+            .limit(8)
+            .collect(Collectors.toList());
+    }
+    
+    // 18. 단일 검색 키워드 생성 (기존 메서드 유지)
     private String generateSearchKeyword(MyPet pet, RecommendationType type) {
         if (pet == null) {
             return "반려동물 용품";
@@ -503,7 +567,7 @@ public class StoreAiService {
         return keyword.toString();
     }
     
-    // 18. 네이버 상품을 DB에 저장
+    // 19. 네이버 상품을 DB에 저장
     private NaverProduct saveNaverProductToDb(com.my.backend.store.dto.NaverShoppingItemDto item) {
         try {
             // 이미 존재하는지 확인
@@ -546,7 +610,7 @@ public class StoreAiService {
         }
     }
     
-    // 19. 가격 파싱
+    // 20. 가격 파싱
     private Long parsePrice(String priceStr) {
         try {
             return Long.parseLong(priceStr.replaceAll("[^0-9]", ""));
@@ -555,7 +619,7 @@ public class StoreAiService {
         }
     }
     
-    // 20. 정수 파싱
+    // 21. 정수 파싱
     private Integer parseInteger(String str) {
         try {
             return Integer.parseInt(str.replaceAll("[^0-9]", ""));
@@ -564,7 +628,7 @@ public class StoreAiService {
         }
     }
     
-    // 21. 실수 파싱
+    // 22. 실수 파싱
     private Double parseDouble(String str) {
         try {
             return Double.parseDouble(str);
@@ -573,7 +637,7 @@ public class StoreAiService {
         }
     }
     
-    // 22. 추천 이유 생성
+    // 23. 추천 이유 생성
     private String generateRecommendationReason(Product product, MyPet pet, RecommendationType type) {
         if (pet == null) {
             return product.getName() + "과 관련된 상품입니다.";

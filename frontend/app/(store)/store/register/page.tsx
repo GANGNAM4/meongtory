@@ -80,8 +80,6 @@ function StoreProductRegistrationPageContent({
   };
 
   const handleSaveProduct = async () => {
-    console.log("=== 상품 등록 시작 ===")
-    console.log("Form data:", formData)
 
     // 유효성 검사
     if (!formData.name.trim()) {
@@ -132,11 +130,8 @@ function StoreProductRegistrationPageContent({
 
       }
 
-      console.log("새 상품 데이터:", newProduct)
-
       // 백엔드 API 호출
       const registeredProduct = await productApi.createProduct(newProduct);
-      console.log("상품 등록 완료!", registeredProduct);
 
       alert("상품이 성공적으로 등록되었습니다!")
 

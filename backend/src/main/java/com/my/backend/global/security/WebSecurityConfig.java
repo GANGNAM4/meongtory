@@ -51,11 +51,10 @@ public class WebSecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:3000",
-                "http://localhost:3001",
-                "http://43.201.8.4:3000",
-                "http://frontend:3000"
-                )); // 명시적으로 허용
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+                "http://localhost:3000",
+                "https://meongtory.shop",
+                "http://frontend:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*", "Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
@@ -73,7 +72,6 @@ public class WebSecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-
                         .requestMatchers(
                                 "/api/accounts/register",
                                 "/api/accounts/login",
@@ -82,6 +80,7 @@ public class WebSecurityConfig {
                                 "/api/accounts/me",
                                 "/login/**",
                                 "/oauth2/**",
+                                "/oauth2/authorization/**",
                                 "/file/**",
                                 "/test",
                                 "/ws/**",
@@ -98,7 +97,6 @@ public class WebSecurityConfig {
                                 "/actuator/**",
                                 "/api/naver-shopping/**"
                         ).permitAll()
-
                         .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/travel-plans/**", "/chat").authenticated()
                         .anyRequest().authenticated())

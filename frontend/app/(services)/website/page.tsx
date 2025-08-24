@@ -123,6 +123,7 @@ export default function PetServiceWebsite() {
   const [currentUser, setCurrentUser] = useState<{ id: number; email: string; name: string } | null>(null);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
 
   const [selectedInsurance, setSelectedInsurance] = useState<Insurance | null>(null);
   const [selectedDiaryEntry, setSelectedDiaryEntry] = useState<DiaryEntry | null>(null);
@@ -326,66 +327,6 @@ export default function PetServiceWebsite() {
       return
     }
 
-    // 네이버 상품인지 확인
-    if ((product as any).isNaverProduct) {
-      console.log("네이버 상품 장바구니 추가 처리")
-      
-      try {
-        const accessToken = localStorage.getItem("accessToken")
-        if (!accessToken || accessToken.trim() === '') {
-          console.error("Access Token이 없거나 비어있습니다!")
-          toast.error("인증 토큰이 없습니다. 다시 로그인해주세요.", { duration: 5000 })
-          return
-        }
-
-        // 수량 추출
-        const quantity = (product as any).selectedQuantity || 1
-        console.log("네이버 상품 추가할 수량:", quantity)
-
-        // 네이버 상품을 백엔드 cart에 추가 (올바른 API 사용)
-        const response = await axios.post(`${getBackendUrl()}/api/naver-shopping/cart/add`, {
-          productId: (product as any).productId || product.id,
-          title: product.name,
-          description: product.description || product.name,
-          price: product.price,
-          imageUrl: product.imageUrl,
-          mallName: (product as any).mallName || '',
-          productUrl: (product as any).productUrl || '',
-          brand: (product as any).brand || '',
-          maker: (product as any).maker || '',
-          category1: (product as any).category1 || product.category || '',
-          category2: (product as any).category2 || '',
-          category3: (product as any).category3 || '',
-          category4: (product as any).category4 || '',
-          reviewCount: (product as any).reviewCount || 0,
-          rating: (product as any).rating || 0.0,
-          searchCount: (product as any).searchCount || 0
-        }, {
-          params: { quantity },
-          headers: { 
-            "Authorization": accessToken,
-            "Access_Token": accessToken,
-            "Refresh_Token": localStorage.getItem('refreshToken') || '',
-            "Content-Type": "application/json"
-          },
-          timeout: 5000
-        })
-
-        if (response.status !== 200) {
-          throw new Error(`네이버 상품 장바구니 추가에 실패했습니다. (${response.status})`)
-        }
-
-        await fetchCartItems()
-        toast.success(`${product.name}을(를) 장바구니에 ${quantity}개 추가했습니다`, { duration: 5000 })
-        setCurrentPage("cart")
-        return
-      } catch (error: any) {
-        console.error("네이버 상품 장바구니 추가 오류:", error)
-        toast.error("네이버 상품 장바구니 추가에 실패했습니다.", { duration: 5000 })
-        return
-      }
-    }
-
     // 일반 상품 처리
     try {
       const accessToken = localStorage.getItem("accessToken")
@@ -444,7 +385,12 @@ export default function PetServiceWebsite() {
       if (response.status !== 200) {
         throw new Error("장바구니 조회에 실패했습니다.");
       }
-      const cartData = response.data;
+      // ResponseDto 형태로 응답이 오므로 response.data.data를 사용
+      if (!response.data || !response.data.success) {
+        throw new Error(response.data?.error?.message || "API 응답이 올바르지 않습니다.");
+      }
+      
+      const cartData = response.data.data || [];
       const cartItems: CartItem[] = cartData
         .sort((a: any, b: any) => a.id - b.id)
         .map((item: any, index: number) => {
@@ -586,73 +532,65 @@ export default function PetServiceWebsite() {
         return
       }
 
-      // 백엔드 장바구니에 있는 상품들만 필터링 (네이버 상품 제외)
-      const backendCartItems = items.filter(item => 
-        !item.isNaverProduct && 
-        !item.id.toString().startsWith('naver-') && 
-        !item.id.toString().startsWith('backend-naver-')
-      )
-
-      // 네이버 상품들
-      const naverItems = items.filter(item => 
-        item.isNaverProduct || 
-        item.id.toString().startsWith('naver-') || 
-        item.id.toString().startsWith('backend-naver-')
-      )
-
-      const createdOrders: any[] = []
-
-      // 1. 백엔드 장바구니 상품들은 bulk API 사용
-      if (backendCartItems.length > 0) {
-        try {
-          const bulkOrderData = {
-            accountId: currentUser.id
+      // 모든 상품을 배열로 준비
+      const orderItems = items.map(item => {
+        if (item.isNaverProduct || 
+            item.id.toString().startsWith('naver-') || 
+            item.id.toString().startsWith('backend-naver-')) {
+          // 네이버 상품
+          let naverProductId: number;
+          if (item.naverProduct && item.naverProduct.id) {
+            naverProductId = item.naverProduct.id;
+          } else if (item.product && item.product.id) {
+            naverProductId = item.product.id;
+          } else {
+            naverProductId = item.id;
           }
-
-          const bulkResponse = await axios.post(`${getBackendUrl()}/api/orders/bulk`, bulkOrderData, {
-            headers: { "Access_Token": accessToken }
-          })
-
-          if (bulkResponse.data && Array.isArray(bulkResponse.data)) {
-            createdOrders.push(...bulkResponse.data)
-            console.log("Bulk 주문 생성 성공:", bulkResponse.data.length, "개")
-          }
-        } catch (error) {
-          console.error("Bulk 주문 생성 실패:", error)
-          toast.error("일부 상품 주문에 실패했습니다")
-          return
-        }
-      }
-
-      // 2. 네이버 상품들은 개별 주문
-      for (const item of naverItems) {
-        try {
-          const orderData = {
-            accountId: currentUser.id,
-            naverProductId: item.product?.id || item.id,
+          
+          return {
+            type: 'naver',
+            naverProductId: naverProductId,
             quantity: item.quantity,
-          }
-
-          const response = await axios.post(`${getBackendUrl()}/api/orders/naver-product`, orderData, {
-            headers: { "Access_Token": accessToken }
-          })
-
-          if (response.data) {
-            createdOrders.push(response.data)
-          }
-        } catch (error) {
-          console.error("네이버 상품 주문 실패:", error)
-          toast.error(`${item.name} 주문에 실패했습니다`)
+            name: item.name
+          };
+        } else {
+          // 일반 상품
+          return {
+            type: 'regular',
+            productId: item.product?.id || item.id,
+            quantity: item.quantity,
+            name: item.name
+          };
         }
-      }
+      });
 
-      // 3. 장바구니 비우기
-      for (const item of items) {
-        await onRemoveFromCart(item.id)
-      }
+      console.log("주문할 상품들:", orderItems);
 
-      toast.success(`전체 구매가 완료되었습니다. (${createdOrders.length}개 주문)`)
-      router.push("/my")
+      // 모든 상품을 한 번에 전송
+      const orderData = {
+        accountId: currentUser.id,
+        items: orderItems
+      };
+
+      console.log("전체 주문 데이터:", orderData);
+
+      const response = await axios.post(`${getBackendUrl()}/api/orders/bulk-all`, orderData, {
+        headers: { "Access_Token": accessToken }
+      });
+
+      console.log("전체 주문 응답:", response.data);
+
+      if (response.data && response.data.success) {
+        // 장바구니 비우기
+        for (const item of items) {
+          await onRemoveFromCart(item.id)
+        }
+
+        toast.success(`전체 구매가 완료되었습니다. (${orderItems.length}개 상품)`)
+        router.push("/my")
+      } else {
+        throw new Error("주문 처리에 실패했습니다")
+      }
     } catch (error: any) {
       console.error("전체 구매 오류:", error)
       toast.error("전체 구매에 실패했습니다")
@@ -699,7 +637,12 @@ export default function PetServiceWebsite() {
       if (response.status !== 200) {
         throw new Error("주문 생성에 실패했습니다.");
       }
-      const newOrder = response.data;
+      // ResponseDto 형태로 응답이 오므로 response.data.data를 사용
+      if (!response.data || !response.data.success) {
+        throw new Error(response.data?.error?.message || "API 응답이 올바르지 않습니다.");
+      }
+      
+      const newOrder = response.data.data;
       setOrders((prev) => [...prev, newOrder]);
       toast.success("주문이 생성되었습니다", { duration: 5000 });
       return newOrder;
@@ -774,7 +717,12 @@ export default function PetServiceWebsite() {
       if (response.status !== 200) {
         throw new Error("주문 조회에 실패했습니다.");
       }
-      const userOrders = response.data;
+      // ResponseDto 형태로 응답이 오므로 response.data.data를 사용
+      if (!response.data || !response.data.success) {
+        throw new Error(response.data?.error?.message || "API 응답이 올바르지 않습니다.");
+      }
+      
+      const userOrders = response.data.data || [];
       const orderItems: OrderItem[] = userOrders.flatMap((order: any) => {
         if (order.orderItems && order.orderItems.length > 0) {
           return order.orderItems.map((item: any) => ({
@@ -860,45 +808,10 @@ export default function PetServiceWebsite() {
     router.push("/adoption");
   };
 
-  const fetchProducts = async () => {
-    try {
-      const accessToken = localStorage.getItem("accessToken");
-      const headers: any = {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      };
-      if (accessToken) headers["access_token"] = accessToken;
-      const response = await axios.get(`${getBackendUrl()}/api/products`, {
-        timeout: 10000,
-        headers,
-      });
-      const backendProducts = response.data;
-      if (!Array.isArray(backendProducts)) {
-        throw new Error("잘못된 데이터 형식");
-      }
-      const convertedProducts: Product[] = backendProducts.map((product: any) => ({
-        id: product.id || product.productId || 0,
-        name: product.name || '상품명 없음',
-        description: product.description || '',
-        price: product.price || 0,
-        imageUrl: product.imageUrl || product.image || "/placeholder.svg?height=300&width=300",
-        category: (product.category as '의류' | '장난감' | '건강관리' | '용품' | '간식' | '사료') || '용품',
-
-        stock: product.stock || 0,
-        registrationDate: product.registrationDate || new Date().toISOString().split("T")[0],
-        registeredBy: product.registeredBy || "admin",
-      }));
-      setProducts(convertedProducts);
-      console.log("상품 목록 설정 완료:", convertedProducts.length, "개");
-    } catch (error: any) {
-      console.error("상품 목록 조회 오류:", error);
-      setProducts([]);
-      toast.error("백엔드 서버 연결에 실패했습니다. 상품 목록을 불러올 수 없습니다.", { duration: 5000 });
-    }
-  };
-
+  // 홈페이지에서는 상품 목록을 가져오지 않음 - 스토어 페이지에서만 가져옴
   useEffect(() => {
-    fetchProducts();
+    // 홈페이지 로드 시 상품 목록은 비워둠
+    setProducts([]);
   }, []);
 
   const handleAddProduct = (productData: any) => {
@@ -914,23 +827,8 @@ export default function PetServiceWebsite() {
     router.push("/store");
   };
 
-  const handleViewProduct = (product: Product | NaverProduct) => {
+  const handleViewProduct = (product: Product) => {
     console.log("handleViewProduct called with:", product)
-    console.log("Product keys:", Object.keys(product))
-    console.log("Product type check:", {
-      hasProductUrl: 'productUrl' in product,
-      hasMallName: 'mallName' in product,
-      hasTitle: 'title' in product,
-      hasName: 'name' in product
-    })
-    
-    // 네이버 상품인지 확인 (productUrl, mallName, 또는 title 속성 존재 여부로 판단)
-    if ('productUrl' in product || 'mallName' in product || 'title' in product) {
-      console.log("네이버 상품으로 인식됨:", product)
-      setSelectedNaverProduct(product as NaverProduct)
-      setCurrentPage("product-detail")
-      return
-    }
     
     // 일반 상품인지 확인
     if ('id' in product && product.id) {
@@ -1073,24 +971,6 @@ export default function PetServiceWebsite() {
 
 
       case "product-detail":
-        if (selectedNaverProduct) {
-          return (
-            <StoreProductDetailPage
-              productId={0}
-              propNaverProduct={selectedNaverProduct}
-              onBack={() => {
-                setSelectedNaverProduct(null)
-                setCurrentPage("store")
-              }}
-              onAddToWishlist={handleAddToWishlist}
-              onAddToCart={handleAddToCart}
-              onBuyNow={handleBuyNow}
-              isInWishlist={isInWishlist}
-              isInCart={isInCart}
-            />
-          )
-        }
-        
         return (
           <StoreProductDetailPage
             productId={selectedProductId!}

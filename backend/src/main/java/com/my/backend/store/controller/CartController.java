@@ -24,19 +24,11 @@ public class CartController {
 
     @GetMapping
     public List<CartDto> getCurrentUserCart(@AuthenticationPrincipal UserDetailsImpl userDetails) {
-        System.out.println("=== 장바구니 조회 요청 ===");
-        System.out.println("userDetails: " + (userDetails != null ? "not null" : "null"));
-        
         // 인증 검증
         if (userDetails == null) {
             System.out.println("ERROR: userDetails가 null입니다. 인증이 필요합니다.");
             throw new RuntimeException("인증이 필요합니다.");
         }
-        
-        System.out.println("사용자 ID: " + userDetails.getAccount().getId());
-        System.out.println("사용자 이메일: " + userDetails.getAccount().getEmail());
-        System.out.println("사용자 이름: " + userDetails.getAccount().getName());
-        System.out.println("================================");
 
         Long accountId = userDetails.getAccount().getId();
         return cartService.getCartDtoByAccountId(accountId);
@@ -47,18 +39,10 @@ public class CartController {
                                  @RequestParam Long productId,
                                  @RequestParam(required = false, defaultValue = "1") int quantity) {
 
-        System.out.println("=== 장바구니 추가 요청 ===");
-        System.out.println("userDetails: " + (userDetails != null ? "not null" : "null"));
-        
         if(userDetails == null || userDetails.getAccount() == null) {
             System.out.println("ERROR: userDetails가 null입니다. 인증이 필요합니다.");
             return ResponseDto.fail("로그인 필요","로그인이 필요합니다.");
         }
-        
-        System.out.println("사용자 ID: " + userDetails.getAccount().getId());
-        System.out.println("상품 ID: " + productId);
-        System.out.println("수량: " + quantity);
-        System.out.println("================================");
         
         Account account = userDetails.getAccount();
         
@@ -66,7 +50,6 @@ public class CartController {
         // 네이버 상품 ID는 일반적으로 큰 숫자 (예: 5767909253)
         // 일반 상품 ID는 작은 숫자 (예: 1, 2, 3, ...)
         if (productId > 1000000) { // 100만 이상이면 네이버 상품으로 간주
-            System.out.println("네이버 상품으로 인식: " + productId);
             try {
                 Cart cart = cartService.addNaverProductToCart(account.getId(), productId, quantity);
                 return ResponseDto.success(cartService.toDto(cart));
@@ -75,7 +58,6 @@ public class CartController {
                 return ResponseDto.fail("네이버 상품 추가 실패", e.getMessage());
             }
         } else {
-            System.out.println("일반 상품으로 인식: " + productId);
             try {
                 Cart cart = cartService.addToCart(account.getId(), productId, quantity);
                 return ResponseDto.success(cartService.toDto(cart));
@@ -95,6 +77,8 @@ public class CartController {
     public CartDto updateQuantity(@PathVariable Long cartId,
                                   @RequestParam int quantity) {
         Cart cart = cartService.updateCartQuantity(cartId, quantity);
-        return cartService.toDto(cart);
+        CartDto result = cartService.toDto(cart);
+        
+        return result;
     }
 }

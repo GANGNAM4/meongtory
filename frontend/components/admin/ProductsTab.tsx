@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, Edit, Trash2, AlertCircle, Download } from "lucide-react"
@@ -33,12 +33,82 @@ export default function ProductsTab({
   const [naverLoading, setNaverLoading] = useState(false)
   const [naverError, setNaverError] = useState<string | null>(null)
 
+  // 무한스크롤 관련 상태 추가
+  const [currentPage, setCurrentPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  const loadingRef = useRef<HTMLDivElement>(null)
+
   // 현재 KST 날짜 가져오기
   const getCurrentKSTDate = () => {
     const now = new Date()
     const kstOffset = 9 * 60 // KST는 UTC+9
     const kstTime = new Date(now.getTime() + kstOffset * 60 * 1000)
     return kstTime.toISOString()
+  }
+
+  // 무한스크롤을 위한 IntersectionObserver 설정
+  const lastElementRef = useCallback((node: HTMLDivElement) => {
+    if (isLoadingMore) return
+    
+    if (observerRef.current) observerRef.current.disconnect()
+    
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+        loadMoreProducts()
+      }
+    })
+    
+    if (node) observerRef.current.observe(node)
+  }, [hasMore, isLoadingMore])
+
+  // 다음 페이지 상품 로드 함수
+  const loadMoreProducts = async () => {
+    if (isLoadingMore || !hasMore) return
+    
+    setIsLoadingMore(true)
+    try {
+      const nextPage = currentPage + 1
+      
+      // 네이버 상품 다음 페이지 로드
+      const naverResponse = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/all`, {
+        params: { page: nextPage, size: 20 }
+      })
+      
+      if (naverResponse.data.success && naverResponse.data.data?.content) {
+        const newNaverProducts = naverResponse.data.data.content.map((naverProduct: any) => ({
+          id: naverProduct.id || naverProduct.productId || Math.random(),
+          name: removeHtmlTags(naverProduct.title || '제목 없음'),
+          price: parseInt(naverProduct.price) || 0,
+          imageUrl: naverProduct.imageUrl || '/placeholder.svg',
+          category: naverProduct.category1 || '용품',
+          description: removeHtmlTags(naverProduct.description || ''),
+          tags: [],
+          stock: 999,
+          registrationDate: naverProduct.createdAt || getCurrentKSTDate(),
+          registeredBy: '네이버',
+          isNaverProduct: true,
+          mallName: naverProduct.mallName || '판매자 정보 없음',
+          productUrl: naverProduct.productUrl || '#'
+        }))
+        
+        setProducts(prev => [...prev, ...newNaverProducts])
+        setCurrentPage(nextPage)
+        
+        // 더 이상 로드할 상품이 없으면 hasMore를 false로 설정
+        if (newNaverProducts.length < 20) {
+          setHasMore(false)
+        }
+      } else {
+        setHasMore(false)
+      }
+    } catch (error) {
+      console.error('추가 상품 로드 실패:', error)
+      setHasMore(false)
+    } finally {
+      setIsLoadingMore(false)
+    }
   }
 
   // 상품 목록 페칭 (기존 상품 + 네이버 상품)
@@ -79,10 +149,10 @@ export default function ProductsTab({
         }
       })
 
-      // 네이버 상품들 가져오기
+      // 네이버 상품들 첫 페이지 가져오기
       try {
         const naverResponse = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/all`, {
-          params: { page: 0, size: 1000 } // 모든 네이버 상품을 가져오기 위해 큰 size 설정
+          params: { page: 0, size: 20 } // 첫 페이지 20개
         })
         
         if (naverResponse.data.success && naverResponse.data.data?.content) {
@@ -114,6 +184,8 @@ export default function ProductsTab({
           })
 
           setProducts(sortedProducts)
+          setCurrentPage(0)
+          setHasMore(naverProducts.length === 20) // 20개면 더 있을 가능성이 있음
           console.log('Products state updated (with Naver products):', sortedProducts)
         } else {
           // 네이버 상품이 없으면 기존 상품만 표시
@@ -123,6 +195,7 @@ export default function ProductsTab({
             return dateB - dateA
           })
           setProducts(sortedProducts)
+          setHasMore(false)
         }
       } catch (naverError) {
         console.error('네이버 상품 가져오기 실패:', naverError)
@@ -133,6 +206,7 @@ export default function ProductsTab({
           return dateB - dateA
         })
         setProducts(sortedProducts)
+        setHasMore(false)
       }
       
     } catch (error) {
@@ -581,7 +655,10 @@ export default function ProductsTab({
       <div className="grid gap-4">
         {products && products.length > 0 ? (
           products.map((product, index) => (
-          <Card key={product.id || `product-${index}`}>
+          <Card 
+            key={product.id || `product-${index}`}
+            ref={index === products.length - 1 ? lastElementRef : undefined}
+          >
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -654,6 +731,23 @@ export default function ProductsTab({
           </div>
         )}
       </div>
+
+      {/* 무한스크롤 로딩 인디케이터 */}
+      {isLoadingMore && (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-2"></div>
+            <p className="text-gray-600 text-sm">로딩중...</p>
+          </div>
+        </div>
+      )}
+
+      {/* 더 이상 로드할 상품이 없을 때 메시지 */}
+      {!hasMore && products.length > 0 && !isLoadingMore && (
+        <div className="text-center py-8">
+          <p className="text-gray-500 text-sm">모든 상품을 불러왔습니다.</p>
+        </div>
+      )}
     </div>
   )
 } 

@@ -41,14 +41,19 @@ public class CommunityCommentService {
                 .content(dto.getContent())
                 .build();
 
-        return toDto(commentRepository.save(comment));
+        commentRepository.save(comment);
+        
+        // 게시글의 댓글 갯수 증가
+        post.setComments(post.getComments() + 1);
+        postRepository.save(post);
+
+        return toDto(comment);
     }
 
     // 댓글 수정
     public CommunityCommentDto updateComment(Long commentId, CommunityCommentDto dto, Account account) {
         CommunityComment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found"));
-
 
         if (!comment.getOwnerEmail().equals(account.getEmail())
                 && !"ROLE_ADMIN".equals(account.getRole())) {
@@ -69,6 +74,11 @@ public class CommunityCommentService {
                 && !"ROLE_ADMIN".equals(account.getRole())) {
             throw new RuntimeException("본인 댓글만 삭제할 수 있습니다.");
         }
+
+        // 게시글의 댓글 갯수 감소
+        CommunityPost post = comment.getPost();
+        post.setComments(Math.max(0, post.getComments() - 1)); // 음수가 되지 않도록
+        postRepository.save(post);
 
         commentRepository.delete(comment);
     }

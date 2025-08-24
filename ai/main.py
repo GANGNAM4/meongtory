@@ -35,7 +35,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://13.209.7.54"],
+    allow_origins=["http://localhost:3000", "https://meongtory.shop"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

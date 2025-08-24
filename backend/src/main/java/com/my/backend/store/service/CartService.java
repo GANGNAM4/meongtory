@@ -83,11 +83,6 @@ public List<CartDto> getCartDtoByAccountId(Long accountId) {
  * 장바구니에 상품 추가 (중복 시 수량 증가)
  */
 public Cart addToCart(Long accountId, Long productId, int quantity) {
-    System.out.println("=== CartService.addToCart ===");
-    System.out.println("사용자 ID: " + accountId);
-    System.out.println("상품 ID: " + productId);
-    System.out.println("수량: " + quantity);
-
     if (accountId == null) {
         System.out.println("ERROR: accountId가 null입니다.");
         throw new IllegalArgumentException("사용자 ID가 필요합니다.");
@@ -95,8 +90,6 @@ public Cart addToCart(Long accountId, Long productId, int quantity) {
 
     Account account = accountRepository.findById(accountId)
             .orElseThrow(() -> new IllegalArgumentException("해당 사용자가 존재하지 않습니다."));
-
-    System.out.println("찾은 사용자: " + account.getEmail() + " (ID: " + account.getId() + ")");
 
     Product product = productRepository.findById(productId)
             .orElseThrow(() -> new IllegalArgumentException("해당 상품이 존재하지 않습니다."));
@@ -149,17 +142,24 @@ public Cart updateCartQuantity(Long cartId, int quantity) {
     Cart cart = cartRepository.findById(cartId)
             .orElseThrow(() -> new IllegalArgumentException("해당 장바구니 항목이 존재하지 않습니다."));
 
-    // 일반 상품인 경우 재고 확인
     if (cart.getProduct() != null) {
-        Product product = cart.getProduct();
-        if (product.getStock() < quantity) {
-            throw new RuntimeException("상품 '" + product.getName() + "'의 재고가 부족합니다. (재고: " + product.getStock() + ", 요청: " + quantity + ")");
+        // 일반 상품인 경우 재고 확인
+        if (cart.getProduct().getStock() < quantity) {
+            System.out.println("ERROR: 재고 부족 - 요청: " + quantity + ", 재고: " + cart.getProduct().getStock());
+            throw new RuntimeException("상품 '" + cart.getProduct().getName() + "'의 재고가 부족합니다. (재고: " + cart.getProduct().getStock() + ", 요청: " + quantity + ")");
         }
+    } else if (cart.getNaverProduct() != null) {
+        // 네이버 상품인 경우 재고 제한 없음
+    } else {
+        System.out.println("ERROR: 상품 정보가 없는 장바구니 항목입니다.");
+        throw new RuntimeException("상품 정보가 없는 장바구니 항목입니다.");
     }
-    // 네이버 상품인 경우 재고 제한 없음
 
     cart.setQuantity(quantity);
-    return cartRepository.save(cart);
+    
+    Cart savedCart = cartRepository.save(cart);
+    
+    return savedCart;
 }
 
 /**
@@ -174,13 +174,8 @@ public Cart addNaverProductToCart(Long accountId, Long naverProductId, int quant
     Account account = accountRepository.findById(accountId)
             .orElseThrow(() -> new IllegalArgumentException("해당 사용자가 존재하지 않습니다."));
 
-    System.out.println("찾은 사용자: " + account.getEmail() + " (ID: " + account.getId() + ")");
-
     // 네이버 상품 조회 (id로 조회 - 이제 id가 네이버의 원본 productId)
-    System.out.println("네이버 상품 조회 시도 - id: " + naverProductId + " (타입: " + naverProductId.getClass().getSimpleName() + ")");
-    
     Optional<NaverProduct> naverProductOpt = naverProductRepository.findById(naverProductId);
-    System.out.println("DB 조회 결과: " + (naverProductOpt.isPresent() ? "찾음" : "없음"));
     
     NaverProduct naverProduct = naverProductOpt.orElseGet(() -> {
         // DB에 없으면 네이버 API로 상품 정보를 가져와서 저장

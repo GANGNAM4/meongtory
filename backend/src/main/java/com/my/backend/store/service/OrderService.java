@@ -4,6 +4,7 @@ import com.my.backend.account.entity.Account;
 import com.my.backend.account.repository.AccountRepository;
 import com.my.backend.store.dto.OrderRequestDto;
 import com.my.backend.store.dto.OrderResponseDto;
+import com.my.backend.store.dto.BulkAllOrderRequestDto;
 import com.my.backend.store.entity.Order;
 import com.my.backend.store.entity.OrderStatus;
 import com.my.backend.store.entity.Product;
@@ -39,22 +40,13 @@ public class OrderService {
     // 단일 주문 생성
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto requestDto) {
-        System.out.println("=== 주문 생성 요청 ===");
-        System.out.println("요청 데이터: " + requestDto);
-        System.out.println("AccountId: " + requestDto.getAccountId());
-        System.out.println("ProductId: " + requestDto.getProductId());
-        System.out.println("Quantity: " + requestDto.getQuantity());
-        
         // 주문자 조회
         Account account = accountRepository.findById(requestDto.getAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + requestDto.getAccountId()));
-        System.out.println("찾은 계정: " + account.getEmail() + " (ID: " + account.getId() + ")");
 
         // 상품 조회
-        System.out.println("상품 조회 시도 - ProductId: " + requestDto.getProductId());
         Product product = productRepository.findById(requestDto.getProductId())
                 .orElseThrow(() -> new IllegalArgumentException("Product not found: " + requestDto.getProductId()));
-        System.out.println("찾은 상품: " + product.getName() + " (ID: " + product.getId() + ", 가격: " + product.getPrice() + ", 재고: " + product.getStock() + ")");
 
         // 재고 확인 및 차감
         if (product.getStock() < requestDto.getQuantity()) {
@@ -64,7 +56,6 @@ public class OrderService {
         // 재고 차감
         product.setStock(product.getStock() - requestDto.getQuantity());
         productRepository.save(product);
-        System.out.println("재고 차감 완료: " + product.getStock() + "개 남음");
 
         // 중복 주문 방지: 최근 10초 내에 같은 사용자가 같은 상품에 대해 주문한 경우 기존 주문 반환
         LocalDateTime tenSecondsAgo = LocalDateTime.now().minusSeconds(10);
@@ -76,17 +67,14 @@ public class OrderService {
         
         if (!recentOrders.isEmpty()) {
             Order existingOrder = recentOrders.get(0);
-            System.out.println("중복 주문 방지: 기존 주문 반환 - " + existingOrder.getMerchantOrderId());
             return mapToResponseDto(existingOrder);
         }
 
         // 금액 계산
         long amount = (long) product.getPrice() * requestDto.getQuantity();
-        System.out.println("계산된 금액: " + amount);
 
         // merchantOrderId 자동 생성
         String merchantOrderId = generateMerchantOrderId();
-        System.out.println("생성된 주문 ID: " + merchantOrderId);
 
         // 주문 생성
         Order order = Order.builder()
@@ -100,44 +88,28 @@ public class OrderService {
                 .build();
 
         Order saved = orderRepository.save(order);
-        System.out.println("주문 저장 완료: " + saved.getId());
         
         // 장바구니에서 해당 상품 삭제
         try {
-            System.out.println("장바구니 삭제 시작 - AccountId: " + requestDto.getAccountId() + ", ProductId: " + requestDto.getProductId());
-            
             List<Cart> cartItems = cartRepository.findByAccount_Id(requestDto.getAccountId());
-            System.out.println("찾은 장바구니 아이템 수: " + cartItems.size());
             
             List<Cart> itemsToDelete = cartItems.stream()
                 .filter(cart -> {
                     boolean shouldDelete = cart.getProduct() != null && cart.getProduct().getId().equals(requestDto.getProductId());
-                    if (shouldDelete) {
-                        System.out.println("삭제할 장바구니 아이템 발견 - CartId: " + cart.getId() + ", ProductId: " + cart.getProduct().getId());
-                    }
                     return shouldDelete;
                 })
                 .collect(Collectors.toList());
-            
-            System.out.println("삭제할 아이템 수: " + itemsToDelete.size());
             
             if (!itemsToDelete.isEmpty()) {
                 // 개별 삭제로 변경하여 더 안정적으로 처리
                 for (Cart cartItem : itemsToDelete) {
                     cartRepository.delete(cartItem);
-                    System.out.println("장바구니 아이템 삭제 완료 - CartId: " + cartItem.getId());
                 }
-                System.out.println("장바구니에서 상품 삭제 완료: " + itemsToDelete.size() + "개 항목");
-            } else {
-                System.out.println("삭제할 장바구니 아이템이 없습니다.");
             }
         } catch (Exception e) {
-            System.out.println("장바구니 삭제 중 오류 발생: " + e.getMessage());
             e.printStackTrace();
             // 장바구니 삭제 실패는 주문 생성에 영향을 주지 않도록 함
         }
-        
-        System.out.println("================================");
         
         return mapToResponseDto(saved);
     }
@@ -150,20 +122,32 @@ public class OrderService {
         return mapToResponseDto(order);
     }
 
-    // 모든 사용자의 주문 조회 (관리자용) - 결제 완료된 주문만
+    // 모든 사용자의 주문 조회 (관리자용) - 결제 완료 및 취소된 주문 포함
     @Transactional(readOnly = true)
     public List<OrderResponseDto> getAllOrders() {
         return orderRepository.findAll().stream()
-                .filter(order -> order.getStatus() == OrderStatus.PAID) // 결제 완료된 주문만 필터링
+                .filter(order -> order.getStatus() == OrderStatus.PAID || order.getStatus() == OrderStatus.CANCELED) // 결제 완료 및 취소된 주문 포함
                 .map(this::mapToResponseDto)
                 .collect(Collectors.toList());
     }
 
-    // 특정 사용자의 주문 조회 (결제 완료된 주문만)
+    // 모든 사용자의 주문 조회 (관리자용) - 페이징 지원
+    @Transactional(readOnly = true)
+    public List<OrderResponseDto> getAllOrdersWithPaging(int page, int size) {
+        return orderRepository.findAll().stream()
+                .filter(order -> order.getStatus() == OrderStatus.PAID || order.getStatus() == OrderStatus.CANCELED) // 결제 완료 및 취소된 주문 포함
+                .sorted((o1, o2) -> o2.getCreatedAt().compareTo(o1.getCreatedAt())) // 최신순 정렬
+                .skip(page * size)
+                .limit(size)
+                .map(this::mapToResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    // 특정 사용자의 주문 조회 (결제 완료 및 취소된 주문 포함)
     @Transactional(readOnly = true)
     public List<OrderResponseDto> getUserOrders(Long accountId) {
         return orderRepository.findByAccountId(accountId).stream()
-                .filter(order -> order.getStatus() == OrderStatus.PAID) // 결제 완료된 주문만 필터링
+                .filter(order -> order.getStatus() == OrderStatus.PAID || order.getStatus() == OrderStatus.CANCELED) // 결제 완료 및 취소된 주문 포함
                 .map(this::mapToResponseDto)
                 .collect(Collectors.toList());
     }
@@ -188,13 +172,6 @@ public class OrderService {
             throw new IllegalArgumentException("장바구니가 비어있습니다.");
         }
 
-        System.out.println("장바구니 아이템 수: " + cartItems.size());
-        cartItems.forEach(cart -> {
-            System.out.println("장바구니 아이템 - ID: " + cart.getId() + 
-                ", Product: " + (cart.getProduct() != null ? cart.getProduct().getName() : "null") +
-                ", NaverProduct: " + (cart.getNaverProduct() != null ? cart.getNaverProduct().getTitle() : "null"));
-        });
-
         // 일반 상품과 네이버 상품 분리
         List<Cart> regularProductCarts = cartItems.stream()
             .filter(cart -> cart.getProduct() != null)
@@ -203,9 +180,6 @@ public class OrderService {
         List<Cart> naverProductCarts = cartItems.stream()
             .filter(cart -> cart.getNaverProduct() != null)
             .collect(Collectors.toList());
-
-        System.out.println("일반 상품 개수: " + regularProductCarts.size());
-        System.out.println("네이버 상품 개수: " + naverProductCarts.size());
 
         List<Order> orders = new ArrayList<>();
 
@@ -222,7 +196,6 @@ public class OrderService {
             // 재고 차감
             product.setStock(product.getStock() - cart.getQuantity());
             productRepository.save(product);
-            System.out.println("재고 차감 완료 - 상품: " + product.getName() + ", 남은 재고: " + product.getStock() + "개");
 
             String merchantOrderId = generateMerchantOrderId();
 
@@ -260,8 +233,106 @@ public class OrderService {
         // 주문 생성 후 장바구니 비우기
         cartItems.forEach(cart -> cartService.removeFromCart(cart.getId()));
 
-        System.out.println("총 주문 생성 완료: " + orders.size() + "개");
+        return orders.stream().map(this::mapToResponseDto).collect(Collectors.toList());
+    }
 
+    // 전체 상품 일괄 주문 생성 (일반 상품 + 네이버 상품)
+    @Transactional
+    public List<OrderResponseDto> createBulkAllOrders(BulkAllOrderRequestDto requestDto) {
+        // account 조회
+        Account account = accountRepository.findById(requestDto.getAccountId())
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + requestDto.getAccountId()));
+
+        List<Order> orders = new ArrayList<>();
+
+        // 각 상품별로 주문 생성
+        for (BulkAllOrderRequestDto.OrderItemDto item : requestDto.getItems()) {
+            
+            if ("regular".equals(item.getType())) {
+                // 일반 상품 처리
+                if (item.getProductId() == null) {
+                    throw new IllegalArgumentException("일반 상품의 경우 productId는 필수입니다: " + item.getName());
+                }
+                
+                Product product = productRepository.findById(item.getProductId())
+                        .orElseThrow(() -> new IllegalArgumentException("Product not found: " + item.getProductId()));
+                
+                // 재고 확인 및 차감
+                if (product.getStock() < item.getQuantity()) {
+                    throw new IllegalArgumentException("재고가 부족합니다. 상품: " + product.getName() + 
+                            " (재고: " + product.getStock() + "개, 요청: " + item.getQuantity() + "개)");
+                }
+                
+                // 재고 차감
+                product.setStock(product.getStock() - item.getQuantity());
+                productRepository.save(product);
+                
+                // 주문 생성
+                String merchantOrderId = generateMerchantOrderId();
+                long amount = (long) product.getPrice() * item.getQuantity();
+                
+                Order order = Order.builder()
+                        .merchantOrderId(merchantOrderId)
+                        .amount(amount)
+                        .status(OrderStatus.CREATED)
+                        .createdAt(LocalDateTime.now())
+                        .account(account)
+                        .quantity(item.getQuantity())
+                        .product(product)
+                        .build();
+                
+                orders.add(orderRepository.save(order));
+                
+            } else if ("naver".equals(item.getType())) {
+                // 네이버 상품 처리
+                if (item.getNaverProductId() == null) {
+                    throw new IllegalArgumentException("네이버 상품의 경우 naverProductId는 필수입니다: " + item.getName());
+                }
+                
+                NaverProduct naverProduct = naverProductRepository.findById(item.getNaverProductId())
+                        .orElseThrow(() -> new IllegalArgumentException("NaverProduct not found: " + item.getNaverProductId()));
+                
+                // 주문 생성
+                String merchantOrderId = generateMerchantOrderId();
+                long amount = (long) naverProduct.getPrice() * item.getQuantity();
+                
+                Order order = Order.builder()
+                        .merchantOrderId(merchantOrderId)
+                        .amount(amount)
+                        .status(OrderStatus.CREATED)
+                        .createdAt(LocalDateTime.now())
+                        .account(account)
+                        .quantity(item.getQuantity())
+                        .naverProduct(naverProduct)
+                        .build();
+                
+                orders.add(orderRepository.save(order));
+                
+            } else {
+                throw new IllegalArgumentException("지원하지 않는 상품 타입입니다: " + item.getType());
+            }
+        }
+
+        // 주문 생성 후 장바구니에서 해당 상품들 삭제
+        for (BulkAllOrderRequestDto.OrderItemDto item : requestDto.getItems()) {
+            if ("regular".equals(item.getType())) {
+                // 일반 상품 장바구니에서 삭제
+                List<Cart> cartItems = cartService.getCartByAccountId(account.getId());
+                cartItems.stream()
+                    .filter(cart -> cart.getProduct() != null && cart.getProduct().getId().equals(item.getProductId()))
+                    .forEach(cart -> {
+                        cartService.removeFromCart(cart.getId());
+                    });
+            } else if ("naver".equals(item.getType())) {
+                // 네이버 상품 장바구니에서 삭제
+                List<Cart> cartItems = cartService.getCartByAccountId(account.getId());
+                cartItems.stream()
+                    .filter(cart -> cart.getNaverProduct() != null && cart.getNaverProduct().getId().equals(item.getNaverProductId()))
+                    .forEach(cart -> {
+                        cartService.removeFromCart(cart.getId());
+                    });
+            }
+        }
         return orders.stream().map(this::mapToResponseDto).collect(Collectors.toList());
     }
 
@@ -362,23 +433,13 @@ public class OrderService {
     @Transactional
     public OrderResponseDto createNaverProductOrder(Long accountId, Long naverProductId, int quantity) {
         try {
-            System.out.println("=== 네이버 상품 주문 생성 요청 ===");
-            System.out.println("AccountId: " + accountId);
-            System.out.println("NaverProductId: " + naverProductId);
-            System.out.println("Quantity: " + quantity);
-            
             // 주문자 조회
             Account account = accountRepository.findById(accountId)
                     .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
-            System.out.println("찾은 계정: " + account.getEmail() + " (ID: " + account.getId() + ")");
 
             // 네이버 상품 조회
             NaverProduct naverProduct = naverProductRepository.findById(naverProductId)
                     .orElseThrow(() -> new IllegalArgumentException("NaverProduct not found: " + naverProductId));
-            System.out.println("찾은 네이버 상품: " + naverProduct.getTitle() + " (ID: " + naverProduct.getId() + ", 가격: " + naverProduct.getPrice() + ")");
-
-            // 네이버 상품은 재고 확인 없이 주문 가능 (실제 재고는 네이버에서 관리)
-            System.out.println("네이버 상품 재고 확인 생략 (네이버에서 관리)");
 
             // 중복 주문 방지: 최근 10초 내에 같은 사용자가 같은 네이버 상품에 대해 주문한 경우 기존 주문 반환
             LocalDateTime tenSecondsAgo = LocalDateTime.now().minusSeconds(10);
@@ -390,17 +451,14 @@ public class OrderService {
             
             if (!recentOrders.isEmpty()) {
                 Order existingOrder = recentOrders.get(0);
-                System.out.println("중복 주문 방지: 기존 주문 반환 - " + existingOrder.getMerchantOrderId());
                 return mapToResponseDto(existingOrder);
             }
 
             // 금액 계산
             long amount = (long) naverProduct.getPrice() * quantity;
-            System.out.println("계산된 금액: " + amount);
 
             // merchantOrderId 자동 생성
             String merchantOrderId = generateMerchantOrderId();
-            System.out.println("생성된 주문 ID: " + merchantOrderId);
 
             // 주문 생성
             Order order = Order.builder()
@@ -414,51 +472,32 @@ public class OrderService {
                     .imageUrl(naverProduct.getImageUrl())
                     .build();
 
-            System.out.println("주문 객체 생성 완료: " + order.getMerchantOrderId());
-
             Order saved = orderRepository.save(order);
-            System.out.println("네이버 상품 주문 저장 완료: " + saved.getId());
             
             // 장바구니에서 해당 네이버 상품 삭제
             try {
-                System.out.println("네이버 상품 장바구니 삭제 시작 - AccountId: " + accountId + ", NaverProductId: " + naverProductId);
-                
                 List<Cart> cartItems = cartRepository.findByAccount_Id(accountId);
-                System.out.println("찾은 장바구니 아이템 수: " + cartItems.size());
                 
                 List<Cart> itemsToDelete = cartItems.stream()
                     .filter(cart -> {
                         boolean shouldDelete = cart.getNaverProduct() != null && cart.getNaverProduct().getId().equals(naverProductId);
-                        if (shouldDelete) {
-                            System.out.println("삭제할 네이버 상품 장바구니 아이템 발견 - CartId: " + cart.getId() + ", NaverProductId: " + cart.getNaverProduct().getId());
-                        }
                         return shouldDelete;
                     })
                     .collect(Collectors.toList());
-                
-                System.out.println("삭제할 네이버 상품 아이템 수: " + itemsToDelete.size());
                 
                 if (!itemsToDelete.isEmpty()) {
                     // 개별 삭제로 변경하여 더 안정적으로 처리
                     for (Cart cartItem : itemsToDelete) {
                         cartRepository.delete(cartItem);
-                        System.out.println("네이버 상품 장바구니 아이템 삭제 완료 - CartId: " + cartItem.getId());
                     }
-                    System.out.println("장바구니에서 네이버 상품 삭제 완료: " + itemsToDelete.size() + "개 항목");
-                } else {
-                    System.out.println("삭제할 네이버 상품 장바구니 아이템이 없습니다.");
                 }
             } catch (Exception e) {
-                System.out.println("네이버 상품 장바구니 삭제 중 오류 발생: " + e.getMessage());
                 e.printStackTrace();
                 // 장바구니 삭제 실패는 주문 생성에 영향을 주지 않도록 함
             }
             
-            System.out.println("================================");
-            
             return mapToResponseDto(saved);
         } catch (Exception e) {
-            System.out.println("네이버 상품 주문 생성 중 오류 발생: " + e.getMessage());
             e.printStackTrace();
             throw e;
         }
