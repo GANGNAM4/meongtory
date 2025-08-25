@@ -55,42 +55,731 @@ public class InsuranceCrawlerJob {
         return list;
     }
 
-    private InsuranceProductDto crawlSamsungFireDirect() {
+    public InsuranceProductDto crawlSamsungFireDirect() {
+        String name = "삼성화재 다이렉트 펫보험";
+        String desc = "반려동물 의료비/수술비 보장~ 펫 실비보험으로 든든하게!";
+        List<String> features = new ArrayList<>();
+        List<String> coverage = new ArrayList<>();
+        String finalUrl = "https://direct.samsungfire.com/m/fp/pet.html";
+
         try {
-            Document doc = fetchWithRetry("https://direct.samsungfire.com/m/fp/pet.html", 3);
+            Playwright playwright = Playwright.create();
+            Browser browser = playwright.chromium().launch(
+                    new BrowserType.LaunchOptions()
+                            .setHeadless(true)
+                            .setArgs(Arrays.asList("--no-sandbox", "--disable-dev-shm-usage"))
+            );
             
-            String name = "삼성화재 다이렉트 펫보험";
-            String desc = "삼성화재 다이렉트 펫보험 - 반려견, 반려묘를 위한 맞춤 보장";
-            List<String> features = new ArrayList<>();
-            
-            // 펫보험 관련 특징 추출
-            String pageText = doc.text();
-            if (pageText.contains("펫보험")) {
-                features.add("질병/상해 치료비 보장");
-                features.add("응급진료비 보장");
-                features.add("간편 온라인 가입");
-            }
-            
-            return InsuranceProductDto.builder()
-                    .company("삼성화재")
-                    .productName(name)
-                    .description(desc)
-                    .features(features.isEmpty() ? getDefaultFeatures("삼성화재") : features)
-                    .logoUrl("")
-                    .redirectUrl("https://direct.samsungfire.com/m/fp/pet.html")
-                    .build();
+            BrowserContext ctx = browser.newContext();
+            Page page = ctx.newPage();
+
+            page.navigate(finalUrl, new Page.NavigateOptions().setTimeout(30000));
+            page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(20000));
+
+            String[] featureSelectors = {
+                ".bullet-list li p",
+                ".fp-cont .bullet-list li p",
+                ".bullet-list li"
+            };
+
+            for (String selector : featureSelectors) {
+                try {
+                    int count = page.locator(selector).count();
                     
-        } catch (Exception e) {
-            log.error("삼성화재 다이렉트 크롤링 실패: {}", e.getMessage());
-            return InsuranceProductDto.builder()
-                    .company("삼성화재")
-                    .productName("삼성화재 다이렉트 펫보험")
-                    .description("삼성화재 다이렉트 펫보험")
-                    .features(getDefaultFeatures("삼성화재"))
-                    .logoUrl("")
-                    .redirectUrl("https://direct.samsungfire.com/m/fp/pet.html")
-                    .build();
+                    for (int i = 0; i < count && features.size() < 8; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (selector.contains("bullet-list") && selector.contains("p")) {
+                                String[] lines = trimmed.split("\n");
+                                for (String line : lines) {
+                                    String cleanLine = line.trim();
+                                    if (!cleanLine.isEmpty() && cleanLine.length() > 5) {
+                                        if (cleanLine.contains("보장") || cleanLine.contains("할인") || cleanLine.contains("특약")) {
+                                            features.add(cleanLine);
+                                        }
+                                    }
+                                }
+                            } else if (isValidSamsungFeature(trimmed)) {
+                                features.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!features.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("삼성화재 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            String[] coverageSelectors = {
+                ".if-list li dl",
+                ".fp-cont .if-list li dl",
+                ".list-wrap .if-list li dl",
+                ".bullet-list li p span"
+            };
+
+            for (String selector : coverageSelectors) {
+                try {
+                    int count = page.locator(selector).count();
+                    
+                    for (int i = 0; i < count && coverage.size() < 12; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (selector.contains("if-list") && selector.contains("dl")) {
+                                String[] lines = trimmed.split("\n");
+                                for (String line : lines) {
+                                    String cleanLine = line.trim();
+                                    if (!cleanLine.isEmpty() && cleanLine.length() > 3) {
+                                        if (cleanLine.contains("가입나이") || cleanLine.contains("보험기간") || 
+                                            cleanLine.contains("생후") || cleanLine.contains("만")) {
+                                            coverage.add(cleanLine);
+                                        }
+                                    }
+                                }
+                            } else if (selector.contains("span")) {
+                                if (trimmed.length() > 10 && (trimmed.contains("치료비") || trimmed.contains("질환") || trimmed.contains("할인"))) {
+                                    coverage.add(trimmed);
+                                }
+                            } else if (isValidSamsungCoverage(trimmed)) {
+                                coverage.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!coverage.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("삼성화재 보장내역 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            ctx.close();
+            browser.close();
+
+        } catch (Exception ex) {
+            log.error("삼성화재 Playwright 크롤링 실패: {}", ex.getMessage(), ex);
         }
+
+        if (features.isEmpty()) {
+            features = Arrays.asList(
+                "반려견 의료비, 수술비 보장 (특약)",
+                "반려묘 의료비, 수술비 보장 (특약)",
+                "저렴한 다이렉트 보험료에 5% 추가 할인!",
+                "생후 61일 ~ 만 10세까지 가입 가능",
+                "만 20세까지 (3/5년 자동갱신)"
+            );
+        }
+
+        if (coverage.isEmpty()) {
+            coverage = Arrays.asList(
+                "반려견 의료비, 수술비 보장 (특약): 피부병, 슬관절 치료비를 준비하세요. (보장 비율 50/70/80% 중 선택 가능)",
+                "반려묘 의료비, 수술비 보장 (특약): 비뇨기 질환 및 허피스, 칼리시를 대비하세요. (보장 비율 50/70/80% 중 선택 가능)",
+                "저렴한 다이렉트 보험료에 5% 추가 할인!: 동물등록증 사진 제출 시 보장보험료의 5% 할인",
+                "가입나이: 생후 61일 ~ 만 10세까지",
+                "보험기간: 만 20세까지 (3/5년 자동갱신)"
+            );
+        }
+
+        List<String> limitedFeatures = new ArrayList<>();
+        int featureCount = 0;
+        for (String feature : features) {
+            if (featureCount >= 5) break;
+            if (feature.length() > 100) {
+                limitedFeatures.add(feature.substring(0, 97) + "...");
+            } else {
+                limitedFeatures.add(feature);
+            }
+            featureCount++;
+        }
+
+        List<String> limitedCoverage = new ArrayList<>();
+        int coverageCount = 0;
+        for (String item : coverage) {
+            if (coverageCount >= 5) break;
+            if (item.length() > 100) {
+                limitedCoverage.add(item.substring(0, 97) + "...");
+            } else {
+                limitedCoverage.add(item);
+            }
+            coverageCount++;
+        }
+
+        log.info("삼성화재 크롤링 완료 - 특징: {}개, 보장내역: {}개", limitedFeatures.size(), limitedCoverage.size());
+
+        return InsuranceProductDto.builder()
+                .company("삼성화재")
+                .productName(name)
+                .description(desc)
+                .features(limitedFeatures)
+                .coverageDetails(limitedCoverage)
+                .logoUrl("")
+                .redirectUrl(finalUrl)
+                .build();
+    }
+
+    public InsuranceProductDto crawlKbInsuranceDirect() {
+        String name = "KB 금쪽같은 펫보험";
+        String desc = "국민의 평생 희망파트너, KB손해보험";
+        List<String> features = new ArrayList<>();
+        List<String> coverage = new ArrayList<>();
+        String finalUrl = "https://www.kbinsure.co.kr/CG313010001.ec";
+
+        try {
+            Playwright playwright = Playwright.create();
+            Browser browser = playwright.chromium().launch(
+                    new BrowserType.LaunchOptions()
+                            .setHeadless(true)
+                            .setArgs(Arrays.asList("--no-sandbox", "--disable-dev-shm-usage"))
+            );
+            
+            BrowserContext ctx = browser.newContext();
+            Page page = ctx.newPage();
+
+            page.navigate(finalUrl, new Page.NavigateOptions().setTimeout(30000));
+            page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(20000));
+
+            String[] featureSelectors = {
+                ".product-feature li", ".benefit-list li", ".coverage-item",
+                ".product-info .item", ".feature-list li", ".highlight-item"
+            };
+
+            for (String selector : featureSelectors) {
+                try {
+                    int count = page.locator(selector).count();
+                    
+                    for (int i = 0; i < count && features.size() < 8; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (isValidKbFeature(trimmed)) {
+                                features.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!features.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("KB손해보험 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            String[] coverageSelectors = {
+                ".coverage-table tr", ".benefit-table tr", ".guarantee-list li",
+                ".product-detail .item", ".coverage-detail li", ".benefit-detail"
+            };
+
+            for (String selector : coverageSelectors) {
+                try {
+                    int count = page.locator(selector).count();
+                    
+                    for (int i = 0; i < count && coverage.size() < 12; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (isValidKbCoverage(trimmed)) {
+                                coverage.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!coverage.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("KB손해보험 보장내역 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            ctx.close();
+            browser.close();
+
+        } catch (Exception ex) {
+            log.error("KB손해보험 Playwright 크롤링 실패: {}", ex.getMessage(), ex);
+        }
+
+        if (features.isEmpty()) {
+            features = Arrays.asList(
+                "반려동물 의료비 보장",
+                "수술비 보장",
+                "입원/통원 치료비 보장",
+                "검사비 보장",
+                "약품비 보장"
+            );
+        }
+
+        if (coverage.isEmpty()) {
+            coverage = Arrays.asList(
+                "반려동물 의료비: 만 0세~만 10세",
+                "수술비 보장: 한도 내 실손보상",
+                "입원/통원 치료비: 의료기관에서 발생한 비용",
+                "검사비: 진단을 위한 검사 비용",
+                "약품비: 처방된 약품 비용"
+            );
+        }
+
+        List<String> limitedFeatures = new ArrayList<>();
+        int featureCount = 0;
+        for (String feature : features) {
+            if (featureCount >= 5) break;
+            if (feature.length() > 100) {
+                limitedFeatures.add(feature.substring(0, 97) + "...");
+            } else {
+                limitedFeatures.add(feature);
+            }
+            featureCount++;
+        }
+
+        List<String> limitedCoverage = new ArrayList<>();
+        int coverageCount = 0;
+        for (String item : coverage) {
+            if (coverageCount >= 5) break;
+            if (item.length() > 100) {
+                limitedCoverage.add(item.substring(0, 97) + "...");
+            } else {
+                limitedCoverage.add(item);
+            }
+            coverageCount++;
+        }
+
+        log.info("KB손해보험 크롤링 완료 - 특징: {}개, 보장내역: {}개", limitedFeatures.size(), limitedCoverage.size());
+
+        return InsuranceProductDto.builder()
+                .company("KB손해보험")
+                .productName(name)
+                .description(desc)
+                .features(limitedFeatures)
+                .coverageDetails(limitedCoverage)
+                .logoUrl("")
+                .redirectUrl(finalUrl)
+                .build();
+    }
+
+    public InsuranceProductDto crawlHyundaiHiDirect() {
+        String name = "현대해상 굿앤굿 우리펫보험";
+        String desc = "현대해상 굿앤굿 우리펫보험 - 반려동물을 위한 맞춤형 보험 상품";
+        List<String> features = new ArrayList<>();
+        List<String> coverage = new ArrayList<>();
+        String finalUrl = "https://direct.hi.co.kr/product/doga/dog_insurance_introduce.jsp";
+
+        try {
+            Playwright playwright = Playwright.create();
+            Browser browser = playwright.chromium().launch(
+                    new BrowserType.LaunchOptions()
+                            .setHeadless(true)
+                            .setArgs(Arrays.asList("--no-sandbox", "--disable-dev-shm-usage"))
+            );
+            
+            BrowserContext ctx = browser.newContext();
+            Page page = ctx.newPage();
+
+            page.navigate(finalUrl, new Page.NavigateOptions().setTimeout(30000));
+            page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(20000));
+
+            String[] featureSelectors = {
+                ".product-benefit li", ".feature-list li", ".benefit-item",
+                ".product-info .item", ".highlight-list li", ".advantage-item"
+            };
+
+            for (String selector : featureSelectors) {
+                try {
+                    int count = page.locator(selector).count();
+                    
+                    for (int i = 0; i < count && features.size() < 8; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (isValidHyundaiFeature(trimmed)) {
+                                features.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!features.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("현대해상 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            String[] coverageSelectors = {
+                ".coverage-table tr", ".benefit-table tr", ".guarantee-list li",
+                ".product-detail .item", ".coverage-detail li", ".benefit-detail"
+            };
+
+            for (String selector : coverageSelectors) {
+                try {
+                    int count = page.locator(selector).count();
+                    
+                    for (int i = 0; i < count && coverage.size() < 12; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (isValidHyundaiCoverage(trimmed)) {
+                                coverage.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!coverage.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("현대해상 보장내역 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            ctx.close();
+            browser.close();
+
+        } catch (Exception ex) {
+            log.error("현대해상 Playwright 크롤링 실패: {}", ex.getMessage(), ex);
+        }
+
+        if (features.isEmpty()) {
+            features = Arrays.asList(
+                "반려동물 의료비 보장",
+                "수술비 보장",
+                "입원/통원 치료비 보장",
+                "검사비 보장",
+                "약품비 보장"
+            );
+        }
+
+        if (coverage.isEmpty()) {
+            coverage = Arrays.asList(
+                "반려동물 의료비: 만 0세~만 10세",
+                "수술비 보장: 한도 내 실손보상",
+                "입원/통원 치료비: 의료기관에서 발생한 비용",
+                "검사비: 진단을 위한 검사 비용",
+                "약품비: 처방된 약품 비용"
+            );
+        }
+
+        List<String> limitedFeatures = new ArrayList<>();
+        int featureCount = 0;
+        for (String feature : features) {
+            if (featureCount >= 5) break;
+            if (feature.length() > 100) {
+                limitedFeatures.add(feature.substring(0, 97) + "...");
+            } else {
+                limitedFeatures.add(feature);
+            }
+            featureCount++;
+        }
+
+        List<String> limitedCoverage = new ArrayList<>();
+        int coverageCount = 0;
+        for (String item : coverage) {
+            if (coverageCount >= 5) break;
+            if (item.length() > 100) {
+                limitedCoverage.add(item.substring(0, 97) + "...");
+            } else {
+                limitedCoverage.add(item);
+            }
+            coverageCount++;
+        }
+
+        log.info("현대해상 크롤링 완료 - 특징: {}개, 보장내역: {}개", limitedFeatures.size(), limitedCoverage.size());
+
+        return InsuranceProductDto.builder()
+                .company("현대해상")
+                .productName(name)
+                .description(desc)
+                .features(limitedFeatures)
+                .coverageDetails(limitedCoverage)
+                .logoUrl("")
+                .redirectUrl(finalUrl)
+                .build();
+    }
+
+    public InsuranceProductDto crawlNhFireDirect() {
+        String name = "NH농협손해보험 펫보험";
+        String desc = "보험에 마음을 더합니다. 헤아림-NH농협손해보험";
+        List<String> features = new ArrayList<>();
+        List<String> coverage = new ArrayList<>();
+        String finalUrl = "https://nhfire.co.kr/product/retrieveProduct.nhfire?pdtCd=D314511";
+
+        try {
+            Playwright playwright = Playwright.create();
+            Browser browser = playwright.chromium().launch(
+                    new BrowserType.LaunchOptions()
+                            .setHeadless(true)
+                            .setArgs(Arrays.asList("--no-sandbox", "--disable-dev-shm-usage"))
+            );
+            
+            BrowserContext ctx = browser.newContext();
+            Page page = ctx.newPage();
+
+            page.navigate(finalUrl, new Page.NavigateOptions().setTimeout(30000));
+            page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(20000));
+
+            String[] featureSelectors = {
+                ".product-benefit li", ".feature-list li", ".benefit-item",
+                ".product-info .item", ".highlight-list li", ".advantage-item",
+                ".product-detail li", ".coverage-item"
+            };
+
+            for (String selector : featureSelectors) {
+                try {
+                    int count = page.locator(selector).count();
+                    
+                    for (int i = 0; i < count && features.size() < 8; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (isValidNhFeature(trimmed)) {
+                                features.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!features.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("NH농협손해보험 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            String[] coverageSelectors = {
+                ".coverage-table tr", ".benefit-table tr", ".guarantee-list li",
+                ".product-detail .item", ".coverage-detail li", ".benefit-detail",
+                ".product-info table tr", ".coverage-info li"
+            };
+
+            for (String selector : coverageSelectors) {
+                try {
+                    int count = page.locator(selector).count();
+                    
+                    for (int i = 0; i < count && coverage.size() < 12; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (isValidNhCoverage(trimmed)) {
+                                coverage.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!coverage.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("NH농협손해보험 보장내역 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            ctx.close();
+            browser.close();
+
+        } catch (Exception ex) {
+            log.error("NH농협손해보험 Playwright 크롤링 실패: {}", ex.getMessage(), ex);
+        }
+
+        if (features.isEmpty()) {
+            features = Arrays.asList(
+                "반려동물 의료비 보장",
+                "수술비 보장",
+                "입원/통원 치료비 보장",
+                "검사비 보장",
+                "약품비 보장"
+            );
+        }
+
+        if (coverage.isEmpty()) {
+            coverage = Arrays.asList(
+                "반려동물 의료비: 만 0세~만 10세",
+                "수술비 보장: 한도 내 실손보상",
+                "입원/통원 치료비: 의료기관에서 발생한 비용",
+                "검사비: 진단을 위한 검사 비용",
+                "약품비: 처방된 약품 비용"
+            );
+        }
+
+        List<String> limitedFeatures = new ArrayList<>();
+        int featureCount = 0;
+        for (String feature : features) {
+            if (featureCount >= 5) break;
+            if (feature.length() > 100) {
+                limitedFeatures.add(feature.substring(0, 97) + "...");
+            } else {
+                limitedFeatures.add(feature);
+            }
+            featureCount++;
+        }
+
+        List<String> limitedCoverage = new ArrayList<>();
+        int coverageCount = 0;
+        for (String item : coverage) {
+            if (coverageCount >= 5) break;
+            if (item.length() > 100) {
+                limitedCoverage.add(item.substring(0, 97) + "...");
+            } else {
+                limitedCoverage.add(item);
+            }
+            coverageCount++;
+        }
+
+        log.info("NH농협손해보험 크롤링 완료 - 특징: {}개, 보장내역: {}개", limitedFeatures.size(), limitedCoverage.size());
+
+        return InsuranceProductDto.builder()
+                .company("NH농협손해보험")
+                .productName(name)
+                .description(desc)
+                .features(limitedFeatures)
+                .coverageDetails(limitedCoverage)
+                .logoUrl("")
+                .redirectUrl(finalUrl)
+                .build();
+    }
+
+    public InsuranceProductDto crawlMeritzDirect() {
+        String name = "메리츠화재 다이렉트 강아지보험";
+        String desc = "동물병원 치료비가 걱정된다면, 메리츠 펫보험으로 준비하세요.";
+        List<String> features = new ArrayList<>();
+        List<String> coverage = new ArrayList<>();
+        String finalUrl = "https://store.meritzfire.com/pet/product.do";
+
+        try {
+            Playwright playwright = Playwright.create();
+            Browser browser = playwright.chromium().launch(
+                    new BrowserType.LaunchOptions()
+                            .setHeadless(true)
+                            .setArgs(Arrays.asList("--no-sandbox", "--disable-dev-shm-usage"))
+            );
+            
+            BrowserContext ctx = browser.newContext();
+            Page page = ctx.newPage();
+
+            page.navigate(finalUrl, new Page.NavigateOptions().setTimeout(30000));
+            page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(20000));
+
+            String[] featureSelectors = {
+                ".product-benefit li", ".feature-list li", ".benefit-item",
+                ".product-info .item", ".highlight-list li", ".advantage-item",
+                ".product-detail li", ".coverage-item", ".pet-benefit li"
+            };
+
+            for (String selector : featureSelectors) {
+                try {
+                    int count = page.locator(selector).count();
+                    
+                    for (int i = 0; i < count && features.size() < 8; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (isValidMeritzFeature(trimmed)) {
+                                features.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!features.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("메리츠화재 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            String[] coverageSelectors = {
+                ".coverage-table tr", ".benefit-table tr", ".guarantee-list li",
+                ".product-detail .item", ".coverage-detail li", ".benefit-detail",
+                ".product-info table tr", ".coverage-info li", ".pet-coverage li"
+            };
+
+            for (String selector : coverageSelectors) {
+                try {
+                    int count = page.locator(selector).count();
+                    
+                    for (int i = 0; i < count && coverage.size() < 12; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (isValidMeritzCoverage(trimmed)) {
+                                coverage.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!coverage.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("메리츠화재 보장내역 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            ctx.close();
+            browser.close();
+
+        } catch (Exception ex) {
+            log.error("메리츠화재 Playwright 크롤링 실패: {}", ex.getMessage(), ex);
+        }
+
+        if (features.isEmpty()) {
+            features = Arrays.asList(
+                "반려동물 의료비 보장",
+                "수술비 보장",
+                "입원/통원 치료비 보장",
+                "검사비 보장",
+                "약품비 보장"
+            );
+        }
+
+        if (coverage.isEmpty()) {
+            coverage = Arrays.asList(
+                "반려동물 의료비: 만 0세~만 10세",
+                "수술비 보장: 한도 내 실손보상",
+                "입원/통원 치료비: 의료기관에서 발생한 비용",
+                "검사비: 진단을 위한 검사 비용",
+                "약품비: 처방된 약품 비용"
+            );
+        }
+
+        List<String> limitedFeatures = new ArrayList<>();
+        int featureCount = 0;
+        for (String feature : features) {
+            if (featureCount >= 5) break;
+            if (feature.length() > 100) {
+                limitedFeatures.add(feature.substring(0, 97) + "...");
+            } else {
+                limitedFeatures.add(feature);
+            }
+            featureCount++;
+        }
+
+        List<String> limitedCoverage = new ArrayList<>();
+        int coverageCount = 0;
+        for (String item : coverage) {
+            if (coverageCount >= 5) break;
+            if (item.length() > 100) {
+                limitedCoverage.add(item.substring(0, 97) + "...");
+            } else {
+                limitedCoverage.add(item);
+            }
+            coverageCount++;
+        }
+
+        log.info("메리츠화재 크롤링 완료 - 특징: {}개, 보장내역: {}개", limitedFeatures.size(), limitedCoverage.size());
+
+        return InsuranceProductDto.builder()
+                .company("메리츠화재")
+                .productName(name)
+                .description(desc)
+                .features(limitedFeatures)
+                .coverageDetails(limitedCoverage)
+                .logoUrl("")
+                .redirectUrl(finalUrl)
+                .build();
     }
 
     private List<InsuranceProductDto> crawlHyundaiHi() {
@@ -480,244 +1169,296 @@ public class InsuranceCrawlerJob {
         runOnce();
     }
 
-    /**
-     * 특정 보험 상품의 상세 정보를 크롤링합니다.
-     */
-    public InsuranceProductDto crawlProductDetails(InsuranceProductDto product) {
 
-        
-        try {
-            String url = product.getRedirectUrl();
-            if (url == null || url.isBlank()) {
-                log.warn("리다이렉트 URL이 없어 상세 정보 크롤링을 건너뜁니다: {}", product.getProductName());
-                return product;
-            }
-
-            // 회사별 상세 정보 크롤링
-            switch (product.getCompany()) {
-                case "삼성화재":
-                    return crawlSamsungFireDetails(product, url);
-                case "메리츠화재":
-                    return crawlMeritzDetails(product, url);
-                case "KB손해보험":
-                    return crawlKbInsuranceDetails(product, url);
-                case "현대해상":
-                    return crawlHyundaiHiDetails(product, url);
-                case "NH농협손해보험":
-                    return crawlNhFireDetails(product, url);
-                default:
-                    log.warn("지원하지 않는 보험사입니다: {}", product.getCompany());
-                    return product;
-            }
-        } catch (Exception e) {
-            log.error("상세 정보 크롤링 중 오류 발생: {}", e.getMessage(), e);
-            return product;
-        }
-    }
-
-    private InsuranceProductDto crawlSamsungFireDetails(InsuranceProductDto product, String url) {
-        try {
-            Document doc = fetchWithRetry(url, 3);
-            
-            // 상세 정보 추출
-            List<String> detailedFeatures = new ArrayList<>();
-            List<String> benefits = new ArrayList<>();
-            List<String> requirements = new ArrayList<>();
-            
-            // 보장 내용 추출
-            Elements coverageElements = doc.select(".coverage-item, .benefit-item, .feature-item");
-            for (Element element : coverageElements) {
-                String text = element.text().trim();
-                if (!text.isBlank()) {
-                    detailedFeatures.add(text);
-                }
-            }
-            
-            // 혜택 정보 추출
-            Elements benefitElements = doc.select(".benefit, .advantage, .highlight");
-            for (Element element : benefitElements) {
-                String text = element.text().trim();
-                if (!text.isBlank()) {
-                    benefits.add(text);
-                }
-            }
-            
-            // 가입 조건 추출
-            Elements requirementElements = doc.select(".requirement, .condition, .eligibility");
-            for (Element element : requirementElements) {
-                String text = element.text().trim();
-                if (!text.isBlank()) {
-                    requirements.add(text);
-                }
-            }
-            
-            // 기존 features와 새로운 detailedFeatures 합치기
-            List<String> allFeatures = new ArrayList<>(product.getFeatures());
-            allFeatures.addAll(detailedFeatures);
-            
-            return InsuranceProductDto.builder()
-                    .id(product.getId())
-                    .company(product.getCompany())
-                    .productName(product.getProductName())
-                    .description(product.getDescription())
-                    .features(allFeatures)
-                    .logoUrl(product.getLogoUrl())
-                    .redirectUrl(product.getRedirectUrl())
-                    .build();
-                    
-        } catch (Exception e) {
-            log.error("삼성화재 상세 정보 크롤링 실패: {}", e.getMessage());
-            return product;
-        }
-    }
-
-    private InsuranceProductDto crawlMeritzDetails(InsuranceProductDto product, String url) {
-        try {
-            Document doc = fetchWithRetry(url, 3);
-            
-            List<String> detailedFeatures = new ArrayList<>();
-            List<String> benefits = new ArrayList<>();
-            List<String> requirements = new ArrayList<>();
-            
-            // 메리츠 화재 특화 크롤링
-            Elements featureElements = doc.select(".product-feature, .coverage-detail, .insurance-benefit");
-            for (Element element : featureElements) {
-                String text = element.text().trim();
-                if (!text.isBlank()) {
-                    detailedFeatures.add(text);
-                }
-            }
-            
-            List<String> allFeatures = new ArrayList<>(product.getFeatures());
-            allFeatures.addAll(detailedFeatures);
-            
-            return InsuranceProductDto.builder()
-                    .id(product.getId())
-                    .company(product.getCompany())
-                    .productName(product.getProductName())
-                    .description(product.getDescription())
-                    .features(allFeatures)
-                    .logoUrl(product.getLogoUrl())
-                    .redirectUrl(product.getRedirectUrl())
-                    .build();
-                    
-        } catch (Exception e) {
-            log.error("메리츠 화재 상세 정보 크롤링 실패: {}", e.getMessage());
-            return product;
-        }
-    }
-
-    private InsuranceProductDto crawlKbInsuranceDetails(InsuranceProductDto product, String url) {
-        try {
-            Document doc = fetchWithRetry(url, 3);
-            
-            List<String> detailedFeatures = new ArrayList<>();
-            List<String> benefits = new ArrayList<>();
-            List<String> requirements = new ArrayList<>();
-            
-            // KB 손해보험 특화 크롤링
-            Elements featureElements = doc.select(".product-info, .coverage-detail, .benefit-list");
-            for (Element element : featureElements) {
-                String text = element.text().trim();
-                if (!text.isBlank()) {
-                    detailedFeatures.add(text);
-                }
-            }
-            
-            List<String> allFeatures = new ArrayList<>(product.getFeatures());
-            allFeatures.addAll(detailedFeatures);
-            
-            return InsuranceProductDto.builder()
-                    .id(product.getId())
-                    .company(product.getCompany())
-                    .productName(product.getProductName())
-                    .description(product.getDescription())
-                    .features(allFeatures)
-                    .logoUrl(product.getLogoUrl())
-                    .redirectUrl(product.getRedirectUrl())
-                    .build();
-                    
-        } catch (Exception e) {
-            log.error("KB 손해보험 상세 정보 크롤링 실패: {}", e.getMessage());
-            return product;
-        }
-    }
-
-    private InsuranceProductDto crawlHyundaiHiDetails(InsuranceProductDto product, String url) {
-        try {
-            Document doc = fetchWithRetry(url, 3);
-            
-            List<String> detailedFeatures = new ArrayList<>();
-            List<String> benefits = new ArrayList<>();
-            List<String> requirements = new ArrayList<>();
-            
-            // 현대해상 특화 크롤링
-            Elements featureElements = doc.select(".product-detail, .coverage-info, .benefit-detail");
-            for (Element element : featureElements) {
-                String text = element.text().trim();
-                if (!text.isBlank()) {
-                    detailedFeatures.add(text);
-                }
-            }
-            
-            List<String> allFeatures = new ArrayList<>(product.getFeatures());
-            allFeatures.addAll(detailedFeatures);
-            
-            return InsuranceProductDto.builder()
-                    .id(product.getId())
-                    .company(product.getCompany())
-                    .productName(product.getProductName())
-                    .description(product.getDescription())
-                    .features(allFeatures)
-                    .logoUrl(product.getLogoUrl())
-                    .redirectUrl(product.getRedirectUrl())
-                    .build();
-                    
-        } catch (Exception e) {
-            log.error("현대해상 상세 정보 크롤링 실패: {}", e.getMessage());
-            return product;
-        }
-    }
-
-    private InsuranceProductDto crawlNhFireDetails(InsuranceProductDto product, String url) {
-        try {
-            Document doc = fetchWithRetry(url, 3);
-            
-            List<String> detailedFeatures = new ArrayList<>();
-            List<String> benefits = new ArrayList<>();
-            List<String> requirements = new ArrayList<>();
-            
-            // NH농협손해보험 특화 크롤링
-            Elements featureElements = doc.select(".product-detail, .coverage-detail, .benefit-info");
-            for (Element element : featureElements) {
-                String text = element.text().trim();
-                if (!text.isBlank()) {
-                    detailedFeatures.add(text);
-                }
-            }
-            
-            List<String> allFeatures = new ArrayList<>(product.getFeatures());
-            allFeatures.addAll(detailedFeatures);
-            
-            return InsuranceProductDto.builder()
-                    .id(product.getId())
-                    .company(product.getCompany())
-                    .productName(product.getProductName())
-                    .description(product.getDescription())
-                    .features(allFeatures)
-                    .logoUrl(product.getLogoUrl())
-                    .redirectUrl(product.getRedirectUrl())
-                    .build();
-                    
-        } catch (Exception e) {
-            log.error("NH농협손해보험 상세 정보 크롤링 실패: {}", e.getMessage());
-            return product;
-        }
-    }
 
     /**
      * 웹페이지에서 로고 이미지를 추출합니다.
      */
+
+    private boolean isValidSamsungFeature(String text) {
+        if (text == null || text.length() < 3 || text.length() > 100) return false;
+        
+        // 유용한 키워드 포함 여부
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    private boolean isValidSamsungCoverage(String text) {
+        if (text == null || text.length() < 5 || text.length() > 150) return false;
+        
+        // 보장 관련 키워드 포함 여부
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도", "만원", "%"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    private boolean isValidKbFeature(String text) {
+        if (text == null || text.length() < 3 || text.length() > 100) return false;
+        
+        // KB손해보험 특화 키워드
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도", "반려동물", "펫"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    private boolean isValidKbCoverage(String text) {
+        if (text == null || text.length() < 5 || text.length() > 150) return false;
+        
+        // KB손해보험 보장 관련 키워드
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도", "만원", "%", "반려동물"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    private boolean isValidHyundaiFeature(String text) {
+        if (text == null || text.length() < 3 || text.length() > 100) return false;
+        
+        // 현대해상 특화 키워드
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도", "반려동물", "펫", "굿앤굿"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    private boolean isValidHyundaiCoverage(String text) {
+        if (text == null || text.length() < 5 || text.length() > 150) return false;
+        
+        // 현대해상 보장 관련 키워드
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도", "만원", "%", "반려동물"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    private boolean isValidNhFeature(String text) {
+        if (text == null || text.length() < 3 || text.length() > 100) return false;
+        
+        // NH농협손해보험 특화 키워드
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도", "반려동물", "펫", "헤아림"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    private boolean isValidNhCoverage(String text) {
+        if (text == null || text.length() < 5 || text.length() > 150) return false;
+        
+        // NH농협손해보험 보장 관련 키워드
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도", "만원", "%", "반려동물"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    private boolean isValidMeritzFeature(String text) {
+        if (text == null || text.length() < 3 || text.length() > 100) return false;
+        
+        // 메리츠화재 특화 키워드
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도", "반려동물", "펫", "강아지"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    private boolean isValidMeritzCoverage(String text) {
+        if (text == null || text.length() < 5 || text.length() > 150) return false;
+        
+        // 메리츠화재 보장 관련 키워드
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도", "만원", "%", "반려동물"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    public InsuranceProductDto crawlDbInsuranceDirect() {
+        String name = "DB손해보험 펫보험";
+        String desc = "어떤 할인 혜택과 이벤트를 받을 수 있나요?";
+        List<String> features = new ArrayList<>();
+        List<String> coverage = new ArrayList<>();
+        String finalUrl = "https://directidb.co.kr/l_pet/index.html";
+
+        try {
+            Playwright playwright = Playwright.create();
+            Browser browser = playwright.chromium().launch(
+                    new BrowserType.LaunchOptions()
+                            .setHeadless(true)
+                            .setArgs(Arrays.asList("--no-sandbox", "--disable-dev-shm-usage"))
+            );
+            
+            BrowserContext ctx = browser.newContext();
+            Page page = ctx.newPage();
+
+            page.navigate(finalUrl, new Page.NavigateOptions().setTimeout(30000));
+            page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(20000));
+
+            String[] featureSelectors = {
+                ".product-benefit li", ".feature-list li", ".benefit-item",
+                ".product-info .item", ".highlight-list li", ".advantage-item",
+                ".product-detail li", ".coverage-item", ".pet-benefit li"
+            };
+
+            for (String selector : featureSelectors) {
+                try {
+                    int count = page.locator(selector).count();
+                    
+                    for (int i = 0; i < count && features.size() < 8; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (isValidDbFeature(trimmed)) {
+                                features.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!features.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("DB손해보험 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            String[] coverageSelectors = {
+                ".coverage-table tr", ".benefit-table tr", ".guarantee-list li",
+                ".product-detail .item", ".coverage-detail li", ".benefit-detail",
+                ".product-info table tr", ".coverage-info li", ".pet-coverage li"
+            };
+
+            for (String selector : coverageSelectors) {
+                try {
+                    int count = page.locator(selector).count();
+                    
+                    for (int i = 0; i < count && coverage.size() < 12; i++) {
+                        String text = page.locator(selector).nth(i).innerText();
+                        if (text != null && !text.isBlank()) {
+                            String trimmed = text.trim();
+                            
+                            if (isValidDbCoverage(trimmed)) {
+                                coverage.add(trimmed);
+                            }
+                        }
+                    }
+                    if (!coverage.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception e) {
+                    log.error("DB손해보험 보장내역 선택자 '{}' 실패: {}", selector, e.getMessage());
+                }
+            }
+
+            ctx.close();
+            browser.close();
+
+        } catch (Exception ex) {
+            log.error("DB손해보험 Playwright 크롤링 실패: {}", ex.getMessage(), ex);
+        }
+
+        if (features.isEmpty()) {
+            features = Arrays.asList(
+                "반려동물 의료비 보장",
+                "수술비 보장",
+                "입원/통원 치료비 보장",
+                "검사비 보장",
+                "약품비 보장"
+            );
+        }
+
+        if (coverage.isEmpty()) {
+            coverage = Arrays.asList(
+                "반려동물 의료비: 만 0세~만 10세",
+                "수술비 보장: 한도 내 실손보상",
+                "입원/통원 치료비: 의료기관에서 발생한 비용",
+                "검사비: 진단을 위한 검사 비용",
+                "약품비: 처방된 약품 비용"
+            );
+        }
+
+        List<String> limitedFeatures = new ArrayList<>();
+        int featureCount = 0;
+        for (String feature : features) {
+            if (featureCount >= 5) break;
+            if (feature.length() > 100) {
+                limitedFeatures.add(feature.substring(0, 97) + "...");
+            } else {
+                limitedFeatures.add(feature);
+            }
+            featureCount++;
+        }
+
+        List<String> limitedCoverage = new ArrayList<>();
+        int coverageCount = 0;
+        for (String item : coverage) {
+            if (coverageCount >= 5) break;
+            if (item.length() > 100) {
+                limitedCoverage.add(item.substring(0, 97) + "...");
+            } else {
+                limitedCoverage.add(item);
+            }
+            coverageCount++;
+        }
+
+        log.info("DB손해보험 크롤링 완료 - 특징: {}개, 보장내역: {}개", limitedFeatures.size(), limitedCoverage.size());
+
+        return InsuranceProductDto.builder()
+                .company("DB손해보험")
+                .productName(name)
+                .description(desc)
+                .features(limitedFeatures)
+                .coverageDetails(limitedCoverage)
+                .logoUrl("")
+                .redirectUrl(finalUrl)
+                .build();
+    }
+
+    private boolean isValidDbFeature(String text) {
+        if (text == null || text.length() < 3 || text.length() > 100) return false;
+        
+        // DB손해보험 특화 키워드
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도", "반려동물", "펫"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
+
+    private boolean isValidDbCoverage(String text) {
+        if (text == null || text.length() < 5 || text.length() > 150) return false;
+        
+        // DB손해보험 보장 관련 키워드
+        String[] keywords = {"보장", "치료", "수술", "입원", "통원", "검사", "의료", "비용", "한도", "만원", "%", "반려동물"};
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) return true;
+        }
+        
+        return false;
+    }
 
 }
 

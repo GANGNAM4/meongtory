@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 
 /**
  * 통합된 보험 크롤링 시스템
@@ -26,13 +25,11 @@ public class IntegratedInsuranceCrawler {
 
     private final InsuranceService insuranceService;
     
-    // 크롤링 컴포넌트들을 직접 생성하여 사용
-    private final ImprovedInsuranceCrawler insuranceNameCrawler = new ImprovedInsuranceCrawler();
-    private final CoverageSummaryCrawler coverageCrawler = new CoverageSummaryCrawler();
-    private final DetailedInfoCrawler detailedCrawler = new DetailedInfoCrawler();
+    private final InsuranceCrawlerJob insuranceCrawlerJob;
 
     public IntegratedInsuranceCrawler(InsuranceService insuranceService) {
         this.insuranceService = insuranceService;
+        this.insuranceCrawlerJob = new InsuranceCrawlerJob(insuranceService);
     }
     
     // 병렬 처리를 위한 스레드 풀
@@ -89,44 +86,7 @@ public class IntegratedInsuranceCrawler {
         return results;
     }
     
-    /**
-     * 상세 페이지용 상세 크롤링
-     * 모든 정보 + 로고 (상세) + 추가 정보
-     */
-    public InsuranceProductDto crawlForDetailPage(String companyName) {
-        
-        String petInsuranceUrl = COMPANY_URLS.get(companyName);
-        if (petInsuranceUrl == null) {
-            log.warn("지원하지 않는 보험사: {}", companyName);
-            return createFallbackProduct(companyName);
-        }
-        
-        try {
-            // 1단계: 기본 정보 크롤링
-            InsuranceProductDto basicInfo = insuranceNameCrawler.crawlInsuranceName(companyName);
-            
-            // 2단계: 보장 요약 크롤링
-            InsuranceProductDto coverageInfo = coverageCrawler.crawlCoverageSummary(companyName, petInsuranceUrl);
-            
-            // 3단계: 상세 정보 크롤링
-            DetailedInfoCrawler.DetailedInsuranceInfo detailedInfo = 
-                detailedCrawler.crawlDetailedInfo(companyName, petInsuranceUrl);
-            
-            // 4단계: 로고 크롤링 제거됨
-            String logoUrl = "";
-            
-            // 모든 정보 통합
-            InsuranceProductDto integratedProduct = integrateAllInformation(
-                basicInfo, coverageInfo, detailedInfo, logoUrl
-            );
-            
-            return integratedProduct;
-            
-        } catch (Exception e) {
-            log.error("상세 페이지 크롤링 실패: {} - {}", companyName, e.getMessage());
-            return createFallbackProduct(companyName);
-        }
-    }
+
     
     /**
      * 단일 보험사 메인 페이지용 크롤링
@@ -138,37 +98,44 @@ public class IntegratedInsuranceCrawler {
         }
         
         try {
-            
-            // 병렬로 기본 정보와 로고 크롤링
-            CompletableFuture<InsuranceProductDto> basicInfoFuture = 
-                CompletableFuture.supplyAsync(() -> {
-                    try {
-                        return insuranceNameCrawler.crawlInsuranceName(companyName);
-                    } catch (Exception e) {
-                        log.warn("기본 정보 크롤링 실패: {} - {}", companyName, e.getMessage());
-                        return createFallbackProduct(companyName);
-                    }
-                });
-            
-            CompletableFuture<String> logoFuture = 
-                CompletableFuture.supplyAsync(() -> {
-                    return "";
-                });
-            
-            // 결과 통합
-            InsuranceProductDto basicInfo = basicInfoFuture.get();
-            String logoUrl = logoFuture.get();
-            
-            // basicInfo가 null인 경우 처리
-            if (basicInfo == null) {
-                log.warn("{} 기본 정보 크롤링 실패 - 폴백 데이터 사용", companyName);
-                return createFallbackProduct(companyName);
+            // 삼성화재는 정밀한 크롤러 사용
+            if ("삼성화재".equals(companyName)) {
+                log.info("삼성화재 정밀 크롤러 사용");
+                return insuranceCrawlerJob.crawlSamsungFireDirect();
             }
             
-            // 로고 URL 설정
-            basicInfo.setLogoUrl(logoUrl);
+            // KB손해보험은 정밀한 크롤러 사용
+            if ("KB손해보험".equals(companyName)) {
+                log.info("KB손해보험 정밀 크롤러 사용");
+                return insuranceCrawlerJob.crawlKbInsuranceDirect();
+            }
             
-            return basicInfo;
+            // 현대해상은 정밀한 크롤러 사용
+            if ("현대해상".equals(companyName)) {
+                log.info("현대해상 정밀 크롤러 사용");
+                return insuranceCrawlerJob.crawlHyundaiHiDirect();
+            }
+            
+            // NH농협손해보험은 정밀한 크롤러 사용
+            if ("NH농협손해보험".equals(companyName)) {
+                log.info("NH농협손해보험 정밀 크롤러 사용");
+                return insuranceCrawlerJob.crawlNhFireDirect();
+            }
+            
+            // 메리츠화재는 정밀한 크롤러 사용
+            if ("메리츠화재".equals(companyName)) {
+                log.info("메리츠화재 정밀 크롤러 사용");
+                return insuranceCrawlerJob.crawlMeritzDirect();
+            }
+            
+            // DB손해보험은 정밀한 크롤러 사용
+            if ("DB손해보험".equals(companyName)) {
+                log.info("DB손해보험 정밀 크롤러 사용");
+                return insuranceCrawlerJob.crawlDbInsuranceDirect();
+            }
+            
+            // 폴백 데이터 사용
+            return createFallbackProduct(companyName);
             
         } catch (Exception e) {
             log.error("메인 페이지 크롤링 실패: {} - {}", companyName, e.getMessage());
@@ -176,61 +143,7 @@ public class IntegratedInsuranceCrawler {
         }
     }
     
-    /**
-     * 모든 정보 통합
-     */
-    private InsuranceProductDto integrateAllInformation(
-            InsuranceProductDto basicInfo,
-            InsuranceProductDto coverageInfo, 
-            DetailedInfoCrawler.DetailedInsuranceInfo detailedInfo,
-            String logoUrl) {
-        
-        // 가장 완전한 정보를 기반으로 통합
-        String finalProductName = getBestValue(
-            basicInfo.getProductName(), 
-            coverageInfo.getProductName()
-        );
-        
-        String finalDescription = getBestValue(
-            coverageInfo.getDescription(),
-            basicInfo.getDescription()
-        );
-        
-        // 특징들 통합 (중복 제거)
-        List<String> allFeatures = new ArrayList<>();
-        if (basicInfo.getFeatures() != null) allFeatures.addAll(basicInfo.getFeatures());
-        if (coverageInfo.getFeatures() != null) allFeatures.addAll(coverageInfo.getFeatures());
-        if (detailedInfo.getDetailedBenefits() != null) allFeatures.addAll(detailedInfo.getDetailedBenefits());
-        
-        List<String> uniqueFeatures = allFeatures.stream()
-                .distinct()
-                .limit(8)
-                .toList();
-        
-        return InsuranceProductDto.builder()
-                .company(basicInfo.getCompany())
-                .productName(finalProductName)
-                .description(finalDescription)
-                .features(uniqueFeatures)
-                .logoUrl(logoUrl)
-                .redirectUrl(basicInfo.getRedirectUrl())
-                .build();
-    }
-    
-    /**
-     * 더 나은 값 선택 (길이와 내용 기준)
-     */
-    private String getBestValue(String value1, String value2) {
-        if (value1 == null || value1.isBlank()) return value2;
-        if (value2 == null || value2.isBlank()) return value1;
-        
-        // 더 구체적이고 긴 값 선택
-        if (value2.length() > value1.length() && value2.length() <= value1.length() * 2) {
-            return value2;
-        }
-        
-        return value1;
-    }
+
     
     /**
      * 폴백 상품 생성
@@ -274,13 +187,16 @@ public class IntegratedInsuranceCrawler {
         List<InsuranceProductDto> results = crawlForMainPage();
         
         // 실제 크롤링 성공한 것만 필터링
-        List<InsuranceProductDto> successfulResults = results.stream()
-            .filter(product -> isActuallyCrawled(product))
-            .collect(Collectors.toList());
+        List<InsuranceProductDto> successfulResults = new ArrayList<>();
+        List<InsuranceProductDto> failedResults = new ArrayList<>();
         
-        List<InsuranceProductDto> failedResults = results.stream()
-            .filter(product -> !isActuallyCrawled(product))
-            .collect(Collectors.toList());
+        for (InsuranceProductDto product : results) {
+            if (isActuallyCrawled(product)) {
+                successfulResults.add(product);
+            } else {
+                failedResults.add(product);
+            }
+        }
         
         // 성공한 결과만 저장
         if (!successfulResults.isEmpty()) {
@@ -294,11 +210,11 @@ public class IntegratedInsuranceCrawler {
         
         // 실패한 결과 로깅
         if (!failedResults.isEmpty()) {
-            log.warn("크롤링 실패한 보험사: {}", 
-                failedResults.stream()
-                    .map(InsuranceProductDto::getCompany)
-                    .collect(Collectors.joining(", "))
-            );
+            List<String> failedCompanies = new ArrayList<>();
+            for (InsuranceProductDto product : failedResults) {
+                failedCompanies.add(product.getCompany());
+            }
+            log.warn("크롤링 실패한 보험사: {}", String.join(", ", failedCompanies));
         }
         
         
@@ -341,73 +257,5 @@ public class IntegratedInsuranceCrawler {
         runMainPageCrawling();
     }
     
-    /**
-     * 크롤링 상태 체크
-     */
-    public CrawlingStatus getCrawlingStatus() {
-        int supportedCompanies = SUPPORTED_COMPANIES.length;
-        int successfulCrawls = 0;
-        List<String> failedCompanies = new ArrayList<>();
-        
-        for (String company : SUPPORTED_COMPANIES) {
-            try {
-                // 간단한 연결 테스트
-                String url = COMPANY_URLS.get(company);
-                if (url != null && isUrlAccessible(url)) {
-                    successfulCrawls++;
-                } else {
-                    failedCompanies.add(company);
-                }
-            } catch (Exception e) {
-                failedCompanies.add(company);
-            }
-        }
-        
-        return CrawlingStatus.builder()
-                .totalCompanies(supportedCompanies)
-                .successfulCrawls(successfulCrawls)
-                .failedCompanies(failedCompanies)
-                .lastCrawlTime(LocalDateTime.now())
-                .build();
-    }
-    
-    /**
-     * URL 접근 가능 여부 확인
-     */
-    private boolean isUrlAccessible(String url) {
-        try {
-            java.net.URL urlObj = new java.net.URL(url);
-            java.net.HttpURLConnection connection = (java.net.HttpURLConnection) urlObj.openConnection();
-            connection.setRequestMethod("HEAD");
-            connection.setConnectTimeout(5000);
-            connection.setReadTimeout(5000);
-            int responseCode = connection.getResponseCode();
-            return responseCode >= 200 && responseCode < 400;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-    
-    /**
-     * 크롤링 상태 정보 클래스
-     */
-    @lombok.Builder
-    @lombok.Data
-    public static class CrawlingStatus {
-        private int totalCompanies;
-        private int successfulCrawls;
-        private List<String> failedCompanies;
-        private LocalDateTime lastCrawlTime;
-        private String status;
-        
-        public String getStatus() {
-            if (successfulCrawls == totalCompanies) {
-                return "모든 보험사 크롤링 성공";
-            } else if (successfulCrawls > 0) {
-                return String.format("부분 성공: %d/%d", successfulCrawls, totalCompanies);
-            } else {
-                return "모든 크롤링 실패";
-            }
-        }
-    }
+
 }

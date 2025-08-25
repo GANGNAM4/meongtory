@@ -24,9 +24,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/meongtory
-      - SPRING_DATASOURCE_USERNAME=meongtory_user
-      - SPRING_DATASOURCE_PASSWORD=meongtory123!
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
       - SERVER_PORT=${BACKEND_PORT}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
@@ -57,11 +57,11 @@ services:
     ports:
       - "9000:9000"
     environment:
-      - DB_USER=meongtory_user
-      - DB_PASSWORD=meongtory123!
-      - DB_NAME=meongtory
-      - DB_HOST=db
-      - DB_PORT=5432
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL}
       - OPENAI_IMAGE_MODEL=${OPENAI_IMAGE_MODEL}
@@ -80,33 +80,6 @@ services:
     networks:
       - meongtory-network
 
-  db:
-    image: postgres:15
-    environment:
-      - POSTGRES_USER=meongtory_user
-      - POSTGRES_PASSWORD=meongtory123!
-      - POSTGRES_DB=meongtory
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db:/docker-entrypoint-initdb.d
-    ports:
-      - "0.0.0.0:5433:5432"
-    networks:
-      - meongtory-network
-    command: |
-      bash -c "
-        docker-entrypoint.sh postgres &
-        sleep 10
-        cp /docker-entrypoint-initdb.d/pg_hba.conf /var/lib/postgresql/data/pg_hba.conf
-        chmod 600 /var/lib/postgresql/data/pg_hba.conf
-        chown postgres:postgres /var/lib/postgresql/data/pg_hba.conf
-        pg_ctl reload -D /var/lib/postgresql/data
-        wait
-      "
-
 networks:
   meongtory-network:
     driver: bridge
-
-volumes:
-  postgres_data:

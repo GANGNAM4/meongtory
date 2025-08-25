@@ -301,39 +301,16 @@ export const insuranceApi = {
     return response.data.data;
   },
   
-  getDetails: async (id: number): Promise<any> => {
-    const response = await axios.get(`${getBackendUrl()}/api/insurance/${id}/details`);
-    return response.data.data;
-  },
-  
   create: async (data: any): Promise<any> => {
     const response = await axios.post(`${getBackendUrl()}/api/insurance`, data);
     return response.data.data;
   },
-  
+
   // 수동 크롤링 (ADMIN 전용)
   manualCrawl: async (): Promise<string> => {
     const response = await axios.post(`${getBackendUrl()}/api/insurance/manual-crawl`);
     return response.data.message;
   },
-
-  // 크롤링 테스트 (개발용)
-  testCrawl: async (): Promise<string> => {
-    const response = await axios.post(`${getBackendUrl()}/api/insurance/test-crawl`);
-    return response.data.message;
-  },
-
-  // 상세 크롤링 (개선된 버전)
-  getDetailedCrawl: async (id: number): Promise<any> => {
-    const response = await axios.get(`${getBackendUrl()}/api/insurance/${id}/detailed-crawl`);
-    return response.data.data;
-  },
-
-  // 크롤링 상태 확인
-  getCrawlingStatus: async (): Promise<any> => {
-    const response = await axios.get(`${getBackendUrl()}/api/insurance/crawling-status`);
-    return response.data.data;
-  }
 };
 
 // 공통 Recent API 함수들

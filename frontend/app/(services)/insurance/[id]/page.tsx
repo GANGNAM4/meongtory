@@ -78,9 +78,6 @@ export default function InsuranceDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  // ADMIN 권한 체크
-  const [isAdmin, setIsAdmin] = useState(false)
-
   // 최근 본 상품 사이드바
   const [showRecentSidebar, setShowRecentSidebar] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
@@ -99,43 +96,8 @@ export default function InsuranceDetailPage() {
     setShowRecentSidebar(newIsOpen)
     updateSidebarState({ isOpen: newIsOpen, productType: 'insurance' })
   }
-  
-  useEffect(() => {
-    const token = localStorage.getItem('accessToken')
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        setIsAdmin(payload.role === 'ADMIN')
-      } catch (e) {
-        console.error('토큰 파싱 오류:', e)
-      }
-    }
-  }, [])
 
   const { toast } = useToast()
-
-  // 수동 크롤링 함수
-  const handleManualCrawl = async () => {
-    try {
-      setLoading(true)
-      const result = await insuranceApi.manualCrawl()
-      toast({
-        title: "데이터 업데이트 완료",
-        description: result,
-      })
-      // 페이지 새로고침
-      window.location.reload()
-    } catch (error) {
-      console.error('크롤링 오류:', error)
-      toast({
-        title: "데이터 업데이트 실패",
-        description: "크롤링 중 오류가 발생했습니다.",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -277,14 +239,22 @@ export default function InsuranceDetailPage() {
   const companyInfo = insuranceCompanySites[product.company as keyof typeof insuranceCompanySites]
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 pt-20">
+      {/* 귀여운 배경 장식 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-20 left-10 w-20 h-20 bg-pink-200 rounded-full opacity-20 animate-bounce"></div>
+        <div className="absolute top-40 right-20 w-16 h-16 bg-purple-200 rounded-full opacity-20 animate-pulse"></div>
+        <div className="absolute bottom-40 left-20 w-24 h-24 bg-blue-200 rounded-full opacity-20 animate-bounce"></div>
+        <div className="absolute bottom-20 right-10 w-12 h-12 bg-yellow-200 rounded-full opacity-20 animate-pulse"></div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Header */}
         <div className="mb-6">
           <Button
             onClick={handleBack}
             variant="outline"
-            className="mb-4"
+            className="mb-4 bg-white/80 backdrop-blur-sm border-pink-200 hover:bg-pink-50"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             뒤로 가기
@@ -295,25 +265,15 @@ export default function InsuranceDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Product Header */}
-            <Card>
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
               <CardContent className="p-6">
                 <div className="flex items-start space-x-4">
 
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
-                      <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                      <Badge variant="secondary" className="bg-gradient-to-r from-pink-100 to-purple-100 text-pink-800 border-pink-200">
                         {product.company}
                       </Badge>
-                      {/* 크롤링 버튼 */}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleManualCrawl}
-                        className="text-xs"
-                        disabled={loading}
-                      >
-                        {loading ? '크롤링 중...' : '데이터 업데이트'}
-                      </Button>
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">{product.productName}</h1>
                     <p className="text-gray-600">{product.description}</p>
@@ -323,7 +283,7 @@ export default function InsuranceDetailPage() {
             </Card>
 
             {/* Features */}
-            <Card>
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Star className="w-5 h-5 mr-2 text-yellow-500" />
@@ -333,8 +293,8 @@ export default function InsuranceDetailPage() {
               <CardContent>
                 <div className="grid md:grid-cols-2 gap-4">
                   {product.features.map((feature, index) => (
-                    <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <span className="text-yellow-500 mt-1">•</span>
+                    <div key={index} className="flex items-start space-x-3 p-3 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl">
+                      <span className="text-pink-500 mt-1">✨</span>
                       <span className="text-gray-700">{feature}</span>
                     </div>
                   ))}
@@ -344,7 +304,7 @@ export default function InsuranceDetailPage() {
 
             {/* Coverage Details */}
             {product.coverageDetails && Array.isArray(product.coverageDetails) && product.coverageDetails.length > 0 && (
-              <Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Shield className="w-5 h-5 mr-2 text-blue-500" />
@@ -373,7 +333,7 @@ export default function InsuranceDetailPage() {
 
             {/* Coverage Details */}
             {product.coverage && (
-              <Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Shield className="w-5 h-5 mr-2 text-blue-500" />
@@ -382,17 +342,17 @@ export default function InsuranceDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid md:grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl">
                       <DollarSign className="w-8 h-8 text-blue-500 mx-auto mb-2" />
                       <p className="text-sm text-gray-600">최대 보장금액</p>
                       <p className="font-bold text-blue-600">{product.coverage.maxAmount}</p>
                     </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl">
                       <Shield className="w-8 h-8 text-green-500 mx-auto mb-2" />
                       <p className="text-sm text-gray-600">보장률</p>
                       <p className="font-bold text-green-600">{product.coverage.coverageRate}</p>
                     </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl">
                       <Clock className="w-8 h-8 text-purple-500 mx-auto mb-2" />
                       <p className="text-sm text-gray-600">면책금</p>
                       <p className="font-bold text-purple-600">{product.coverage.deductible}</p>
@@ -404,7 +364,7 @@ export default function InsuranceDetailPage() {
 
             {/* Benefits */}
             {product.benefits && product.benefits.length > 0 && (
-              <Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <span className="text-green-500 mr-2">✓</span>
@@ -414,7 +374,7 @@ export default function InsuranceDetailPage() {
                 <CardContent>
                   <div className="grid md:grid-cols-2 gap-4">
                     {product.benefits.map((benefit, index) => (
-                      <div key={index} className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg">
+                      <div key={index} className="flex items-start space-x-3 p-3 bg-gradient-to-r from-green-50 to-green-100 rounded-xl">
                         <span className="text-green-500 mt-1">✓</span>
                         <span className="text-gray-700">{benefit}</span>
                       </div>
@@ -426,7 +386,7 @@ export default function InsuranceDetailPage() {
 
             {/* Requirements */}
             {product.requirements && product.requirements.length > 0 && (
-              <Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <span className="text-blue-500 mr-2">📋</span>
@@ -436,8 +396,8 @@ export default function InsuranceDetailPage() {
                 <CardContent>
                   <div className="grid md:grid-cols-2 gap-4">
                     {product.requirements.map((requirement, index) => (
-                      <div key={index} className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
-                        <span className="text-blue-500 mt-1">•</span>
+                      <div key={index} className="flex items-start space-x-3 p-3 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl">
+                        <span className="text-blue-500 mt-1">📋</span>
                         <span className="text-gray-700">{requirement}</span>
                       </div>
                     ))}
@@ -448,7 +408,7 @@ export default function InsuranceDetailPage() {
 
             {/* Crawled Information Notice */}
             {(product.benefits && product.benefits.length > 0) || (product.requirements && product.requirements.length > 0) ? (
-              <Card className="bg-blue-50 border-blue-200">
+              <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-2">
                     <span className="text-blue-500">ℹ️</span>
@@ -465,7 +425,7 @@ export default function InsuranceDetailPage() {
           <div className="space-y-6">
             {/* Company Information */}
             {companyInfo && (
-              <Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     {companyInfo.name}
@@ -486,7 +446,7 @@ export default function InsuranceDetailPage() {
 
                   <Button
                     onClick={() => handleGoToCompanySite(product.company)}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-full"
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
                     공식 사이트 방문
@@ -496,7 +456,7 @@ export default function InsuranceDetailPage() {
             )}
 
             {/* Quick Actions */}
-            <Card>
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
               <CardHeader>
                 <CardTitle>빠른 액션</CardTitle>
               </CardHeader>
@@ -511,7 +471,7 @@ export default function InsuranceDetailPage() {
                       handleGoToCompanySite(product.company)
                     }
                   }}
-                  className="w-full bg-yellow-400 hover:bg-yellow-500 text-black"
+                  className="w-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white rounded-full"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   보험 가입하기
@@ -520,7 +480,7 @@ export default function InsuranceDetailPage() {
             </Card>
 
             {/* Contact Info */}
-            <Card>
+            <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
               <CardHeader>
                 <CardTitle>고객 상담</CardTitle>
               </CardHeader>
@@ -550,15 +510,17 @@ export default function InsuranceDetailPage() {
       />
 
       {/* 고정된 사이드바 토글 버튼 */}
-      <div className="fixed top-20 right-6 z-40">
-        <Button
-          onClick={handleSidebarToggle}
-          className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg rounded-full w-14 h-14 p-0"
-          title="최근 본 상품"
-        >
-          <Clock className="h-6 w-6" />
-        </Button>
-      </div>
+      {!showRecentSidebar && (
+        <div className="fixed bottom-4 right-4 sm:top-20 sm:right-6 z-40">
+          <Button
+            onClick={handleSidebarToggle}
+            className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white shadow-xl rounded-full w-12 h-12 sm:w-16 sm:h-16 p-0 transform hover:scale-110 transition-all duration-200"
+            title="최근 본 보험"
+          >
+            <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
+          </Button>
+        </div>
+      )}
 
 
     </div>
