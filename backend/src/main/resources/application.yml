@@ -25,7 +25,7 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
-            redirect-uri: ${OAUTH2_REDIRECT_URI_BASE:https://meongtory.shop}/login/oauth2/code/google
+            redirect-uri: https://meongtory.shop/login/oauth2/code/google
             scope:
               - email
               - profile
@@ -34,7 +34,7 @@ spring:
             client-secret: ${NAVER_CLIENT_SECRET}
             client-name: Naver
             authorization-grant-type: authorization_code
-            redirect-uri: ${OAUTH2_REDIRECT_URI_BASE:https://meongtory.shop}/login/oauth2/code/naver
+            redirect-uri: https://meongtory.shop/login/oauth2/code/naver
             scope:
               - name
               - email
@@ -44,7 +44,7 @@ spring:
             client-secret: ${KAKAO_CLIENT_SECRET}
             client-name: Kakao
             authorization-grant-type: authorization_code
-            redirect-uri: ${OAUTH2_REDIRECT_URI_BASE:https://meongtory.shop}/login/oauth2/code/kakao
+            redirect-uri: https://meongtory.shop/login/oauth2/code/kakao
             scope:
               - profile_nickname
             client-authentication-method: client_secret_post

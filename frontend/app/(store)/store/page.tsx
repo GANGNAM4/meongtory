@@ -512,32 +512,36 @@ export default function StorePage({
         // 응답 데이터가 배열인지 확인
         const responseData = embeddingResponse.data;
         if (responseData && Array.isArray(responseData)) {
+          console.log('임베딩 검색 원본 데이터:', responseData);
           embeddingResults = responseData
-            .filter((item: any) => item && item.id) // null이나 id가 없는 항목 필터링
-            .map((item: any) => ({
-              id: Number(item.id) || Math.random(),
-              productId: item.productId || '',
-              title: item.title || '제목 없음',
-              description: item.description || '',
-              price: Number(item.price) || 0,
-              imageUrl: item.imageUrl || '/placeholder.svg',
-              mallName: item.mallName || '판매자 정보 없음',
-              productUrl: item.productUrl || '#',
-              brand: item.brand || '',
-              maker: item.maker || '',
-              category1: item.category1 || '',
-              category2: item.category2 || '',
-              category3: item.category3 || '',
-              category4: item.category4 || '',
-              reviewCount: Number(item.reviewCount) || 0,
-              rating: Number(item.rating) || 0,
-              searchCount: Number(item.searchCount) || 0,
-              createdAt: item.createdAt || new Date().toISOString(),
-              updatedAt: item.updatedAt || new Date().toISOString(),
-              relatedProductId: item.relatedProductId ? Number(item.relatedProductId) : undefined,
-              isSaved: true,
-              similarity: Number(item.similarity) || 0 // 유사도 점수 추가
-            }));
+            .filter((item: any) => item && (item.id || item.productId)) // null이나 id/productId가 없는 항목 필터링
+            .map((item: any) => {
+              console.log('임베딩 검색 아이템 처리:', item);
+              return {
+                id: Number(item.id) || Math.random(),
+                productId: item.productId || item.product_id || String(item.id) || '',
+                title: item.title || item.name || '제목 없음',
+                description: item.description || '',
+                price: Number(item.price) || 0,
+                imageUrl: item.image_url || item.imageUrl || '/placeholder.svg',
+                mallName: item.seller || item.mallName || '판매자 정보 없음',
+                productUrl: item.product_url || item.productUrl || '#',
+                brand: item.brand || '',
+                maker: item.maker || '',
+                category1: item.category1 || '',
+                category2: item.category2 || '',
+                category3: item.category3 || '',
+                category4: item.category4 || '',
+                reviewCount: Number(item.review_count) || Number(item.reviewCount) || 0,
+                rating: Number(item.rating) || 0,
+                searchCount: Number(item.search_count) || Number(item.searchCount) || 0,
+                createdAt: item.created_at || item.createdAt || new Date().toISOString(),
+                updatedAt: item.updated_at || item.updatedAt || new Date().toISOString(),
+                relatedProductId: item.relatedProductId ? Number(item.relatedProductId) : undefined,
+                isSaved: true,
+                similarity: Number(item.similarity) || 0 // 유사도 점수 추가
+              };
+            });
           
           console.log('임베딩 검색 결과 변환 완료:', embeddingResults.length, '개');
         } else {
@@ -1195,7 +1199,7 @@ export default function StorePage({
               placeholder="상품 검색"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-4 pr-10 py-3 border-2 border-yellow-300 rounded-full focus:border-yellow-400 focus:ring-yellow-400"
+              className="pl-4 pr-10 py-3 border-2 border-yellow-300 rounded-full focus:border-yellow-400 focus:ring-yellow-400 hover:border-yellow-300"
               onKeyPress={(e) => {
                 if (e.key === 'Enter') {
                   handleUnifiedSearch();
@@ -1372,18 +1376,42 @@ export default function StorePage({
                 <CardContent className="p-4">
                   <div className="mb-2" onClick={() => {
                     try {
+                      console.log('네이버 상품 클릭됨:', naverProduct);
+                      console.log('similarity:', naverProduct.similarity);
+                      console.log('id:', naverProduct.id);
+                      console.log('productId:', naverProduct.productId);
+                      
                       if (typeof onViewProduct === 'function') {
                         onViewProduct(naverProduct);
                       } else {
                         // onViewProduct가 없으면 직접 라우팅
-                        const encodedId = encodeURIComponent(naverProduct.productId);
-                        window.location.href = `/store/naver/${encodedId}`;
+                        // 모든 경우에 productId를 사용 (백엔드 API가 productId로 조회)
+                        let productId = naverProduct.productId;
+                        console.log('상품 상세 페이지로 이동 - productId 사용:', productId);
+                        
+                        if (!productId) {
+                          console.error('productId가 없음:', naverProduct);
+                          return;
+                        }
+                        
+                        const encodedId = encodeURIComponent(productId);
+                        const targetUrl = `/store/naver/${encodedId}`;
+                        console.log('네이버 상품 상세 페이지로 이동:', targetUrl);
+                        window.location.href = targetUrl;
                       }
                     } catch (error) {
                       console.error("onViewProduct 호출 중 오류:", error);
-                      // 에러 발생 시에도 직접 라우팅
-                      const encodedId = encodeURIComponent(naverProduct.productId);
-                      window.location.href = `/store/naver/${encodedId}`;
+                      // 에러 발생 시에도 직접 라우팅 (productId 사용)
+                      let productId = naverProduct.productId;
+                      
+                      if (!productId) {
+                        console.error('에러 처리 중에도 productId가 없음:', naverProduct);
+                        return;
+                      }
+                      
+                      const encodedId = encodeURIComponent(productId);
+                      const targetUrl = `/store/naver/${encodedId}`;
+                      window.location.href = targetUrl;
                     }
                   }}>
                     <h3 className="font-semibold text-sm text-gray-900 line-clamp-2 mb-1">

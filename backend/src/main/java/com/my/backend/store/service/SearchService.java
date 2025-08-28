@@ -137,7 +137,7 @@ public class SearchService {
                 // 네이버 상품과 일반 상품을 모두 처리
                 SearchResponseDto dto = SearchResponseDto.builder()
                         .id(((Number) aiProduct.get("id")).longValue())
-                        .productId(type.equals("naver") ? (String) aiProduct.get("product_id") : String.valueOf(aiProduct.get("id"))) // 일반 상품은 id를 productId로 사용
+                        .productId(type.equals("naver") ? (String) aiProduct.get("product_id") : String.valueOf(aiProduct.get("id"))) // 네이버 상품은 AI 서비스에서 받은 product_id 사용
                         .title(title != null ? title : name) // title이 없으면 name 사용
                         .description((String) aiProduct.get("description"))
                         .price(((Number) aiProduct.get("price")).longValue())
@@ -225,6 +225,7 @@ public class SearchService {
         }
     }
     
+
     /**
      * Euclidean distance를 유사도 점수(0~1)로 변환
      * @param distance Euclidean distance

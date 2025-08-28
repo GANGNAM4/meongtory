@@ -49,8 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshAccessToken = useCallback(async () => {
     try {
       const refreshToken = localStorage.getItem("refreshToken");
-      // 수정: 리프레시 토큰 존재 여부 및 내용 확인
-      console.log("리프레시 토큰 확인:", refreshToken ? "존재함" : "없음", "길이:", refreshToken?.length);
+      console.log("리프레시 토큰:", refreshToken || "없음");
       if (!refreshToken) {
         console.error("리프레시 토큰이 없습니다.");
         return null;
@@ -60,19 +59,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         { refreshToken },
         { headers: { "Content-Type": "application/json" } }
       );
-      const { accessToken } = response.data.data;
+      console.log("리프레시 응답:", response.data);
+      const { accessToken, refreshToken: newRefreshToken } = response.data.data;
       localStorage.setItem("accessToken", accessToken);
-      // 수정: 토큰 저장 후 즉시 확인
-      console.log("새로운 Access Token 저장됨:", accessToken);
-      console.log("localStorage 확인:", localStorage.getItem("accessToken") ? "저장됨" : "저장안됨");
+      localStorage.setItem("refreshToken", newRefreshToken);
+      console.log("새로운 Access Token:", accessToken);
+      console.log("새로운 Refresh Token:", newRefreshToken);
       return accessToken;
     } catch (err) {
       console.error("토큰 갱신 실패:", err);
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
-      localStorage.removeItem("nickname");
-      localStorage.removeItem("email");
-      localStorage.removeItem("role");
       return null;
     }
   }, []);
@@ -80,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkLoginStatus = useCallback(async () => {
     // 수정: 재시도 횟수 초과 시 즉시 종료
     if (retryCount.current >= MAX_RETRIES) {
-      console.error(`최대 재시도 횟수(${MAX_RETRIES}) 초과, 인증 정보 초기화`);
+      console.error(`최대 재시도 횟수(${MAX_RETRIES}) 초과`);
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       setIsLoggedIn(false);
@@ -88,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsAdmin(false);
       hasCheckedLogin.current = true;
       retryCount.current = 0;
+      toast.error("인증에 실패했습니다. 다시 로그인해주세요.", { duration: 5000 });
       return;
     }
 
@@ -286,9 +284,9 @@ function NavigationHeader({
             </button>
             {isLoggedIn && (
               <button
-                onClick={() => onNavigate("myPage")}
+                onClick={() => onNavigate("my")}
                 className={`text-sm font-medium transition-colors ${
-                  currentPage === "myPage" ? "text-blue-600" : "text-gray-700 hover:text-blue-600"
+                  currentPage === "my" ? "text-blue-600" : "text-gray-700 hover:text-blue-600"
                 }`}
               >
                 마이페이지

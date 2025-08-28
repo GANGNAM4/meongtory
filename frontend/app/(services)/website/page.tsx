@@ -266,9 +266,17 @@ export default function PetServiceWebsite() {
     if (success && accessToken && refreshToken) {
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
+      console.log("=== 로그인 후 localStorage 상태 ===");
+      console.log("accessToken:", localStorage.getItem("accessToken"));
+      console.log("refreshToken:", localStorage.getItem("refreshToken"));
       const fetchUserInfo = async () => {
         try {
-          const response = await axios.get(`${getBackendUrl()}/api/accounts/me`)
+          const response = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
+            headers: { 
+              Access_Token: localStorage.getItem("accessToken"),
+              "access_token": localStorage.getItem("accessToken")
+            }
+          });
           const userData = response.data?.data
           if (!userData) throw new Error("사용자 데이터가 없습니다")
           const { id, email, name, role } = userData

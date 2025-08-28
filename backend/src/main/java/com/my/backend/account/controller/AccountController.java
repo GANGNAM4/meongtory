@@ -2,6 +2,10 @@ package com.my.backend.account.controller;
 
 import com.my.backend.account.dto.AccountRegisterRequestDto;
 import com.my.backend.account.dto.LoginRequestDto;
+import com.my.backend.account.entity.Account;
+import com.my.backend.account.entity.RefreshToken;
+import com.my.backend.account.repository.AccountRepository;
+import com.my.backend.account.repository.RefreshTokenRepository;
 import com.my.backend.account.service.AccountService;
 import com.my.backend.global.dto.GlobalResDto;
 import com.my.backend.global.dto.ResponseDto;
@@ -29,6 +33,8 @@ import java.util.Map;
 public class AccountController {
     private final AccountService accountService;
     private final JwtUtil jwtUtil;
+    private final AccountRepository accountRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     //회원가입
     @PostMapping("/register")
@@ -72,7 +78,7 @@ public class AccountController {
         String email = userDetails.getUsername();
         return ResponseDto.success(accountService.getUserInfoByEmail(email));
     }
-    
+
     @PostMapping("/refresh")
     public ResponseDto<?> refreshToken(@RequestBody Map<String, String> request) {
         log.info("리프레시 토큰 요청 수신");
@@ -82,8 +88,22 @@ public class AccountController {
                 log.warn("리프레시 토큰이 제공되지 않음");
                 return ResponseDto.fail("INVALID_REFRESH_TOKEN", "리프레시 토큰이 필요합니다.");
             }
-            TokenDto tokenDto = accountService.refreshAccessToken(refreshToken);
-            log.info("액세스 토큰 갱신 성공");
+            String email = jwtUtil.getEmailFromToken(refreshToken);
+            Account account = accountRepository.findByEmail(email)
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 계정입니다: " + email));
+            if (!jwtUtil.refreshTokenValidation(refreshToken)) {
+                log.warn("유효하지 않은 리프레시 토큰: {}", refreshToken);
+                return ResponseDto.fail("INVALID_REFRESH_TOKEN", "유효하지 않은 리프레시 토큰입니다.");
+            }
+            // 새 액세스 토큰과 리프레시 토큰 생성
+            TokenDto tokenDto = jwtUtil.createAllToken(email, account.getRole());
+            // DB에 새 리프레시 토큰 저장
+            RefreshToken newRefreshToken = RefreshToken.builder()
+                    .accountEmail(email)
+                    .refreshToken(tokenDto.getRefreshToken())
+                    .build();
+            refreshTokenRepository.save(newRefreshToken);
+            log.info("액세스 토큰 및 리프레시 토큰 갱신 성공: email={}", email);
             return ResponseDto.success(tokenDto);
         } catch (Exception e) {
             log.error("액세스 토큰 갱신 실패: {}", e.getMessage());

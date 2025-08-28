@@ -71,6 +71,9 @@ export default function LoginModal({
       // 로컬 스토리지에 토큰 저장
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
+      console.log("=== 로그인 후 localStorage 상태 ===");
+      console.log("accessToken:", localStorage.getItem("accessToken"));
+      console.log("refreshToken:", localStorage.getItem("refreshToken"));
       localStorage.setItem("email", userEmail);
       localStorage.setItem("nickname", name);
       localStorage.setItem("role", role);

@@ -327,10 +327,12 @@ async def update_embeddings(request: EmbeddingUpdateRequest = None):
         updater = EmbeddingUpdater()
         
         # 임베딩이 없는 상품 수 확인
-        count = updater.count_products_without_embedding()
-        logger.info(f"임베딩이 없는 상품 수: {count}개")
+        naver_count = updater.count_naver_products_without_embedding()
+        regular_count = updater.count_regular_products_without_embedding()
+        total_count = naver_count + regular_count
+        logger.info(f"임베딩이 없는 상품 수: 네이버 {naver_count}개, 일반 {regular_count}개, 총 {total_count}개")
         
-        if count == 0:
+        if total_count == 0:
             logger.info("모든 상품에 임베딩이 이미 설정되어 있습니다.")
             return {
                 "success": True,
@@ -355,8 +357,8 @@ async def update_embeddings(request: EmbeddingUpdateRequest = None):
         logger.info("임베딩 업데이트가 백그라운드에서 시작되었습니다.")
         return {
             "success": True,
-            "message": f"임베딩 업데이트가 백그라운드에서 시작되었습니다. 총 {count}개 상품을 처리합니다.",
-            "updated_count": count,
+            "message": f"임베딩 업데이트가 백그라운드에서 시작되었습니다. 총 {total_count}개 상품을 처리합니다.",
+            "updated_count": total_count,
             "status": "processing"
         }
         
@@ -369,11 +371,15 @@ async def get_embedding_status():
     """임베딩 처리 상태 확인"""
     try:
         updater = EmbeddingUpdater()
-        total_products = updater.count_products_without_embedding()
+        naver_count = updater.count_naver_products_without_embedding()
+        regular_count = updater.count_regular_products_without_embedding()
+        total_products = naver_count + regular_count
         
         return {
             "success": True,
             "remaining_products": total_products,
+            "naver_remaining": naver_count,
+            "regular_remaining": regular_count,
             "status": "completed" if total_products == 0 else "processing",
             "message": "모든 임베딩이 완료되었습니다." if total_products == 0 else f"임베딩 처리 중입니다. 남은 상품: {total_products}개"
         }

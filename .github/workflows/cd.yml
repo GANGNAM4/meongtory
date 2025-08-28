@@ -33,12 +33,12 @@ on:
   # main 브랜치에 push 시 자동 배포
   push:
     branches:
-      - main
+      - develop
   
   # main 브랜치로 PR이 merge될 때 자동 배포
   pull_request:
     branches:
-      - main
+      - develop
     types:
       - closed
 

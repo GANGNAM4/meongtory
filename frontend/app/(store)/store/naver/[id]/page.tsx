@@ -119,7 +119,9 @@ export default function NaverProductDetailPage({ params }: PageProps) {
   // 네이버 상품 조회
   const getNaverProduct = async (productId: string): Promise<any> => {
     try {
+      console.log('네이버 상품 조회 시작:', productId);
       const response = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/${productId}`);
+      console.log('네이버 상품 조회 성공:', response.data);
       return response.data;
     } catch (error) {
       console.error('네이버 상품 조회 실패:', error);

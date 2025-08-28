@@ -33,7 +33,7 @@ public class JwtUtil {
     private final RefreshTokenRepository refreshTokenRepository;
 
     private static final long ACCESS_TIME = 24 * 60 * 60 * 1000L;
-    private static final long REFRESH_TIME = 24 * 60 * 60 * 2000L;
+    private static final long REFRESH_TIME = 7 * 24 * 60 * 60 * 1000L;
     public static final String ACCESS_TOKEN = "Access_Token";
     public static final String REFRESH_TOKEN = "Refresh_Token";
 
@@ -68,10 +68,9 @@ public class JwtUtil {
 
     // 토큰 생성
     public TokenDto createAllToken(String email, String role) {
-        return new TokenDto(
-                createToken(email, role, "Access"),
-                createToken(email, role, "Refresh")
-        );
+        String accessToken = createToken(email, role, "Access");
+        String refreshToken = createToken(email, role, "Refresh");
+        return new TokenDto(accessToken, refreshToken);
     }
 
     public String createToken(String email, String role, String type) {
