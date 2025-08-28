@@ -164,28 +164,6 @@ public class EmotionService {
         }
     }
     
-    // === 재학습 상태 조회 ===
-    public String getRetrainingStatus() throws Exception {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            
-            HttpEntity<String> requestEntity = new HttpEntity<>(headers);
-            
-            // AI 서비스에 재학습 상태 조회 요청
-            ResponseEntity<String> response = restTemplate.getForEntity(
-                aiServiceUrl + "/api/ai/retrain-status",
-                String.class
-            );
-            
-            return response.getBody();
-            
-        } catch (Exception e) {
-            System.err.println("❌ 재학습 상태 조회 실패: " + e.getMessage());
-            throw new Exception("재학습 상태 조회 실패: " + e.getMessage());
-        }
-    }
-    
     // === 피드백 사용 완료 표시 기능 ===
     @Transactional
     public void markUnusedFeedbackAsUsed() {

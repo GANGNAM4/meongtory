@@ -233,35 +233,6 @@ async def retrain_emotion_model(request: RetrainRequest):
         logger.error(f"감정 모델 재학습 실패: {str(e)}")
         raise HTTPException(status_code=500, detail=f"모델 재학습 중 오류 발생: {str(e)}")
 
-@app.get("/api/ai/retrain-status")
-async def get_retrain_status():
-    """재학습 상태 및 통계 조회"""
-    try:
-        # 재학습 서비스에서 피드백 데이터 조회 (환경변수에서 자동 설정)
-        retrain_service = get_retrain_service()
-        feedback_data = retrain_service.fetch_feedback_data()
-        
-        if feedback_data:
-            return {
-                "success": True,
-                "available_feedback_count": feedback_data.get('totalCount', 0),
-                "positive_feedback_count": len(feedback_data.get('positiveFeedback', [])),
-                "negative_feedback_count": len(feedback_data.get('negativeFeedback', [])),
-                "can_retrain": feedback_data.get('totalCount', 0) >= 10,
-                "message": "재학습 상태 조회 성공"
-            }
-        else:
-            return {
-                "success": False,
-                "available_feedback_count": 0,
-                "can_retrain": False,
-                "message": "피드백 데이터를 가져올 수 없습니다"
-            }
-            
-    except Exception as e:
-        logger.error(f"재학습 상태 조회 실패: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"재학습 상태 조회 중 오류 발생: {str(e)}")
-
 @app.post("/classify-category")
 async def classify_category_endpoint(request: CategoryClassificationRequest):
     """일기 내용 카테고리 분류"""

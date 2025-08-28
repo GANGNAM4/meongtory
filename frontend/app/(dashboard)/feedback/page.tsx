@@ -61,32 +61,6 @@ export default function FeedbackDashboard() {
     }
   }
 
-  // 재학습 상태 조회
-  const checkRetrainStatus = async () => {
-    try {
-      setIsCheckingStatus(true)
-      
-      const response = await axios.get(`${getBackendUrl()}/api/emotion/retrain-status`)
-      
-      if (response.data.success) {
-        setRetrainStatus(response.data.data)
-        toast.success('재학습 상태를 확인했습니다')
-      } else {
-        throw new Error(response.data.error?.message || '상태 조회 실패')
-      }
-      
-    } catch (error) {
-      console.error('재학습 상태 조회 오류:', error)
-      if (axios.isAxiosError(error) && error.response?.data?.error) {
-        toast.error(`상태 조회 실패: ${error.response.data.error.message}`)
-      } else {
-        toast.error('재학습 상태 조회 중 오류가 발생했습니다')
-      }
-    } finally {
-      setIsCheckingStatus(false)
-    }
-  }
-
   // 재학습 시작
   const handleRetrain = async () => {
     if (!stats || !stats.shouldRetrain) {
@@ -157,19 +131,6 @@ export default function FeedbackDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button 
-              onClick={checkRetrainStatus}
-              variant="outline"
-              disabled={isCheckingStatus}
-              className="flex items-center gap-2"
-            >
-              {isCheckingStatus ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-              ) : (
-                <Activity className="h-4 w-4" />
-              )}
-              {isCheckingStatus ? '확인 중...' : '재학습 상태'}
-            </Button>
             <Button 
               onClick={fetchStats}
               variant="outline"

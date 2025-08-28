@@ -117,16 +117,4 @@ public class EmotionController {
                 .body(ResponseDto.fail("RETRAIN_ERROR", "모델 재학습 시작 실패: " + e.getMessage()));
         }
     }
-    
-    // 6. 재학습 상태 조회 (관리자용)
-    @GetMapping("/retrain-status")
-    public ResponseEntity<ResponseDto<String>> getRetrainingStatus() {
-        try {
-            String status = emotionService.getRetrainingStatus();
-            return ResponseEntity.ok(ResponseDto.success(status));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                .body(ResponseDto.fail("STATUS_ERROR", "재학습 상태 조회 실패: " + e.getMessage()));
-        }
-    }
 }

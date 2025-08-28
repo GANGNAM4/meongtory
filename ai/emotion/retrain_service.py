@@ -18,6 +18,8 @@ from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 from io import BytesIO
 import shutil
+import boto3
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
 from .model import DogEmotionModel
 from .emotion_labels import DOG_EMOTIONS, EMOTION_KOREAN
@@ -44,6 +46,10 @@ class EmotionRetrainService:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.emotion_to_idx = {emotion: idx for idx, emotion in enumerate(DOG_EMOTIONS.values())}
         
+        # S3 설정
+        self.s3_bucket_name = os.getenv("AWS_S3_BUCKET_NAME", "meongtory")
+        self.s3_model_key = "emotion/best_model.pth"
+
         # 현재 모델 경로
         self.current_model_dir = Path(__file__).parent / "checkpoints_finetune"
         self.current_model_path = self.current_model_dir / "best_model.pth"
@@ -191,6 +197,29 @@ class EmotionRetrainService:
         except Exception as e:
             logger.warning(f"이미지 처리 실패 ({image_url[:50]}...): {e}")
             return None
+
+    def _upload_model_to_s3(self, local_file_path: Path) -> bool:
+        """
+        학습된 모델을 S3에 업로드
+        
+        Args:
+            local_file_path (Path): 업로드할 로컬 모델 파일 경로
+            
+        Returns:
+            bool: 업로드 성공 여부
+        """
+        try:
+            s3_client = boto3.client('s3')
+            logger.info(f"S3에 모델 업로드 시작: {local_file_path} -> s3://{self.s3_bucket_name}/{self.s3_model_key}")
+            s3_client.upload_file(str(local_file_path), self.s3_bucket_name, self.s3_model_key)
+            logger.info("✅ S3 모델 업로드 완료")
+            return True
+        except (NoCredentialsError, PartialCredentialsError):
+            logger.error("❌ S3 업로드 실패: AWS 자격 증명을 찾을 수 없습니다. 환경변수(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)를 확인하세요.")
+            return False
+        except Exception as e:
+            logger.error(f"❌ S3 업로드 중 오류 발생: {e}")
+            return False
     
     
     def retrain_model(self, images: List[torch.Tensor], labels: List[int], 
@@ -316,6 +345,9 @@ class EmotionRetrainService:
                 torch.save(checkpoint, self.current_model_path)
                 logger.info(f"✅ 재학습된 모델 저장 완료: {self.current_model_path}")
                 logger.info(f"저장된 파일 크기: {self.current_model_path.stat().st_size} bytes")
+
+                # S3에 업로드
+                self._upload_model_to_s3(self.current_model_path)
                 
             except Exception as save_error:
                 logger.error(f"❌ 모델 저장 실패: {save_error}")
