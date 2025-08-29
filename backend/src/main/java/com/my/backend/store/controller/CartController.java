@@ -23,15 +23,21 @@ public class CartController {
     private final CartService cartService;
 
     @GetMapping
-    public List<CartDto> getCurrentUserCart(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+    public ResponseDto<List<CartDto>> getCurrentUserCart(@AuthenticationPrincipal UserDetailsImpl userDetails) {
         // 인증 검증
         if (userDetails == null) {
             System.out.println("ERROR: userDetails가 null입니다. 인증이 필요합니다.");
-            throw new RuntimeException("인증이 필요합니다.");
+            return ResponseDto.fail("인증 필요", "인증이 필요합니다.");
         }
 
-        Long accountId = userDetails.getAccount().getId();
-        return cartService.getCartDtoByAccountId(accountId);
+        try {
+            Long accountId = userDetails.getAccount().getId();
+            List<CartDto> cartItems = cartService.getCartDtoByAccountId(accountId);
+            return ResponseDto.success(cartItems);
+        } catch (Exception e) {
+            System.out.println("ERROR: 장바구니 조회 실패: " + e.getMessage());
+            return ResponseDto.fail("조회 실패", "장바구니 조회에 실패했습니다.");
+        }
     }
 
     @PostMapping
@@ -69,16 +75,26 @@ public class CartController {
     }
 
     @DeleteMapping("/{cartId}")
-    public void removeFromCart(@PathVariable Long cartId) {
-        cartService.removeFromCart(cartId);
+    public ResponseDto<String> removeFromCart(@PathVariable Long cartId) {
+        try {
+            cartService.removeFromCart(cartId);
+            return ResponseDto.success("장바구니에서 상품이 삭제되었습니다.");
+        } catch (Exception e) {
+            System.out.println("ERROR: 장바구니 상품 삭제 실패: " + e.getMessage());
+            return ResponseDto.fail("삭제 실패", "장바구니 상품 삭제에 실패했습니다.");
+        }
     }
 
     @PutMapping("/{cartId}")
-    public CartDto updateQuantity(@PathVariable Long cartId,
+    public ResponseDto<CartDto> updateQuantity(@PathVariable Long cartId,
                                   @RequestParam int quantity) {
-        Cart cart = cartService.updateCartQuantity(cartId, quantity);
-        CartDto result = cartService.toDto(cart);
-        
-        return result;
+        try {
+            Cart cart = cartService.updateCartQuantity(cartId, quantity);
+            CartDto result = cartService.toDto(cart);
+            return ResponseDto.success(result);
+        } catch (Exception e) {
+            System.out.println("ERROR: 장바구니 수량 업데이트 실패: " + e.getMessage());
+            return ResponseDto.fail("업데이트 실패", "장바구니 수량 업데이트에 실패했습니다.");
+        }
     }
 }

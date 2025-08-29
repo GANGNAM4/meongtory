@@ -54,6 +54,12 @@ dependencies {
     implementation 'software.amazon.awssdk:sts:2.24.12'    
     // PDF 생성
     implementation 'org.apache.pdfbox:pdfbox:2.0.29'
+    // iText for better PDF generation with Korean support
+    implementation 'com.itextpdf:kernel:7.2.5'
+    implementation 'com.itextpdf:layout:7.2.5'
+    implementation 'com.itextpdf:io:7.2.5'
+    implementation 'com.itextpdf:font-asian:7.2.5'
+
     // HTML parsing for crawling
     implementation 'org.jsoup:jsoup:1.17.2'
     // Playwright for Java (dynamic crawling)

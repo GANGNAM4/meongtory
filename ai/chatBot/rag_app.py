@@ -10,8 +10,13 @@ import psycopg2
 import json
 
 # 로깅 설정
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# SQLAlchemy 로그 숨기기
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
 
 # 환경 변수
 DB_USER = os.getenv("DB_USER", "jjj")
@@ -146,16 +151,25 @@ class QueryRequest(BaseModel):
 
 async def process_rag_query(query: str):
     try:
-        logger.info(f"Processing query: {query}")
+        # 한글 인코딩 확인 및 로깅
+        logger.info(f"Processing query (raw): {repr(query)}")
+        logger.info(f"Processing query (decoded): {query}")
+        
         results = vectorstore.similarity_search(query, k=VECTORSTORE_SEARCH_LIMIT)
         context = "\n".join([doc.page_content for doc in results])
+        
+        logger.info(f"Retrieved context: {context[:200]}...")  # 컨텍스트 앞부분만 로깅
+        
         prompt = prompt_template.format(context=context, query=query)
+        logger.info(f"Generated prompt: {prompt[:200]}...")  # 프롬프트 앞부분만 로깅
+        
         response = llm.invoke(prompt)
-        logger.info(f"Query response: {response.content}")
+        logger.info(f"LLM response: {response.content}")
+        
         return {"answer": response.content}
     except Exception as e:
         logger.error(f"Error processing query: {e}", exc_info=True)
         raise Exception(f"Query processing failed: {str(e)}")
 
 # 서버 시작 시 vectorstore 초기화
-# initialize_vectorstore()  # 샘플 데이터 로딩 비활성화
+initialize_vectorstore()  # 샘플 데이터 로딩 활성화

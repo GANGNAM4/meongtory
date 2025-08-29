@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FileText } from "lucide-react"
+import axios from "axios"
 import type { Pet } from "@/types/pets"
 
 interface ContractViewModalProps {
@@ -41,31 +42,46 @@ export default function ContractViewModal({ isOpen, onClose, contract, pet, onEd
 
   const handleDownloadContract = async (contractId: number) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/contract-generation/${contractId}/download`, {
-        method: 'GET',
+      const accessToken = localStorage.getItem('accessToken')
+      if (!accessToken) {
+        alert("로그인이 필요합니다.")
+        return
+      }
+
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'}/api/contract-generation/${contractId}/download`, {
+        responseType: 'blob',
         headers: {
-          'Access_Token': localStorage.getItem('accessToken') || '',
+          'Authorization': accessToken,
+          'Access_Token': accessToken,
         },
+        timeout: 30000
       })
       
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.setAttribute('download', `contract-${contractId}.pdf`)
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-        window.URL.revokeObjectURL(url)
-        
-        alert("PDF 파일이 다운로드되었습니다.")
-      } else {
-        alert("파일 다운로드에 실패했습니다.")
-      }
-    } catch (error) {
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `contract-${contractId}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      
+      alert("PDF 파일이 다운로드되었습니다.")
+    } catch (error: any) {
       console.error("계약서 다운로드 실패:", error)
-      alert("파일 다운로드에 실패했습니다.")
+      
+      if (error.response?.status === 401) {
+        alert("인증이 필요합니다. 다시 로그인해주세요.")
+      } else if (error.response?.status === 403) {
+        alert("권한이 없습니다. 관리자 권한이 필요합니다.")
+      } else if (error.response?.status === 404) {
+        alert("계약서를 찾을 수 없습니다.")
+      } else if (error.response?.status === 500) {
+        alert("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")
+      } else {
+        alert(`파일 다운로드에 실패했습니다: ${error.message}`)
+      }
     }
   }
 

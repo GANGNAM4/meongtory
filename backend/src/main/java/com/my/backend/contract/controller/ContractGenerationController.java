@@ -50,10 +50,28 @@ public class ContractGenerationController {
     @GetMapping("/{id}/download")
     public ResponseEntity<ByteArrayResource> downloadContract(@PathVariable Long id) {
         try {
-            ContractGenerationResponseDto contract = contractGenerationService.getGeneratedContractById(id);
-            byte[] fileContent = contractFileService.generatePDF(contract.getContent());
-            String filename = "contract-" + id + ".pdf";
+            System.out.println("=== 계약서 다운로드 시작 ===");
+            System.out.println("요청된 계약서 ID: " + id);
             
+            // 계약서 데이터 조회
+            ContractGenerationResponseDto contract = contractGenerationService.getGeneratedContractById(id);
+            if (contract == null) {
+                System.out.println("계약서를 찾을 수 없음: " + id);
+                return ResponseEntity.notFound().build();
+            }
+            
+            System.out.println("계약서 내용 길이: " + (contract.getContent() != null ? contract.getContent().length() : 0));
+            
+            // PDF 생성
+            byte[] fileContent = contractFileService.generatePDF(contract.getContent());
+            if (fileContent == null || fileContent.length == 0) {
+                System.out.println("PDF 생성 실패: 빈 파일");
+                return ResponseEntity.internalServerError().build();
+            }
+            
+            System.out.println("PDF 생성 완료, 파일 크기: " + fileContent.length + " bytes");
+            
+            String filename = "contract-" + id + ".pdf";
             ByteArrayResource resource = new ByteArrayResource(fileContent);
             
             return ResponseEntity.ok()
@@ -61,10 +79,18 @@ public class ContractGenerationController {
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(resource);
                     
+        } catch (RuntimeException e) {
+            System.err.println("계약서 조회 실패: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.notFound().build();
         } catch (IOException e) {
+            System.err.println("PDF 생성 중 IOException 발생: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("계약서 다운로드 중 예외 발생: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
         }
     }
     

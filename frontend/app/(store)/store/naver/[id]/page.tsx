@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Sparkles, PawPrint, ExternalLink, Clock } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowLeft, Sparkles, PawPrint, ExternalLink, Clock, ChevronDown } from "lucide-react"
 import Image from "next/image"
 import axios from "axios"
 import { useRouter } from "next/navigation"
@@ -13,6 +14,7 @@ import { getBackendUrl } from '@/lib/api'
 import { recentApi } from '@/lib/api'
 import { RecentProductsSidebar } from "@/components/ui/recent-products-sidebar"
 import { loadSidebarState, updateSidebarState } from "@/lib/sidebar-state"
+import { useNaverProduct } from "@/hooks/use-store"
 
 // axios 인터셉터 설정 - 요청 시 인증 토큰 자동 추가
 axios.interceptors.request.use(
@@ -99,15 +101,19 @@ export default function NaverProductDetailPage({ params }: PageProps) {
     }
   }
   
-  const [product, setProduct] = useState<NaverProduct | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // React Query로 상품 데이터 가져오기
+  const { data: product, isLoading: loading, error: queryError } = useNaverProduct(productId || '')
+  
   const [quantity, setQuantity] = useState(1)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
+  
+  // 에러 상태를 문자열로 변환
+  const error = queryError ? '상품을 불러오는데 실패했습니다.' : null
 
   // StoreAI 추천 관련 상태
-  const [myPet, setMyPet] = useState<any>(null)
+  const [myPets, setMyPets] = useState<any[]>([]) // 모든 펫 목록
+  const [selectedPet, setSelectedPet] = useState<any>(null) // 선택된 펫
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [recommendationsLoading, setRecommendationsLoading] = useState(false)
   const [recommendationsError, setRecommendationsError] = useState<string | null>(null)
@@ -116,30 +122,10 @@ export default function NaverProductDetailPage({ params }: PageProps) {
   const [showRecentSidebar, setShowRecentSidebar] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
-  // 네이버 상품 조회
-  const getNaverProduct = async (productId: string): Promise<any> => {
-    try {
-      console.log('네이버 상품 조회 시작:', productId);
-      const response = await axios.get(`${getBackendUrl()}/api/naver-shopping/products/${productId}`);
-      console.log('네이버 상품 조회 성공:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('네이버 상품 조회 실패:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Axios 에러 상세:', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          url: error.config?.url,
-          method: error.config?.method
-        });
-      }
-      throw error;
-    }
-  };
+  // React Query가 상품 데이터를 자동으로 가져오므로 이 함수는 제거
 
   // 반려동물 정보 가져오기
-  const fetchMyPet = async () => {
+  const fetchMyPets = async () => {
     try {
       const token = localStorage.getItem('accessToken')
       if (!token) return
@@ -153,7 +139,10 @@ export default function NaverProductDetailPage({ params }: PageProps) {
       
       // 백엔드 응답 구조: ResponseDto<MyPetListResponseDto>
       if (response.data && response.data.data && response.data.data.myPets && response.data.data.myPets.length > 0) {
-        setMyPet(response.data.data.myPets[0])
+        const pets = response.data.data.myPets
+        setMyPets(pets)
+        // 첫 번째 펫을 기본 선택
+        setSelectedPet(pets[0])
       }
     } catch (error) {
       console.error('반려동물 정보 가져오기 실패:', error)
@@ -161,8 +150,8 @@ export default function NaverProductDetailPage({ params }: PageProps) {
   }
 
   // StoreAI 추천 API 호출
-  const fetchRecommendations = async () => {
-    if (!myPet) return
+  const fetchRecommendations = async (petToUse = selectedPet) => {
+    if (!petToUse) return
 
     setRecommendationsLoading(true)
     setRecommendationsError(null)
@@ -174,9 +163,9 @@ export default function NaverProductDetailPage({ params }: PageProps) {
       if (response.data.success) {
         // 펫 기반 추천: Map<String, List<ProductRecommendationResponseDto>>
         const petRecommendations = response.data.data || {}
-        // 첫 번째 펫의 추천을 사용
-        const firstPetName = Object.keys(petRecommendations)[0]
-        const recommendations = firstPetName ? petRecommendations[firstPetName] : []
+        // 선택된 펫의 추천을 사용
+        const selectedPetName = petToUse.name
+        const recommendations = selectedPetName && petRecommendations[selectedPetName] ? petRecommendations[selectedPetName] : []
         
         setRecommendations(recommendations)
       } else {
@@ -187,6 +176,14 @@ export default function NaverProductDetailPage({ params }: PageProps) {
       setRecommendationsError('추천을 불러오는데 실패했습니다.')
     } finally {
       setRecommendationsLoading(false)
+    }
+  }
+
+  // 펫 선택 변경 핸들러
+  const handlePetChange = (petId: string) => {
+    const selected = myPets.find(pet => pet.myPetId.toString() === petId)
+    if (selected) {
+      setSelectedPet(selected)
     }
   }
 
@@ -213,15 +210,15 @@ export default function NaverProductDetailPage({ params }: PageProps) {
 
   // 반려동물 정보 가져오기
   useEffect(() => {
-    fetchMyPet()
+    fetchMyPets()
   }, [])
 
   // 반려동물 정보가 있으면 추천 가져오기
   useEffect(() => {
-    if (myPet && product) {
+    if (selectedPet && product) {
       fetchRecommendations()
     }
-  }, [myPet, product])
+  }, [selectedPet, product])
 
   // 사이드바 상태 로드 및 페이지 포커스 시 동기화
   useEffect(() => {
@@ -302,47 +299,23 @@ export default function NaverProductDetailPage({ params }: PageProps) {
     }
   }
 
+  // React Query로 상품 데이터를 가져올 때 최근 본 상품에 추가
   useEffect(() => {
-    // 네이버 상품 조회 함수
-    const fetchNaverProduct = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        if (!productId) {
-          throw new Error('유효하지 않은 상품 ID입니다.')
+    if (product && productId) {
+      // 최근 본 상품에 추가
+      addToLocalRecentProducts(product)
+      
+      // 로그인 시 백엔드에도 추가
+      const token = localStorage.getItem('accessToken')
+      if (token) {
+        try {
+          recentApi.addToRecent(product.id, 'store')
+        } catch (error) {
+          console.error('백엔드 최근본 추가 실패:', error)
         }
-
-        const response = await getNaverProduct(productId);
-        
-        if (response.success && response.data) {
-          setProduct(response.data);
-          
-          // 최근 본 상품에 추가
-          addToLocalRecentProducts(response.data)
-          
-          // 로그인 시 백엔드에도 추가
-          const token = localStorage.getItem('accessToken')
-          if (token) {
-            try {
-              await recentApi.addToRecent(response.data.id, 'store')
-            } catch (error) {
-              console.error('백엔드 최근본 추가 실패:', error)
-            }
-          }
-        } else {
-          throw new Error('상품 정보를 찾을 수 없습니다.');
-        }
-      } catch (error) {
-        console.error('네이버 상품 조회 오류:', error)
-        setError('상품을 불러오는데 실패했습니다.')
-      } finally {
-        setLoading(false)
       }
     }
-
-    fetchNaverProduct()
-  }, [productId])
+  }, [product, productId])
 
   // 네이버 상품을 장바구니에 추가
   const handleAddToCart = async () => {
@@ -379,17 +352,17 @@ export default function NaverProductDetailPage({ params }: PageProps) {
       }, {
         params: { quantity },
         headers: {
-          "Authorization": accessToken,
+          "Access_Token": accessToken,
           "Content-Type": "application/json"
         }
       });
       
-      if (response.status === 200) {
+      if (response.status === 200 && response.data.success) {
         alert("네이버 상품이 장바구니에 추가되었습니다!");
-        // 장바구니 페이지로 이동
+        // 장바구니 페이지로 이동 (전체 새로고침으로 데이터 확실하게 로드)
         window.location.href = "/store/cart";
       } else {
-        alert("네이버 상품 장바구니 추가에 실패했습니다.");
+        throw new Error(response.data?.error?.message || "네이버 상품 장바구니 추가에 실패했습니다.");
       }
     } catch (error: any) {
       console.error("네이버 상품 장바구니 추가 오류:", error);
@@ -411,9 +384,10 @@ export default function NaverProductDetailPage({ params }: PageProps) {
 
     try {
       // 이미 데이터베이스에 저장된 상품이므로 product.id를 직접 사용
+      const cleanTitle = product.title.replace(/<[^>]*>/g, ''); // HTML 태그 제거
       const params = new URLSearchParams({
         productId: product.id.toString(),
-        productName: encodeURIComponent(product.title),
+        productName: encodeURIComponent(cleanTitle),
         price: product.price.toString(),
         quantity: quantity.toString(),
         imageUrl: encodeURIComponent(product.imageUrl),
@@ -612,19 +586,35 @@ export default function NaverProductDetailPage({ params }: PageProps) {
         {/* AI 추천 섹션 */}
         <div className="mt-12">
           <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-orange-500" />
-                <CardTitle className="text-xl">AI 맞춤 추천</CardTitle>
-              </div>
-              {myPet && (
-                <p className="text-sm text-gray-600">
-                  {myPet.name} ({myPet.breed}, {myPet.age}살)을 위한 맞춤 상품을 추천해드려요
-                </p>
-              )}
-            </CardHeader>
+                         <CardHeader>
+               <div className="flex items-center justify-between">
+                 <div className="flex items-center gap-2">
+                   <Sparkles className="w-6 h-6 text-orange-500" />
+                   <CardTitle className="text-2xl">맞춤 추천</CardTitle>
+                 </div>
+                 {myPets.length > 1 && (
+                   <Select value={selectedPet?.myPetId?.toString() || ""} onValueChange={handlePetChange}>
+                     <SelectTrigger className="w-40">
+                       <SelectValue placeholder="펫 선택" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       {myPets.map((pet) => (
+                         <SelectItem key={pet.myPetId} value={pet.myPetId.toString()}>
+                           {pet.name} ({pet.breed})
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 )}
+               </div>
+               {selectedPet && (
+                 <p className="text-base text-gray-600">
+                   {selectedPet.name} ({selectedPet.breed}, {selectedPet.age}살)을 위한 맞춤 상품을 추천해드려요
+                 </p>
+               )}
+             </CardHeader>
             <CardContent>
-              {!myPet ? (
+              {!selectedPet ? (
                 <div className="text-center py-8">
                   <PawPrint className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">반려동물을 등록해주세요</h3>
@@ -681,10 +671,10 @@ export default function NaverProductDetailPage({ params }: PageProps) {
       <div className="fixed top-20 right-6 z-40">
         <Button
           onClick={handleSidebarToggle}
-          className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg rounded-full w-14 h-14 p-0"
+          className="bg-yellow-400 hover:bg-yellow-500 text-black shadow-lg rounded-full w-14 h-14 p-0"
           title="최근 본 상품"
         >
-          <Clock className="h-6 w-6" />
+          <Clock className="h-6 w-6 text-white" />
         </Button>
       </div>
     </div>

@@ -19,6 +19,7 @@ interface ProductRecommendationSliderProps {
     externalMallName?: string;
     brand?: string;
     description?: string;
+    similarity?: number; // 유사도 추가
   }>;
   onAddToCart?: (productId: number, productInfo?: any) => void;
   title: string;
@@ -95,13 +96,13 @@ export function ProductRecommendationSlider({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {visibleProducts.map((product, index) => (
-          <Card 
-            key={product.id || product.productId || index}
-            className="w-full hover:shadow-lg transition-shadow duration-200 cursor-pointer"
-            onClick={() => handleCardClick(product)}
-          >
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+         {visibleProducts.map((product, index) => (
+           <Card 
+             key={product.id || product.productId || index}
+             className="w-full h-[500px] hover:shadow-lg transition-shadow duration-200 cursor-pointer flex flex-col"
+             onClick={() => handleCardClick(product)}
+           >
             <CardHeader className="p-4 pb-2">
               <div className="relative">
                 <img
@@ -109,55 +110,54 @@ export function ProductRecommendationSlider({
                   alt={product.name}
                   className="w-full h-48 object-cover rounded-lg"
                 />
-                <Badge className="absolute top-2 left-2 bg-orange-500 hover:bg-orange-600">
-                  AI 추천
-                </Badge>
-                {product.source === 'NAVER' && (
-                  <Badge className="absolute top-2 right-2 bg-green-500 hover:bg-green-600">
-                    네이버
+
+                {/* 유사도 표시 */}
+                {product.similarity !== undefined && (
+                  <Badge className="absolute bottom-2 right-2 bg-blue-500 hover:bg-blue-600 text-white">
+                    유사도: {(product.similarity * 100).toFixed(1)}%
                   </Badge>
                 )}
               </div>
             </CardHeader>
-            <CardContent className="p-4 pt-2">
-              <CardTitle className="text-lg font-semibold mb-2 truncate">
-                {product.name}
-              </CardTitle>
-              
-              <div className="mb-3">
-                <p className="text-2xl font-bold text-primary">
-                  {product.price.toLocaleString()}원
-                </p>
-              </div>
+                         <CardContent className="p-4 pt-2 flex-1 flex flex-col">
+               <CardTitle className="text-lg font-semibold mb-2 line-clamp-2 min-h-[3rem]">
+                 {product.name.replace(/<[^>]*>/g, '')}
+               </CardTitle>
+               
+               <div className="mb-3">
+                 <p className="text-2xl font-bold text-primary">
+                   {product.price.toLocaleString()}원
+                 </p>
+               </div>
 
-              {product.recommendationReason && (
-                <div className="mb-4">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    <span className="font-medium">추천 이유:</span>
-                  </p>
-                  <p className="text-sm text-gray-700 line-clamp-3">
-                    {product.recommendationReason}
-                  </p>
-                </div>
-              )}
+               {product.recommendationReason && (
+                 <div className="mb-4 flex-1">
+                   <p className="text-sm text-muted-foreground mb-2">
+                     <span className="font-medium">추천 이유:</span>
+                   </p>
+                   <p className="text-sm text-gray-700 line-clamp-3">
+                     {product.recommendationReason}
+                   </p>
+                 </div>
+               )}
 
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const productId = product.id || product.productId || 0;
-                  console.log('추천 상품 장바구니 버튼 클릭:', {
-                    productId: productId,
-                    product: product,
-                    onAddToCart: typeof onAddToCart
-                  });
-                  onAddToCart?.(productId, product);
-                }}
-                className="w-full bg-yellow-400 hover:bg-yellow-500 text-black"
-                size="sm"
-              >
-                장바구니
-              </Button>
-            </CardContent>
+               <Button
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   const productId = product.id || product.productId || 0;
+                   console.log('추천 상품 장바구니 버튼 클릭:', {
+                     productId: productId,
+                     product: product,
+                     onAddToCart: typeof onAddToCart
+                   });
+                   onAddToCart?.(productId, product);
+                 }}
+                 className="w-full bg-yellow-400 hover:bg-yellow-500 text-black mt-auto"
+                 size="sm"
+               >
+                 장바구니
+               </Button>
+             </CardContent>
           </Card>
         ))}
       </div>

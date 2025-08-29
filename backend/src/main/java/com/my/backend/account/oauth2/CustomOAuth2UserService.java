@@ -29,12 +29,11 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         log.info("Starting OAuth2 user load for client: {}", userRequest.getClientRegistration().getRegistrationId());
-        try {
-            log.info("OAuth2 UserRequest: clientId={}, redirectUri={}, code={}",
-                    userRequest.getClientRegistration().getClientId(),
-                    userRequest.getClientRegistration().getRedirectUri(),
-                    userRequest.getAccessToken() != null ? "present" : "null");
+        log.info("ClientRegistration: clientId={}, redirectUri={}",
+                userRequest.getClientRegistration().getClientId(),
+                userRequest.getClientRegistration().getRedirectUri());
 
+        try {
             OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate = new DefaultOAuth2UserService();
             OAuth2User oAuth2User = delegate.loadUser(userRequest);
             log.info("OAuth2 User Attributes: {}", oAuth2User.getAttributes());
@@ -54,6 +53,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                     .orElseGet(() -> {
                         String finalEmail = email != null ? email : provider + "_" + providerId + "@kakao.com";
                         Account newAccount = new Account(finalEmail, name, provider, providerId);
+                        log.info("Creating new account for email: {}", finalEmail);
                         return accountRepository.save(newAccount);
                     });
 
@@ -63,7 +63,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                     .refreshToken(tokenDto.getRefreshToken())
                     .build();
             refreshTokenRepository.save(refreshToken);
-            log.info("OAuth2 로그인 성공: {}", account.getEmail());
+            log.info("OAuth2 로그인 성공: {}, AccessToken: {}, RefreshToken: {}",
+                    account.getEmail(), tokenDto.getAccessToken(), tokenDto.getRefreshToken());
 
             return new CustomUserDetails(account, oAuth2User.getAttributes());
         } catch (OAuth2AuthenticationException e) {
@@ -76,14 +77,18 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     }
 
     private OAuth2UserInfo getOAuth2UserInfo(String registrationId, Map<String, Object> attributes) {
+        log.info("Processing OAuth2 user info for provider: {}", registrationId);
         if ("google".equals(registrationId)) {
+            log.info("Google OAuth2 attributes: {}", attributes);
             return new GoogleUserDetails(attributes);
         } else if ("naver".equals(registrationId)) {
+            log.info("Naver OAuth2 attributes: {}", attributes);
             return new NaverUserDetails(attributes);
         } else if ("kakao".equals(registrationId)) {
+            log.info("Kakao OAuth2 attributes: {}", attributes);
             return new KakaoUserDetails(attributes);
         } else {
-            log.error("지원하지 않는 OAuth2 제공자: {}", registrationId);
+            log.error("Unsupported OAuth2 provider: {}", registrationId);
             throw new OAuth2AuthenticationException("지원하지 않는 OAuth2 제공자입니다: " + registrationId);
         }
     }

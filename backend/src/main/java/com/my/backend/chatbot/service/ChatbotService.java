@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 
 @Service
@@ -27,9 +29,21 @@ public class ChatbotService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON_UTF8));
-            HttpEntity<ChatbotRequest> entity = new HttpEntity<>(request, headers);
+            headers.set("Accept-Charset", "UTF-8");
+            
+            // AI 서비스로 전송할 데이터 (토큰 제외)
+            Map<String, Object> requestData = new HashMap<>();
+            requestData.put("query", request.getQuery());
+            
+            // petId가 null이 아닐 때만 추가
+            if (request.getPetId() != null) {
+                requestData.put("petId", request.getPetId().intValue()); // Long을 int로 변환
+            }
+            
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestData, headers);
 
-            System.out.println("Sending request to AI service: " + aiServiceUrl + " with query: " + request.getQuery());
+            System.out.println("Sending request to AI service: " + aiServiceUrl + " with query: " + request.getQuery() + ", petId: " + request.getPetId());
+            System.out.println("Request data: " + requestData);
 
             ResponseEntity<String> rawResponse = restTemplate.exchange(
                     aiServiceUrl,
@@ -60,9 +74,19 @@ public class ChatbotService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON, MediaType.APPLICATION_JSON_UTF8));
-            HttpEntity<ChatbotRequest> entity = new HttpEntity<>(request, headers);
+            headers.set("Accept-Charset", "UTF-8");
+            
+            // AI 서비스로 전송할 데이터 (토큰 제외)
+            Map<String, Object> requestData = new HashMap<>();
+            requestData.put("query", request.getQuery());
+            if (request.getPetId() != null) {
+                requestData.put("petId", request.getPetId().intValue()); // Long을 int로 변환
+            }
+            
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestData, headers);
 
-            System.out.println("Sending insurance request to AI service: " + aiServiceUrl + " with query: " + request.getQuery());
+            System.out.println("Sending insurance request to AI service: " + aiServiceUrl + " with query: " + request.getQuery() + ", petId: " + request.getPetId());
+            System.out.println("Request data: " + requestData);
 
             ResponseEntity<String> rawResponse = restTemplate.exchange(
                     aiServiceUrl,

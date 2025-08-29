@@ -33,7 +33,7 @@ export function useAdminAdoptionRequests() {
       const response = await adoptionRequestApi.updateAdoptionRequestStatus(requestId, status)
       console.log('업데이트된 입양 신청:', response)
       
-      // 현재 입양 신청 목록에서 해당 신청만 업데이트
+      // 현재 입양 신청 목록에서 해당 신청만 즉시 업데이트
       setAdoptionRequests(prev => prev.map(request => 
         request.id === requestId 
           ? { ...request, status: status }
@@ -50,10 +50,12 @@ export function useAdminAdoptionRequests() {
             console.log(`펫 ${approvedRequest.petId}의 입양 상태를 완료로 업데이트했습니다.`)
           } catch (error) {
             console.error('펫 상태 업데이트 실패:', error)
+            throw new Error('펫 상태 업데이트에 실패했습니다.')
           }
         }
       }
       
+      console.log(`입양 신청 상태 변경 완료: 신청ID ${requestId}, 상태 ${status}`)
       return true
     } catch (error) {
       console.error('입양 신청 상태 업데이트 오류:', error)

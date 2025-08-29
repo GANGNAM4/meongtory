@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Heart, Eye, Plus, Search, Edit, Trash } from "lucide-react";
+import { MessageSquare, Heart, Eye, Plus, Search, Edit, Trash, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { getBackendUrl } from "@/lib/api";
 
@@ -157,9 +157,14 @@ export default function CommunityPage({
     return matchesSearch;
   });
 
-  const sortedPosts = filteredPosts || [];
+  // 항상 createdAt DESC 순서로 정렬 유지 (좋아요 클릭 시에도 순서 변경 방지)
+  const sortedPosts = (filteredPosts || []).sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return dateB - dateA; // 최신순 정렬
+  });
 
-  const popularPosts = posts?.sort((a, b) => b.views - a.views).slice(0, 5) || [];
+  const popularPosts = posts ? [...posts].sort((a, b) => b.views - a.views).slice(0, 5) : [];
 
   const handleLike = async (postId: number) => {
     try {
@@ -178,6 +183,7 @@ export default function CommunityPage({
       });
 
       if (response.ok) {
+        // 해당 게시글의 likes 값만 업데이트하고 배열 순서는 절대 변경하지 않음
         const updatedPosts = posts.map((post) =>
           post.id === postId ? { ...post, likes: post.likes + 1 } : post
         );
@@ -404,36 +410,97 @@ export default function CommunityPage({
                 
                 {/* 페이지 네비게이션 */}
                 {totalPages > 1 && (
-                  <div className="flex justify-center mt-6 gap-2">
-                    {/* 이전 버튼 */}
+                  <div className="flex justify-center items-center mt-8 gap-2">
+                    {/* 이전 페이지 버튼 */}
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(prev - 1, 0))}
                       disabled={currentPage === 0}
-                      className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50"
+                      className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      ◀
+                      <ChevronLeft className="h-5 w-5" />
                     </button>
 
-                    {/* 페이지 번호 */}
-                    {Array.from({ length: totalPages }, (_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentPage(i)}
-                        className={`px-3 py-1 rounded ${
-                          currentPage === i ? "bg-yellow-400 text-white" : "bg-gray-200"
-                        }`}
-                      >
-                        {i + 1}
-                      </button>
-                    ))}
+                    {/* 페이지 번호 버튼들 */}
+                    {(() => {
+                      const pages = [];
+                      const maxVisiblePages = 5;
+                      let startPage = Math.max(0, currentPage - Math.floor(maxVisiblePages / 2));
+                      let endPage = Math.min(totalPages - 1, startPage + maxVisiblePages - 1);
+                      
+                      // 시작 페이지 조정
+                      if (endPage - startPage < maxVisiblePages - 1) {
+                        startPage = Math.max(0, endPage - maxVisiblePages + 1);
+                      }
 
-                    {/* 다음 버튼 */}
+                      // 첫 페이지
+                      if (startPage > 0) {
+                        pages.push(
+                          <button
+                            key={0}
+                            onClick={() => setCurrentPage(0)}
+                            className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            1
+                          </button>
+                        );
+                        
+                        if (startPage > 1) {
+                          pages.push(
+                            <span key="ellipsis1" className="px-2 text-gray-500">
+                              ...
+                            </span>
+                          );
+                        }
+                      }
+
+                      // 중간 페이지들
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => setCurrentPage(i)}
+                            className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-colors ${
+                              currentPage === i 
+                                ? "bg-yellow-400 text-white border-yellow-400" 
+                                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                            }`}
+                          >
+                            {i + 1}
+                          </button>
+                        );
+                      }
+
+                      // 마지막 페이지
+                      if (endPage < totalPages - 1) {
+                        if (endPage < totalPages - 2) {
+                          pages.push(
+                            <span key="ellipsis2" className="px-2 text-gray-500">
+                              ...
+                            </span>
+                          );
+                        }
+                        
+                        pages.push(
+                          <button
+                            key={totalPages - 1}
+                            onClick={() => setCurrentPage(totalPages - 1)}
+                            className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            {totalPages}
+                          </button>
+                        );
+                      }
+
+                      return pages;
+                    })()}
+
+                    {/* 다음 페이지 버튼 */}
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages - 1))}
                       disabled={currentPage === totalPages - 1}
-                      className="px-3 py-1 rounded bg-gray-200 disabled:opacity-50"
+                      className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      ▶
+                      <ChevronRight className="h-5 w-5" />
                     </button>
                   </div>
                 )}

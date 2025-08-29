@@ -3,6 +3,7 @@ package com.my.backend.diary.repository;
 import com.my.backend.account.entity.Account;
 import com.my.backend.diary.entity.Diary;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,4 +19,9 @@ public interface DiaryRepository extends JpaRepository<Diary, Long> {
     
     @Query(value = "SELECT * FROM diary d WHERE :category = ANY(d.categories) AND d.user_id = :userId AND d.is_deleted = false ORDER BY d.created_at DESC", nativeQuery = true)
     List<Diary> findByCategoryAndUser(@Param("category") String category, @Param("userId") Long userId);
+    
+    // MyPet과 연관된 다이어리 삭제
+    @Modifying
+    @Query("DELETE FROM Diary d WHERE d.pet.myPetId = :myPetId")
+    int deleteByMyPetId(@Param("myPetId") Long myPetId);
 }

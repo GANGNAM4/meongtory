@@ -38,8 +38,8 @@ services:
       - NEXT_PUBLIC_TOSS_CLIENT_KEY=${NEXT_PUBLIC_TOSS_CLIENT_KEY}
       - NAVER_API_CLIENT_ID=${NAVER_API_CLIENT_ID}
       - NAVER_API_CLIENT_SECRET=${NAVER_API_CLIENT_SECRET}
-      - OAUTH2_REDIRECT_URI_BASE=https://meongtory.shop
-      - FRONTEND_URL=https://meongtory.shop
+      - OAUTH2_REDIRECT_URI_BASE=https://${DOMAIN_NAME}
+      - FRONTEND_URL=https://${DOMAIN_NAME}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
       - db

@@ -36,6 +36,12 @@ export interface MyPet {
   imageUrl?: string
   vaccinated: boolean  // 추가
   neutered: boolean  // 추가
+  // 의료기록 관련 필드들 추가
+  medicalHistory?: string
+  vaccinations?: string
+  notes?: string
+  microchipId?: string
+  specialNeeds?: string
   owner: {  // userId -> owner 관계로 변경
     id: number
     name: string

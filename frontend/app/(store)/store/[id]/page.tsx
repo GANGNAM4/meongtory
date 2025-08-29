@@ -4,11 +4,13 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Sparkles, PawPrint, Clock } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowLeft, Sparkles, PawPrint, Clock, ChevronDown } from "lucide-react"
 import Image from "next/image"
 import axios from "axios"
 import { useRouter } from "next/navigation"
 import { ProductRecommendationSlider } from "@/components/ui/product-recommendation-slider"
+import { useAuth } from "@/components/navigation"
 import { getBackendUrl } from '@/lib/api'
 import { recentApi } from '@/lib/api'
 import { RecentProductsSidebar } from "@/components/ui/recent-products-sidebar"
@@ -115,6 +117,7 @@ export default function StoreProductDetailPage({
   onBuyNow: propOnBuyNow,
   isInCart: propIsInCart
 }: PageProps) {
+  const { isAdmin } = useAuth();
   const router = useRouter()
   
   // params에서 productId를 추출하거나 props에서 받기
@@ -145,7 +148,8 @@ export default function StoreProductDetailPage({
   const [ordersLoading, setOrdersLoading] = useState(false)
 
   // StoreAI 추천 관련 상태
-  const [myPet, setMyPet] = useState<any>(null)
+  const [myPets, setMyPets] = useState<any[]>([]) // 모든 펫 목록
+  const [selectedPet, setSelectedPet] = useState<any>(null) // 선택된 펫
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [recommendationsLoading, setRecommendationsLoading] = useState(false)
   const [recommendationsError, setRecommendationsError] = useState<string | null>(null)
@@ -215,7 +219,7 @@ export default function StoreProductDetailPage({
   };
 
   // 반려동물 정보 가져오기
-  const fetchMyPet = async () => {
+  const fetchMyPets = async () => {
     try {
       const token = localStorage.getItem('accessToken')
       if (!token) return
@@ -229,7 +233,10 @@ export default function StoreProductDetailPage({
       
       // 백엔드 응답 구조: ResponseDto<MyPetListResponseDto>
       if (response.data && response.data.data && response.data.data.myPets && response.data.data.myPets.length > 0) {
-        setMyPet(response.data.data.myPets[0])
+        const pets = response.data.data.myPets
+        setMyPets(pets)
+        // 첫 번째 펫을 기본 선택
+        setSelectedPet(pets[0])
       }
     } catch (error) {
       console.error('반려동물 정보 가져오기 실패:', error)
@@ -237,8 +244,8 @@ export default function StoreProductDetailPage({
   }
 
      // StoreAI 추천 API 호출
-   const fetchRecommendations = async () => {
-     if (!myPet) return
+   const fetchRecommendations = async (petToUse = selectedPet) => {
+     if (!petToUse) return
 
      setRecommendationsLoading(true)
      setRecommendationsError(null)
@@ -250,7 +257,7 @@ export default function StoreProductDetailPage({
          // 상품 상세페이지용 추천
          try {
            response = await axios.post(`${getBackendUrl()}/api/storeai/recommend/products/${product.id}`, {
-             myPetId: myPet.myPetId,
+             myPetId: petToUse.myPetId,
              recommendationType: 'BREED_SPECIFIC'
            })
          } catch (productRecommendationError) {
@@ -275,9 +282,9 @@ export default function StoreProductDetailPage({
         } else {
           // 펫 기반 추천: Map<String, List<ProductRecommendationResponseDto>>
           const petRecommendations = response.data.data || {}
-          // 첫 번째 펫의 추천을 사용
-          const firstPetName = Object.keys(petRecommendations)[0]
-          recommendations = firstPetName ? petRecommendations[firstPetName] : []
+          // 선택된 펫의 추천을 사용
+          const selectedPetName = petToUse.name
+          recommendations = selectedPetName && petRecommendations[selectedPetName] ? petRecommendations[selectedPetName] : []
         }
         
         setRecommendations(recommendations)
@@ -440,15 +447,23 @@ export default function StoreProductDetailPage({
 
   // 반려동물 정보 가져오기
   useEffect(() => {
-    fetchMyPet()
+    fetchMyPets()
   }, [])
 
      // 반려동물 정보가 있으면 추천 가져오기
    useEffect(() => {
-     if (myPet && (product || propNaverProduct)) {
+     if (selectedPet && (product || propNaverProduct)) {
        fetchRecommendations()
      }
-   }, [myPet, product, propNaverProduct])
+   }, [selectedPet, product, propNaverProduct])
+
+   // 펫 선택 변경 핸들러
+   const handlePetChange = (petId: string) => {
+     const selected = myPets.find(pet => pet.myPetId.toString() === petId)
+     if (selected) {
+       setSelectedPet(selected)
+     }
+   }
 
   useEffect(() => {
     // 네이버 상품이 있는 경우
@@ -650,13 +665,13 @@ export default function StoreProductDetailPage({
           })
         }
 
-        if (response.status === 200) {
+        if (response.status === 200 && response.data.success) {
           alert(`장바구니에 ${quantity}개가 추가되었습니다!`)
           
           // 장바구니 추가 성공 후 cart 페이지로 이동
           router.push('/store/cart')
         } else {
-          alert('장바구니 추가에 실패했습니다.')
+          throw new Error(response.data?.error?.message || '장바구니 추가에 실패했습니다.')
         }
       } catch (error: any) {
         console.error('장바구니 추가 오류:', error)
@@ -725,7 +740,8 @@ export default function StoreProductDetailPage({
         }
         
                  // URL 파라미터를 통해 Payment 페이지로 이동 (네이버 상품이므로 isNaverProduct=true)
-         const paymentUrl = `/payment?productId=${productId}&quantity=${quantity}&price=${product.price}&productName=${encodeURIComponent(product.name)}&imageUrl=${encodeURIComponent(product.imageUrl)}&isNaverProduct=true`;
+         const cleanProductName = product.name.replace(/<[^>]*>/g, ''); // HTML 태그 제거
+         const paymentUrl = `/payment?productId=${productId}&quantity=${quantity}&price=${product.price}&productName=${encodeURIComponent(cleanProductName)}&imageUrl=${encodeURIComponent(product.imageUrl)}&isNaverProduct=true`;
         router.push(paymentUrl);
       } catch (error) {
         console.error('네이버 상품 DB 저장 실패:', error);
@@ -733,7 +749,8 @@ export default function StoreProductDetailPage({
       }
     } else {
       // URL 파라미터를 통해 Payment 페이지로 이동 (일반 상품이므로 isNaverProduct=false 명시)
-      const paymentUrl = `/payment?productId=${product.id}&quantity=${quantity}&price=${product.price}&productName=${encodeURIComponent(product.name)}&imageUrl=${encodeURIComponent(product.imageUrl)}&isNaverProduct=false`
+      const cleanProductName = product.name.replace(/<[^>]*>/g, ''); // HTML 태그 제거
+      const paymentUrl = `/payment?productId=${product.id}&quantity=${quantity}&price=${product.price}&productName=${encodeURIComponent(cleanProductName)}&imageUrl=${encodeURIComponent(product.imageUrl)}&isNaverProduct=false`
       router.push(paymentUrl)
     }
   }
@@ -1059,7 +1076,7 @@ export default function StoreProductDetailPage({
                                 withCredentials: true
                               });
 
-                              if (response.status === 200) {
+                              if (response.status === 200 && response.data.success) {
                                 alert(`네이버 상품이 장바구니에 추가되었습니다!`);
                                 
                                 // propOnAddToCart가 있으면 호출 (website/page.tsx에서 사용될 때)
@@ -1160,7 +1177,8 @@ export default function StoreProductDetailPage({
                             }
 
                                                          // URL 파라미터를 통해 Payment 페이지로 이동 (네이버 상품 정보 포함)
-                             const paymentUrl = `/payment?productId=${productId}&quantity=${quantity}&price=${propNaverProduct.price}&productName=${encodeURIComponent(propNaverProduct.title)}&imageUrl=${encodeURIComponent(propNaverProduct.imageUrl)}&isNaverProduct=true&productUrl=${encodeURIComponent(propNaverProduct.productUrl)}&mallName=${encodeURIComponent(propNaverProduct.mallName)}`
+                             const cleanTitle = propNaverProduct.title.replace(/<[^>]*>/g, ''); // HTML 태그 제거
+                             const paymentUrl = `/payment?productId=${productId}&quantity=${quantity}&price=${propNaverProduct.price}&productName=${encodeURIComponent(cleanTitle)}&imageUrl=${encodeURIComponent(propNaverProduct.imageUrl)}&isNaverProduct=true&productUrl=${encodeURIComponent(propNaverProduct.productUrl)}&mallName=${encodeURIComponent(propNaverProduct.mallName)}`
                             
                             router.push(paymentUrl)
                           } catch (error) {
@@ -1184,18 +1202,34 @@ export default function StoreProductDetailPage({
          <div className="mt-12">
            <Card>
              <CardHeader>
-               <div className="flex items-center gap-2">
-                 <Sparkles className="w-5 h-5 text-orange-500" />
-                 <CardTitle className="text-xl">AI 맞춤 추천 (네이버 상품)</CardTitle>
+               <div className="flex items-center justify-between">
+                 <div className="flex items-center gap-2">
+                   <Sparkles className="w-6 h-6 text-orange-500" />
+                   <CardTitle className="text-2xl">맞춤 추천</CardTitle>
+                 </div>
+                 {myPets.length > 1 && (
+                   <Select value={selectedPet?.myPetId?.toString() || ""} onValueChange={handlePetChange}>
+                     <SelectTrigger className="w-40">
+                       <SelectValue placeholder="펫 선택" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       {myPets.map((pet) => (
+                         <SelectItem key={pet.myPetId} value={pet.myPetId.toString()}>
+                           {pet.name} ({pet.breed})
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 )}
                </div>
-               {myPet && (
-                 <p className="text-sm text-gray-600">
-                   {myPet.name} ({myPet.breed}, {myPet.age}살)을 위한 네이버 쇼핑 맞춤 상품을 추천해드려요
+               {selectedPet && (
+                 <p className="text-base text-gray-600">
+                   {selectedPet.name} ({selectedPet.breed}, {selectedPet.age}살)을 위한 맞춤 상품을 추천해드려요
                  </p>
                )}
              </CardHeader>
              <CardContent>
-               {!myPet ? (
+               {!selectedPet ? (
                  <div className="text-center py-8">
                    <PawPrint className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                    <h3 className="text-lg font-semibold mb-2">반려동물을 등록해주세요</h3>
@@ -1241,12 +1275,14 @@ export default function StoreProductDetailPage({
                         externalProductUrl: recommendation.externalProductUrl,
                         externalMallName: recommendation.externalMallName,
                         brand: recommendation.brand,
-                        description: recommendation.description
+                        description: recommendation.description,
+                        similarity: recommendation.similarity
                       }
                     })}
                     onAddToCart={handleRecommendationAddToCart}
                     title=""
                     subtitle=""
+                    isAdmin={isAdmin}
                   />
                ) : (
                  <div className="text-center py-8">
@@ -1435,18 +1471,34 @@ export default function StoreProductDetailPage({
         <div className="mt-12">
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-orange-500" />
-                <CardTitle className="text-xl">AI 맞춤 추천</CardTitle>
-              </div>
-              {myPet && (
-                <p className="text-sm text-gray-600">
-                  {myPet.name} ({myPet.breed}, {myPet.age}살)을 위한 맞춤 상품을 추천해드려요
-                </p>
-              )}
+              <div className="flex items-center justify-between">
+                                 <div className="flex items-center gap-2">
+                   <Sparkles className="w-6 h-6 text-orange-500" />
+                   <CardTitle className="text-2xl">맞춤 추천</CardTitle>
+                 </div>
+                 {myPets.length > 1 && (
+                   <Select value={selectedPet?.myPetId?.toString() || ""} onValueChange={handlePetChange}>
+                     <SelectTrigger className="w-40">
+                       <SelectValue placeholder="펫 선택" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       {myPets.map((pet) => (
+                         <SelectItem key={pet.myPetId} value={pet.myPetId.toString()}>
+                           {pet.name} ({pet.breed})
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 )}
+               </div>
+               {selectedPet && (
+                 <p className="text-base text-gray-600">
+                   {selectedPet.name} ({selectedPet.breed}, {selectedPet.age}살)을 위한 맞춤 상품을 추천해드려요
+                 </p>
+               )}
             </CardHeader>
             <CardContent>
-              {!myPet ? (
+              {!selectedPet ? (
                 <div className="text-center py-8">
                   <PawPrint className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">반려동물을 등록해주세요</h3>
@@ -1520,10 +1572,10 @@ export default function StoreProductDetailPage({
       <div className="fixed top-20 right-6 z-40">
         <Button
           onClick={handleSidebarToggle}
-          className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg rounded-full w-14 h-14 p-0"
+          className="bg-yellow-400 hover:bg-yellow-500 text-black shadow-lg rounded-full w-14 h-14 p-0"
           title="최근 본 상품"
         >
-          <Clock className="h-6 w-6" />
+          <Clock className="h-6 w-6 text-white" />
         </Button>
       </div>
 

@@ -7,6 +7,7 @@ import lombok.Setter;
 @Setter
 public class DiaryRequestDto {
     private Long userId;
+    private Long petId;
     private String title;
     private String text;
     private String audioUrl;

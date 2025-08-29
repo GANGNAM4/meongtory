@@ -73,7 +73,8 @@ public class CommunityPostController {
 
     @GetMapping("/{id}")
     public CommunityPostDto getPostById(@PathVariable Long id, 
-                                       @AuthenticationPrincipal UserDetailsImpl userDetails) {
+                                       @AuthenticationPrincipal UserDetailsImpl userDetails,
+                                       HttpServletRequest request) {
         logger.info("Fetching post with id: {}", id);
         
         String currentUserEmail = null;
@@ -81,8 +82,11 @@ public class CommunityPostController {
             currentUserEmail = userDetails.getAccount().getEmail();
         }
         
+        // 클라이언트 IP 주소 가져오기
+        String ipAddress = getClientIpAddress(request);
+        
         // 조회수 증가 처리
-        postService.increaseViewCount(id, currentUserEmail);
+        postService.increaseViewCount(id, currentUserEmail, ipAddress);
         
         // 게시글 조회 (조회수 증가 없는 메서드 사용)
         CommunityPost post = postService.findPostById(id);
@@ -228,6 +232,23 @@ public class CommunityPostController {
                 .updatedAt(post.getUpdatedAt())
                 .sharedFromDiaryId(post.getSharedFromDiaryId())
                 .build());
+    }
+
+    /**
+     * 클라이언트의 실제 IP 주소를 가져오는 메서드
+     */
+    private String getClientIpAddress(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty() && !"unknown".equalsIgnoreCase(xRealIp)) {
+            return xRealIp;
+        }
+        
+        return request.getRemoteAddr();
     }
 
 }

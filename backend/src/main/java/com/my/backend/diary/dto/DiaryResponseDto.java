@@ -14,6 +14,8 @@ import java.time.format.DateTimeFormatter;
 public class DiaryResponseDto {
     private Long diaryId;
     private Long userId;
+    private Long petId; // MyPet의 ID 추가
+    private String petName; // MyPet의 이름 추가
     private String title;
     private String text;
     private String audioUrl;
@@ -31,9 +33,19 @@ public class DiaryResponseDto {
             userId = diary.getUser().getId();
         }
         
+        // getPet()이 null일 수 있는 경우 처리
+        Long petId = null;
+        String petName = null;
+        if (diary.getPet() != null) {
+            petId = diary.getPet().getMyPetId();
+            petName = diary.getPet().getName();
+        }
+        
         return DiaryResponseDto.builder()
                 .diaryId(diary.getDiaryId())
                 .userId(userId)
+                .petId(petId)
+                .petName(petName)
                 .title(diary.getTitle())
                 .text(diary.getText())
                 .audioUrl(diary.getAudioUrl())

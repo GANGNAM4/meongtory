@@ -162,6 +162,13 @@ public class StoreAiService {
         requestData.put("productName", product != null ? product.getName() : null);
         requestData.put("recommendationType", type.toString());
         
+        // 의료기록 정보 추가
+        requestData.put("medicalHistory", pet.getMedicalHistory() != null ? pet.getMedicalHistory() : "");
+        requestData.put("vaccinations", pet.getVaccinations() != null ? pet.getVaccinations() : "");
+        requestData.put("specialNeeds", pet.getSpecialNeeds() != null ? pet.getSpecialNeeds() : "");
+        requestData.put("notes", pet.getNotes() != null ? pet.getNotes() : "");
+        requestData.put("microchipId", pet.getMicrochipId() != null ? pet.getMicrochipId() : "");
+        
         log.info("AI 서버 호출 요청 데이터: {}", requestData);
         
         try {

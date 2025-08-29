@@ -66,14 +66,22 @@ export default function LoginModal({
       console.log("로그인 응답:", response.data);
 
       const { data } = response.data;
+      console.log("=== 백엔드 응답 data 부분 ===");
+      console.log("data:", data);
+      console.log("data.role:", data.role);
+      
       const { id, email: userEmail, name, role, accessToken, refreshToken } = data;
+      
+      console.log("=== 추출된 값들 ===");
+      console.log("id:", id);
+      console.log("email:", userEmail);
+      console.log("name:", name);
+      console.log("role:", role);
+      console.log("role 타입:", typeof role);
 
       // 로컬 스토리지에 토큰 저장
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
-      console.log("=== 로그인 후 localStorage 상태 ===");
-      console.log("accessToken:", localStorage.getItem("accessToken"));
-      console.log("refreshToken:", localStorage.getItem("refreshToken"));
       localStorage.setItem("email", userEmail);
       localStorage.setItem("nickname", name);
       localStorage.setItem("role", role);
@@ -95,7 +103,6 @@ export default function LoginModal({
         refreshToken,
       });
 
-      toast.success("로그인 성공");
       onClose();
     } catch (err: any) {
       console.error("로그인 오류:", err.response?.data?.message || err.message);

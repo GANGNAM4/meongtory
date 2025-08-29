@@ -7,6 +7,7 @@ import Navigation, { AuthProvider } from "@/components/navigation";
 import Chatbot from "@/components/features/chatbot";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as HotToaster } from "react-hot-toast";
+import QueryProvider from "@/components/providers/query-provider";
 
 export const metadata: Metadata = {
   title: "멍토리",
@@ -32,13 +33,15 @@ export default function RootLayout({
         `}</style>
       </head>
       <body>
-        <AuthProvider>
-          <Navigation />
-          {children}
-          <Chatbot />
-          <Toaster />
-          <HotToaster position="top-center" reverseOrder={false} />
-        </AuthProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <Navigation />
+            {children}
+            <Chatbot />
+            <Toaster />
+            <HotToaster position="top-center" reverseOrder={false} />
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );

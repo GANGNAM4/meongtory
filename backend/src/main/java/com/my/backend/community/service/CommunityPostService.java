@@ -3,7 +3,9 @@ package com.my.backend.community.service;
 import com.my.backend.account.entity.Account;
 import com.my.backend.community.dto.CommunityPostDto;
 import com.my.backend.community.entity.CommunityPost;
+import com.my.backend.community.entity.PostView;
 import com.my.backend.community.repository.CommunityPostRepository;
+import com.my.backend.community.repository.PostViewRepository;
 import com.my.backend.community.util.EnhancedProfanityFilter;
 import com.my.backend.global.exception.BadWordException;
 import com.my.backend.s3.S3Service;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,6 +27,7 @@ import java.util.List;
 public class CommunityPostService {
 
     private final CommunityPostRepository postRepository;
+    private final PostViewRepository postViewRepository;
     private final S3Service s3Service;
     private final EnhancedProfanityFilter profanityFilter;
     private final AutoCommentService autoCommentService;
@@ -65,23 +69,56 @@ public class CommunityPostService {
      * 조회수 증가 메서드
      * @param postId 게시글 ID
      * @param currentUserEmail 현재 사용자 이메일
+     * @param ipAddress 클라이언트 IP 주소
      */
-    public void increaseViewCount(Long postId, String currentUserEmail) {
+    public void increaseViewCount(Long postId, String currentUserEmail, String ipAddress) {
         CommunityPost post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
+
+        // 1분 전 시간 계산
+        LocalDateTime oneMinuteAgo = LocalDateTime.now().minusMinutes(1);
 
         // 작성자인 경우: 최초 1회만 증가 (조회수가 0일 때만)
         if (currentUserEmail != null && post.getOwnerEmail().equals(currentUserEmail)) {
             if (post.getViews() == 0) {
                 post.increaseViews();
                 postRepository.save(post);
+                
+                // 조회 기록 저장
+                PostView postView = PostView.builder()
+                        .postId(postId)
+                        .userEmail(currentUserEmail)
+                        .ipAddress(ipAddress)
+                        .build();
+                postViewRepository.save(postView);
             }
             return;
         }
 
-        // 다른 사용자: 항상 증가
+        // 로그인한 사용자의 경우: 이메일로 중복 체크
+        if (currentUserEmail != null) {
+            // 최근 1분 내에 같은 사용자가 같은 게시글을 조회했는지 확인
+            if (postViewRepository.findRecentViewByUser(postId, currentUserEmail, oneMinuteAgo).isPresent()) {
+                return; // 중복 조회이므로 조회수 증가하지 않음
+            }
+        } else {
+            // 비로그인 사용자의 경우: IP 주소로 중복 체크
+            if (postViewRepository.findRecentViewByIp(postId, ipAddress, oneMinuteAgo).isPresent()) {
+                return; // 중복 조회이므로 조회수 증가하지 않음
+            }
+        }
+
+        // 조회수 증가
         post.increaseViews();
         postRepository.save(post);
+
+        // 조회 기록 저장
+        PostView postView = PostView.builder()
+                .postId(postId)
+                .userEmail(currentUserEmail)
+                .ipAddress(ipAddress)
+                .build();
+        postViewRepository.save(postView);
     }
 
 

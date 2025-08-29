@@ -8,21 +8,26 @@ import com.my.backend.contract.entity.ContractTemplate;
 import com.my.backend.contract.entity.GeneratedContract;
 import com.my.backend.contract.repository.ContractTemplateRepository;
 import com.my.backend.contract.repository.GeneratedContractRepository;
+import com.my.backend.s3.S3Service;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class ContractGenerationService {
     
     private final ContractTemplateRepository contractTemplateRepository;
     private final GeneratedContractRepository generatedContractRepository;
     private final ObjectMapper objectMapper;
+    private final S3Service s3Service;
     
     public ContractGenerationResponseDto generateContract(ContractGenerationRequestDto requestDto, String generatedBy) {
         // 템플릿 조회
@@ -56,9 +61,26 @@ public class ContractGenerationService {
         
         GeneratedContract savedContract = generatedContractRepository.save(generatedContract);
         
+        // PDF 생성 및 S3 업로드
+        try {
+            String pdfUrl = s3Service.uploadContractToS3(savedContract.getId(), savedContract.getContent());
+            savedContract.setPdfUrl(pdfUrl);
+            generatedContractRepository.save(savedContract);
+            log.info("계약서 PDF 생성 및 S3 업로드 완료: {}", savedContract.getId());
+        } catch (Exception e) {
+            log.error("PDF 생성 및 S3 업로드 실패: {}", e.getMessage());
+            // PDF 생성 실패해도 계약서는 저장 완료
+            log.info("계약서 저장은 완료되었으나 PDF 생성에 실패했습니다: {}", savedContract.getId());
+        }
+        
         return ContractGenerationResponseDto.builder()
                 .id(savedContract.getId())
+                .contractName(savedContract.getContractName())
                 .content(savedContract.getContent())
+                .petInfo(savedContract.getPetInfo())
+                .userInfo(savedContract.getUserInfo())
+                .pdfUrl(savedContract.getPdfUrl())
+                .wordUrl(savedContract.getWordUrl())
                 .generatedAt(savedContract.getCreatedAt())
                 .build();
     }
@@ -186,12 +208,45 @@ public class ContractGenerationService {
         // 수정된 계약서 저장
         GeneratedContract updatedContract = generatedContractRepository.save(contract);
         
+        // 기존 PDF 삭제 후 새로운 PDF 생성 및 S3 업로드
+        try {
+            // 기존 S3 PDF 파일 삭제
+            if (updatedContract.getPdfUrl() != null && !updatedContract.getPdfUrl().isEmpty()) {
+                s3Service.deleteContractFromS3(id);
+                log.info("기존 계약서 PDF S3 삭제 완료: {}", id);
+            }
+            
+            // 새로운 PDF 생성 및 S3 업로드
+            String newPdfUrl = s3Service.uploadContractToS3(id, updatedContract.getContent());
+            updatedContract.setPdfUrl(newPdfUrl);
+            generatedContractRepository.save(updatedContract);
+            log.info("새로운 계약서 PDF S3 업로드 완료: {}", id);
+            
+        } catch (Exception e) {
+            log.error("계약서 PDF 업데이트 실패: {}", e.getMessage());
+            throw new RuntimeException("계약서 PDF 업데이트에 실패했습니다.");
+        }
+        
         return convertToDto(updatedContract);
     }
     
     public void deleteGeneratedContract(Long id) {
         GeneratedContract contract = generatedContractRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("생성된 계약서를 찾을 수 없습니다."));
+        
+        try {
+            // S3에서 PDF 파일 삭제
+            if (contract.getPdfUrl() != null && !contract.getPdfUrl().isEmpty()) {
+                s3Service.deleteContractFromS3(id);
+                log.info("계약서 PDF S3 삭제 완료: {}", id);
+            }
+        } catch (Exception e) {
+            log.error("계약서 PDF S3 삭제 실패: {}", e.getMessage());
+            // S3 삭제 실패해도 DB 삭제는 계속 진행
+        }
+        
+        // DB에서 계약서 삭제
         generatedContractRepository.delete(contract);
+        log.info("계약서 DB 삭제 완료: {}", id);
     }
 } 

@@ -13,6 +13,8 @@ import GrowthDiaryWritePage from "./write/page"
 interface DiaryEntry {
   diaryId: number;
   userId?: number;
+  petId?: number; // MyPet의 ID 추가
+  petName?: string; // MyPet의 이름 추가
   title: string | null;
   text: string | null;
   imageUrl: string | null;
@@ -241,6 +243,11 @@ export default function GrowthDiaryPage({
                           <h2 className="text-xl font-bold text-gray-900">
                             {entry.title || "(제목 없음)"}
                           </h2>
+                          {entry.petName && (
+                            <p className="text-sm text-blue-600 font-medium">
+                              🐾 {entry.petName}
+                            </p>
+                          )}
                           {localStorage.getItem("userRole") === "ADMIN" && (
                             <p className="text-sm text-gray-500">
                               작성자 ID: {entry.userId}

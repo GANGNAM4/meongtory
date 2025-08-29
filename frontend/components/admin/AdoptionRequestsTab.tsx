@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Users, Phone, Mail, CheckCircle, XCircle, AlertCircle, Heart } from "lucide-react"
 import { AdoptionRequest } from "@/types/admin"
 import { adoptionRequestApi, petApi } from "@/lib/api"
-import { formatToKST, getCurrentKSTDate } from "@/lib/utils"
+import { formatToKST, getCurrentKSTDate, getTimeElapsed } from "@/lib/utils"
+import { toast } from 'sonner'
 
 interface AdoptionRequestsTabProps {
   onShowContractModal: (request: AdoptionRequest) => void
@@ -54,7 +55,7 @@ export default function AdoptionRequestsTab({
     try {
       const response = await adoptionRequestApi.updateAdoptionRequestStatus(requestId, status);
       
-      // 현재 입양 신청 목록에서 해당 신청만 업데이트
+      // 현재 입양 신청 목록에서 해당 신청만 즉시 업데이트
       setAdoptionRequests(prev => prev.map(request => 
         request.id === requestId 
           ? { ...request, status: status }
@@ -68,26 +69,30 @@ export default function AdoptionRequestsTab({
           try {
             // 펫의 adopted 상태를 true로 업데이트
             await petApi.updateAdoptionStatus(approvedRequest.petId, true);
+            console.log(`펫 ${approvedRequest.petId}의 입양 상태를 완료로 업데이트했습니다.`);
           } catch (error) {
             console.error('펫 상태 업데이트 실패:', error);
           }
         }
       }
       
-      // 입양신청 상태 변경 후 펫 목록도 업데이트
-      if (onRefreshPets) {
+      // 입양신청 상태 변경 후 펫 목록도 업데이트 (필요한 경우에만)
+      if (onRefreshPets && (status === "APPROVED" || status === "REJECTED")) {
+        // 약간의 지연을 두어 백엔드 상태 업데이트가 완료된 후 새로고침
         setTimeout(() => {
           onRefreshPets()
-        }, 100)
+        }, 200)
       }
       
       const statusMessage = status === 'APPROVED' ? '승인 (MyPet에 자동 등록되었습니다)' : 
                            status === 'REJECTED' ? '거절' : 
                            status === 'CONTACTED' ? '연락완료' : '대기중'
-      alert(`입양 신청 상태가 ${statusMessage}로 변경되었습니다.`);
+      
+      // toast 알림 사용 (더 나은 UX)
+      toast.success(`입양 신청 상태가 ${statusMessage}로 변경되었습니다.`);
     } catch (error) {
       console.error('입양 신청 상태 업데이트 오류:', error);
-      alert('입양 신청 상태 업데이트에 실패했습니다.');
+      toast.error('입양 신청 상태 업데이트에 실패했습니다.');
     }
   }
 
@@ -350,7 +355,7 @@ export default function AdoptionRequestsTab({
                       신청일: {request.createdAt ? formatToKST(request.createdAt) : "날짜 없음"}
                       {request.status === "PENDING" && request.createdAt && (
                         <span className="ml-2 text-red-600">
-                          ({Math.floor((new Date().getTime() - new Date(request.createdAt).getTime()) / (1000 * 60 * 60))}시간 경과)
+                          ({getTimeElapsed(request.createdAt)})
                         </span>
                       )}
                     </p>

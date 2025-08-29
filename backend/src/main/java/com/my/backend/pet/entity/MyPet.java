@@ -58,6 +58,22 @@ public class MyPet extends BaseEntity {
     @Column(name = "neutered")
     private Boolean neutered = false;
 
+    // 의료기록 관련 필드들 추가
+    @Column(name = "medical_history", columnDefinition = "TEXT")
+    private String medicalHistory;
+    
+    @Column(name = "vaccinations", columnDefinition = "TEXT")
+    private String vaccinations;
+    
+    @Column(name = "notes", columnDefinition = "TEXT")
+    private String notes;
+    
+    @Column(name = "microchip_id")
+    private String microchipId;
+    
+    @Column(name = "special_needs", columnDefinition = "TEXT")
+    private String specialNeeds;
+
     public enum Gender {
         MALE, FEMALE, UNKNOWN
     }

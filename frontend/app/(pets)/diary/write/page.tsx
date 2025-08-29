@@ -2,15 +2,16 @@
 
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label"; // Label 컴포넌트 추가
 import { Card, CardContent } from "@/components/ui/card"; // Card 컴포넌트 추가
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Select 컴포넌트 추가
 import Image from "next/image";
 import { ChevronLeft, ImageIcon, X, Mic, MicOff, Play, Pause } from "lucide-react"; // 음성 관련 아이콘 추가
-import { createDiary, uploadImageToS3, uploadAudioToS3 } from "@/lib/diary"
+import { createDiary, uploadImageToS3, uploadAudioToS3, getPetList, type Pet, type PetListResponse } from "@/lib/diary"
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 import { getBackendUrl } from "@/lib/api";
@@ -34,6 +35,11 @@ export default function GrowthDiaryWritePage({
   const [tags, setTags] = useState<string>(""); // 태그 상태 추가
   const [isUploading, setIsUploading] = useState(false); // 이미지 업로드 상태
   const [isSubmitting, setIsSubmitting] = useState(false); // 제출 중복 방지 상태
+  
+  // 펫 관련 상태
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [selectedPetId, setSelectedPetId] = useState<string>(""); // Select 컴포넌트는 string 값 사용
+  const [isLoadingPets, setIsLoadingPets] = useState(false);
 
   // 음성 녹음 관련 상태
   const [isRecording, setIsRecording] = useState(false);
@@ -47,6 +53,31 @@ export default function GrowthDiaryWritePage({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const router = useRouter();
+
+  // 펫 목록 로드
+  useEffect(() => {
+    const loadPets = async () => {
+      try {
+        setIsLoadingPets(true);
+        const petData = await getPetList();
+        setPets(petData.myPets || []);
+      } catch (error: any) {
+        console.error("펫 목록 로드 실패:", error);
+        // 로그인이 필요한 경우가 아닌 경우에만 에러 토스트 표시
+        if (!error.message?.includes("로그인이 필요합니다")) {
+          toast({
+            title: "펫 목록 로드 실패",
+            description: "펫 목록을 불러오는 중 오류가 발생했습니다.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        setIsLoadingPets(false);
+      }
+    };
+
+    loadPets();
+  }, [toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     console.log("=== handleSubmit called ===");
@@ -157,6 +188,7 @@ export default function GrowthDiaryWritePage({
         text: content,
         imageUrl: uploadedImageUrls[0] || undefined,
         audioUrl: uploadedAudioUrl,
+        petId: selectedPetId ? Number(selectedPetId) : undefined,
       };
 
       console.log("Creating diary with data:", diaryData);
@@ -391,6 +423,29 @@ export default function GrowthDiaryWritePage({
                   onChange={(e) => setTitle(e.target.value)}
                   required
                 />
+              </div>
+
+              {/* 펫 선택 섹션 */}
+              <div className="space-y-2">
+                <Label htmlFor="pet-select">펫 선택</Label>
+                {isLoadingPets ? (
+                  <div className="text-sm text-gray-500">펫 목록을 불러오는 중...</div>
+                ) : pets.length === 0 ? (
+                  <div className="text-sm text-gray-500">등록된 펫이 없습니다</div>
+                ) : (
+                  <Select value={selectedPetId} onValueChange={setSelectedPetId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="펫을 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pets.map((pet) => (
+                        <SelectItem key={pet.myPetId} value={pet.myPetId.toString()}>
+                          {pet.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-2">

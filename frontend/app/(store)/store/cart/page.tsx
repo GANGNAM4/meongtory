@@ -76,9 +76,11 @@ export default function CartPage() {
             timeout: 5000,
           })
 
-          if (response.status === 200) {
-            // 백엔드에서 List<CartDto>를 직접 반환하므로 response.data가 바로 배열
-            cartData = Array.isArray(response.data) ? response.data : []
+          if (response.status === 200 && response.data.success) {
+            // 백엔드에서 ResponseDto<List<CartDto>>를 반환하므로 response.data.data에 배열이 있음
+            cartData = Array.isArray(response.data.data) ? response.data.data : []
+          } else {
+            console.log("장바구니 조회 실패:", response.data?.error?.message || "API 응답 오류")
           }
         } catch (error) {
           console.log("백엔드 장바구니 조회 실패, 로컬 스토리지만 사용")
@@ -497,10 +499,17 @@ export default function CartPage() {
       fetchCartItems()
     }
     
+    // 페이지 포커스 시 장바구니 새로고침 (다른 페이지에서 장바구니에 추가 후 돌아올 때)
+    const handleFocus = () => {
+      fetchCartItems()
+    }
+    
     window.addEventListener('cartUpdated', handleCartUpdate)
+    window.addEventListener('focus', handleFocus)
     
     return () => {
       window.removeEventListener('cartUpdated', handleCartUpdate)
+      window.removeEventListener('focus', handleFocus)
     }
   }, [])
 
@@ -517,35 +526,15 @@ export default function CartPage() {
   }
 
   const handlePaymentSuccess = async (paymentInfo: any) => {
+    console.log('결제 성공 핸들러 호출됨 (토스페이먼츠 플로우에서는 실제로 호출되지 않음):', paymentInfo);
     
-    try {
-      // 결제 성공 후 나머지 상품들을 모두 주문
-      const remainingItems = cartItems.filter(item => 
-        !paymentItems.some(paymentItem => 
-          paymentItem.id === item.id || 
-          (paymentItem.product?.id && paymentItem.product.id === item.product?.id)
-        )
-      );
-      
-      if (remainingItems.length > 0) {
-        // onPurchaseAll 함수를 호출하여 나머지 상품들 주문
-        await onPurchaseAll(remainingItems);
-      }
-      
-      // 결제된 상품 장바구니에서 제거
-      paymentItems.forEach(item => onRemoveFromCart(item.id))
-      
-      setShowPayment(false)
-      setPaymentItems([])
-      
-      // 성공 페이지로 이동하거나 알림
-      alert("전체 구매가 완료되었습니다!")
-      router.push("/my")
-      
-    } catch (error) {
-      console.error("나머지 상품 주문 실패:", error)
-      alert("일부 상품 주문에 실패했습니다. 장바구니를 확인해주세요.")
-    }
+    // 토스페이먼츠 플로우에서는 /payment/success 페이지에서 장바구니 정리가 이루어짐
+    // 여기서는 단순히 상태만 정리
+    setShowPayment(false)
+    setPaymentItems([])
+    
+    // 장바구니 새로고침
+    await fetchCartItems();
   }
 
   const handlePaymentFail = (error: any) => {

@@ -18,13 +18,16 @@ interface ProductRecommendationCardProps {
     externalMallName?: string;
     brand?: string;
     description?: string;
+    similarity?: number; // 유사도 점수 추가
   };
   onAddToCart?: (productId: number, productInfo?: any) => void;
+  isAdmin?: boolean; // 관리자 여부 추가
 }
 
 export function ProductRecommendationCard({
   product,
-  onAddToCart
+  onAddToCart,
+  isAdmin = false
 }: ProductRecommendationCardProps) {
   const router = useRouter();
   
@@ -61,12 +64,21 @@ export function ProductRecommendationCard({
               네이버
             </Badge>
           )}
+          {/* 임베딩 검색 유사도 점수 표시 (관리자만) */}
+          {isAdmin && product.similarity !== undefined && (
+            <div className="absolute bottom-2 left-2 bg-purple-500 text-white px-2 py-1 rounded text-xs font-bold z-10">
+              유사도: {product.similarity.toFixed(2)}
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-4 pt-2">
-        <CardTitle className="text-lg font-semibold mb-2 line-clamp-2">
-          {product.name}
-        </CardTitle>
+        <div className="h-[3rem] mb-2 flex flex-col justify-start">
+          <CardTitle className="text-lg font-semibold line-clamp-2">
+            {product.name.replace(/<[^>]*>/g, '')}
+          </CardTitle>
+          <div className="flex-1"></div>
+        </div>
         
         <div className="mb-3">
           <p className="text-2xl font-bold text-primary">

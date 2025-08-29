@@ -48,17 +48,21 @@ class AnimalRecommender:
 
     def recommend_products_with_gpt(self, age: int, breed: str, pet_type: str, 
                                   season: str, product_category: str = None, 
-                                  product_name: str = None, recommendation_type: str = None) -> str:
+                                  product_name: str = None, recommendation_type: str = None,
+                                  medical_history: str = None, vaccinations: str = None,
+                                  special_needs: str = None, notes: str = None,
+                                  microchip_id: str = None) -> str:
         """GPT를 사용하여 상품 추천을 생성합니다."""
         try:
             if not OPENAI_API_KEY:
                 return self.get_fallback_recommendation(age, breed, pet_type, season, product_category, product_name, recommendation_type)
             
             # 프롬프트 구성
-            prompt = self._build_recommendation_prompt(age, breed, pet_type, season, product_category, product_name, recommendation_type)
+            prompt = self._build_recommendation_prompt(age, breed, pet_type, season, product_category, product_name, recommendation_type,
+                                                     medical_history, vaccinations, special_needs, notes, microchip_id)
             
             response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "당신은 반려동물 상품 추천 전문가입니다. 사용자의 펫 정보와 요청에 맞는 맞춤형 상품을 추천해주세요."},
                     {"role": "user", "content": prompt}
@@ -75,30 +79,32 @@ class AnimalRecommender:
 
     def _build_recommendation_prompt(self, age: int, breed: str, pet_type: str, 
                                    season: str, product_category: str = None, 
-                                   product_name: str = None, recommendation_type: str = None) -> str:
+                                   product_name: str = None, recommendation_type: str = None,
+                                   medical_history: str = None, vaccinations: str = None,
+                                   special_needs: str = None, notes: str = None,
+                                   microchip_id: str = None) -> str:
         """추천 프롬프트를 구성합니다."""
         prompt = f"""
-다음 정보를 바탕으로 네이버 쇼핑에서 구할 수 있는 반려동물 상품을 추천해주세요:
-
-펫 정보:
-- 나이: {age}살
+반려동물 정보:
+- 나이: {age}세
 - 품종: {breed}
 - 종류: {pet_type}
-- 현재 계절: {season}
+- 계절: {season}
+- 마이크로칩: {microchip_id or '없음'}
+- 의료기록: {medical_history or '없음'}
+- 예방접종: {vaccinations or '없음'}
+- 특별관리사항: {special_needs or '없음'}
+- 메모: {notes or '없음'}
 
 추천 요청:
-- 추천 타입: {recommendation_type or '일반'}
 - 상품 카테고리: {product_category or '전체'}
 - 상품명: {product_name or '없음'}
+- 추천 타입: {recommendation_type or '일반'}
 
-중요: 네이버 쇼핑에서 실제로 판매되는 상품만 추천해주세요. 
-다음 형식으로 추천해주세요:
-1. [추천 상품명] - [추천 이유]
-2. [추천 상품명] - [추천 이유]
-3. [추천 상품명] - [추천 이유]
+위의 반려동물 정보를 바탕으로, 특히 의료기록과 특별관리사항을 고려하여 적합한 상품을 추천해주세요.
+의료기록에 특별한 관리가 필요한 경우, 그에 맞는 건강관리 상품이나 특수 사료 등을 우선적으로 추천해주세요.
 
-추천 이유는 펫의 나이, 품종, 계절 등을 고려하여 구체적으로 설명해주세요.
-네이버 쇼핑에서 검색 가능한 실제 상품명을 사용해주세요.
+추천 상품명과 추천 이유를 간단명료하게 설명해주세요.
 """
         return prompt
 

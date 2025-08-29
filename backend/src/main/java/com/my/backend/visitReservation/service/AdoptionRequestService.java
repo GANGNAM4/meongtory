@@ -103,6 +103,11 @@ public class AdoptionRequestService {
                             .imageUrl(request.getPet().getImageUrl())
                             .vaccinated(request.getPet().getVaccinated())
                             .neutered(request.getPet().getNeutered())
+                            .medicalHistory(request.getPet().getMedicalHistory())
+                            .vaccinations(request.getPet().getVaccinations())
+                            .notes(request.getPet().getNotes())
+                            .microchipId(request.getPet().getMicrochipId())
+                            .specialNeeds(request.getPet().getSpecialNeeds())
                             .build();
                     
                     myPetRepository.save(myPet);

@@ -15,6 +15,14 @@ interface ChatMessage {
   timestamp: Date
 }
 
+interface MyPetSuggestion {
+  myPetId: number
+  name: string
+  breed: string
+  type: string
+  imageUrl?: string
+}
+
 interface InsuranceChatbotProps {
   initialQuery?: string
   onClose?: () => void
@@ -32,7 +40,11 @@ export default function InsuranceChatbot({ initialQuery, onClose }: InsuranceCha
   ])
   const [inputMessage, setInputMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [petSuggestions, setPetSuggestions] = useState<MyPetSuggestion[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [cursorPosition, setCursorPosition] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // 메시지 추가 시 스크롤을 맨 아래로 이동
   useEffect(() => {
@@ -45,6 +57,64 @@ export default function InsuranceChatbot({ initialQuery, onClose }: InsuranceCha
       sendMessage(initialQuery)
     }
   }, [initialQuery, isOpen])
+
+  // @태그 감지 및 MyPet 자동완성
+  const handleInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    const position = e.target.selectionStart || 0
+    
+    setInputMessage(value)
+    setCursorPosition(position)
+
+    // @ 태그 검출
+    const beforeCursor = value.substring(0, position)
+    const match = beforeCursor.match(/@([ㄱ-ㅎ가-힣a-zA-Z0-9_]*)$/)
+    
+    if (match) {
+      const keyword = match[1]
+      if (keyword.length >= 0) {
+        try {
+          const token = localStorage.getItem('accessToken')
+          if (token) {
+            const response = await axios.get(
+              `${getBackendUrl()}/api/mypet/search?keyword=${keyword}`,
+              { headers: { 
+                Authorization: `Bearer ${token}`,
+                'Access_Token': token
+              } }
+            )
+            if (response.data.success) {
+              setPetSuggestions(response.data.data || [])
+              setShowSuggestions(true)
+            }
+          }
+        } catch (error) {
+          console.error('MyPet 검색 실패:', error)
+          setPetSuggestions([])
+        }
+      }
+    } else {
+      setShowSuggestions(false)
+      setPetSuggestions([])
+    }
+  }
+
+  // MyPet 선택 처리
+  const selectPet = (pet: MyPetSuggestion) => {
+    const beforeCursor = inputMessage.substring(0, cursorPosition)
+    const afterCursor = inputMessage.substring(cursorPosition)
+    
+    const beforeAt = beforeCursor.substring(0, beforeCursor.lastIndexOf('@'))
+    const newMessage = beforeAt + `@${pet.name} ` + afterCursor
+    
+    setInputMessage(newMessage)
+    setShowSuggestions(false)
+    setPetSuggestions([])
+    
+    setTimeout(() => {
+      inputRef.current?.focus()
+    }, 100)
+  }
 
   // 보험 관련 추천 질문들
   const suggestedQuestions = [
@@ -59,21 +129,42 @@ export default function InsuranceChatbot({ initialQuery, onClose }: InsuranceCha
     const textToSend = message || inputMessage.trim()
     if (!textToSend) return
 
+    // @MyPet 태그 추출
+    const petMatches = textToSend.match(/@([ㄱ-ㅎ가-힣a-zA-Z0-9_]+)/g)
+    let processedMessage = textToSend
+    let selectedPetId = null
+
+    // @태그가 있으면 petId를 찾아서 처리
+    if (petMatches && petMatches.length > 0) {
+      const petName = petMatches[0].substring(1) // @ 제거
+      const matchedPet = petSuggestions.find(pet => pet.name === petName)
+      if (matchedPet) {
+        selectedPetId = matchedPet.myPetId
+        processedMessage = textToSend.replace(/@[ㄱ-ㅎ가-힣a-zA-Z0-9_]+/g, `@${petName}`)
+      }
+    }
+
     // 사용자 메시지 즉시 추가
     const userMessage: ChatMessage = {
       id: Date.now(),
-      message: textToSend,
+      message: processedMessage,
       isUser: true,
       timestamp: new Date(),
     }
     setMessages((prev) => [...prev, userMessage])
     setInputMessage("") // 입력창 즉시 비우기
+    setShowSuggestions(false) // 자동완성 숨기기
     setIsLoading(true)
 
     // 비동기적으로 챗봇 응답 처리
     try {
+      // @MyPet이 있으면 petId도 함께 전송
+      const requestData = selectedPetId 
+        ? { query: processedMessage, petId: selectedPetId }
+        : { query: processedMessage }
+        
       const response = await axios.post(`${getBackendUrl()}/api/chatbot/insurance`,
-        { query: textToSend },
+        requestData,
         { headers: { "Content-Type": "application/json" } }
       )
       const botResponse: ChatMessage = {
@@ -97,7 +188,7 @@ export default function InsuranceChatbot({ initialQuery, onClose }: InsuranceCha
     }
   }
 
-  // 링크를 클릭 가능한 버튼으로 변환하는 함수
+  // 링크와 MyPet 태그를 처리하는 함수
   const formatMessageWithLinks = (message: string) => {
     // 긴 텍스트를 적절히 줄바꿈
     const formatLongText = (text: string) => {
@@ -105,7 +196,7 @@ export default function InsuranceChatbot({ initialQuery, onClose }: InsuranceCha
       const sentences = text.split(/(?<=[.!?])\s+/);
       return sentences.map((sentence, index) => (
         <span key={index}>
-          {sentence}
+          {renderMessageWithPetTags(sentence)}
           {index < sentences.length - 1 && <br />}
         </span>
       ));
@@ -157,6 +248,17 @@ export default function InsuranceChatbot({ initialQuery, onClose }: InsuranceCha
     if (e.key === "Enter" && !isLoading) {
       sendMessage()
     }
+  }
+
+  // MyPet 태그를 파란색으로 렌더링하는 함수
+  const renderMessageWithPetTags = (message: string) => {
+    const parts = message.split(/(@[ㄱ-ㅎ가-힣a-zA-Z0-9_]+)/g)
+    return parts.map((part, index) => {
+      if (part.startsWith('@')) {
+        return <span key={index} className="text-blue-600 font-medium">{part}</span>
+      }
+      return part
+    })
   }
 
   const handleSuggestedQuestion = (question: string) => {
@@ -243,23 +345,72 @@ export default function InsuranceChatbot({ initialQuery, onClose }: InsuranceCha
           </div>
 
           <div className="p-4 border-t border-gray-200">
-            <div className="flex space-x-2">
-              <Input
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="보험 관련 질문을 입력하세요..."
-                className="flex-1 text-sm"
-                disabled={isLoading}
-              />
-              <Button 
-                onClick={() => sendMessage()} 
-                size="sm" 
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3"
-                disabled={isLoading || !inputMessage.trim()}
-              >
-                <Send className="w-4 h-4" />
-              </Button>
+            <div className="relative">
+              {/* MyPet 자동완성 드롭다운 */}
+              {showSuggestions && petSuggestions.length > 0 && (
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-32 overflow-y-auto z-10">
+                  {petSuggestions.map((pet) => (
+                    <div
+                      key={pet.myPetId}
+                      onClick={() => selectPet(pet)}
+                      className="flex items-center p-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      {pet.imageUrl && (
+                        <img 
+                          src={pet.imageUrl} 
+                          alt={pet.name}
+                          className="w-6 h-6 rounded-full mr-2 object-cover"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">@{pet.name}</div>
+                        <div className="text-xs text-gray-500">{pet.breed} • {pet.type}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="flex space-x-2">
+                <div className="flex-1 relative">
+                  <Input
+                    ref={inputRef}
+                    value={inputMessage}
+                    onChange={handleInputChange}
+                    onKeyPress={handleKeyPress}
+                    placeholder="질문을 입력하세요..."
+                    className="flex-1 text-sm"
+                    disabled={isLoading}
+                    style={{
+                      color: 'transparent',
+                      caretColor: 'black'
+                    }}
+                  />
+                  {/* 하이라이트 오버레이 */}
+                  <div 
+                    className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none flex items-center px-3 py-2 text-sm"
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word'
+                    }}
+                  >
+                    {inputMessage.split(/(@[ㄱ-ㅎ가-힣a-zA-Z0-9_]+)/g).map((part, index) => {
+                      if (part.startsWith('@') && part.length > 1) {
+                        return <span key={index} className="text-blue-600 font-medium">{part}</span>;
+                      }
+                      return <span key={index} className="text-black">{part}</span>;
+                    })}
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => sendMessage()} 
+                  size="sm" 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3"
+                  disabled={isLoading || !inputMessage.trim()}
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>

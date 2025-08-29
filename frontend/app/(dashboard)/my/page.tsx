@@ -88,7 +88,13 @@ export default function MyPage() {
     gender: "UNKNOWN",
     type: "",
     weight: undefined,
-    imageUrl: ""
+    imageUrl: "",
+    // 의료기록 관련 필드들 추가
+    medicalHistory: "",
+    vaccinations: "",
+    notes: "",
+    microchipId: "",
+    specialNeeds: ""
   })
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string>("")
@@ -377,7 +383,13 @@ export default function MyPage() {
         gender: pet.gender || "UNKNOWN",
         type: pet.type || "",
         weight: pet.weight,
-        imageUrl: pet.imageUrl || ""
+        imageUrl: pet.imageUrl || "",
+        // 의료기록 관련 필드들 추가
+        medicalHistory: pet.medicalHistory || "",
+        vaccinations: pet.vaccinations || "",
+        notes: pet.notes || "",
+        microchipId: pet.microchipId || "",
+        specialNeeds: pet.specialNeeds || ""
       })
       setImagePreview(pet.imageUrl || "")
     } else {
@@ -389,7 +401,13 @@ export default function MyPage() {
         gender: "UNKNOWN",
         type: "",
         weight: undefined,
-        imageUrl: ""
+        imageUrl: "",
+        // 의료기록 관련 필드들 추가
+        medicalHistory: "",
+        vaccinations: "",
+        notes: "",
+        microchipId: "",
+        specialNeeds: ""
       })
       setImagePreview("")
     }
@@ -454,14 +472,35 @@ export default function MyPage() {
 
   // 펫 삭제 처리
   const handleDeletePet = async (petId: number) => {
-    if (confirm("정말로 이 펫을 삭제하시겠습니까?")) {
+    const pet = myPets.find(p => p.myPetId === petId)
+    const petName = pet?.name || '펫'
+    
+    if (confirm(`정말로 "${petName}"을(를) 삭제하시겠습니까?\n\n⚠️ 주의: 삭제된 펫 정보는 복구할 수 없습니다.\n- 펫과 관련된 모든 데이터가 삭제됩니다.\n- 업로드된 이미지도 함께 삭제됩니다.`)) {
       try {
+        console.log(`펫 삭제 시작: ${petName} (ID: ${petId})`)
         await myPetApi.deleteMyPet(petId)
-        alert("펫이 삭제되었습니다.")
+        console.log(`펫 삭제 완료: ${petName}`)
+        alert(`"${petName}"이(가) 성공적으로 삭제되었습니다.`)
         fetchMyPets()
-      } catch (error) {
+      } catch (error: any) {
         console.error('펫 삭제 오류:', error)
-        alert('펫 삭제에 실패했습니다.')
+        
+        // 더 구체적인 에러 메시지 표시
+        let errorMessage = '펫 삭제에 실패했습니다.'
+        
+        if (error?.response?.status === 400) {
+          errorMessage = '잘못된 요청입니다. 펫 정보를 확인해주세요.'
+        } else if (error?.response?.status === 403) {
+          errorMessage = '펫을 삭제할 권한이 없습니다.'
+        } else if (error?.response?.status === 404) {
+          errorMessage = '삭제하려는 펫을 찾을 수 없습니다.'
+        } else if (error?.response?.status === 500) {
+          errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        } else if (error?.message) {
+          errorMessage = `삭제 중 오류가 발생했습니다: ${error.message}`
+        }
+        
+        alert(errorMessage)
       }
     }
   }
@@ -470,14 +509,11 @@ export default function MyPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">마이페이지</h1>
             <p className="text-gray-600 mt-2">{userInfo.name}님의 정보</p>
           </div>
-          <Button onClick={() => window.history.back()} variant="outline">
-            이전 페이지로
-          </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -591,7 +627,41 @@ export default function MyPage() {
                                 <span className="font-medium">체중:</span> {pet.weight}kg
                               </div>
                             )}
+                            {pet.microchipId && (
+                              <div>
+                                <span className="font-medium">마이크로칩:</span> {pet.microchipId}
+                              </div>
+                            )}
                           </div>
+                          
+                          {/* 의료기록 정보 표시 */}
+                          {(pet.medicalHistory || pet.vaccinations || pet.specialNeeds || pet.notes) && (
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                              <h4 className="font-medium text-sm text-gray-700 mb-2">의료 정보</h4>
+                              <div className="space-y-2 text-sm text-gray-600">
+                                {pet.medicalHistory && (
+                                  <div>
+                                    <span className="font-medium">의료 기록:</span> {pet.medicalHistory}
+                                  </div>
+                                )}
+                                {pet.vaccinations && (
+                                  <div>
+                                    <span className="font-medium">예방접종:</span> {pet.vaccinations}
+                                  </div>
+                                )}
+                                {pet.specialNeeds && (
+                                  <div>
+                                    <span className="font-medium">특별 관리:</span> {pet.specialNeeds}
+                                  </div>
+                                )}
+                                {pet.notes && (
+                                  <div>
+                                    <span className="font-medium">메모:</span> {pet.notes}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -983,6 +1053,61 @@ export default function MyPage() {
                 value={petForm.weight || ""}
                 onChange={(e) => setPetForm(prev => ({ ...prev, weight: e.target.value ? parseFloat(e.target.value) : undefined }))}
                 placeholder="체중"
+              />
+            </div>
+
+            {/* 의료기록 관련 필드들 추가 */}
+            <div>
+              <Label htmlFor="petMicrochipId">마이크로칩 ID</Label>
+              <Input
+                id="petMicrochipId"
+                value={petForm.microchipId || ""}
+                onChange={(e) => setPetForm(prev => ({ ...prev, microchipId: e.target.value }))}
+                placeholder="마이크로칩 ID"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="petMedicalHistory">의료 기록</Label>
+              <Textarea
+                id="petMedicalHistory"
+                value={petForm.medicalHistory || ""}
+                onChange={(e) => setPetForm(prev => ({ ...prev, medicalHistory: e.target.value }))}
+                placeholder="의료 기록을 입력하세요 (예: 예방접종 완료, 중성화 수술 완료)"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="petVaccinations">예방접종 기록</Label>
+              <Textarea
+                id="petVaccinations"
+                value={petForm.vaccinations || ""}
+                onChange={(e) => setPetForm(prev => ({ ...prev, vaccinations: e.target.value }))}
+                placeholder="예방접종 기록을 입력하세요"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="petSpecialNeeds">특별 관리 사항</Label>
+              <Textarea
+                id="petSpecialNeeds"
+                value={petForm.specialNeeds || ""}
+                onChange={(e) => setPetForm(prev => ({ ...prev, specialNeeds: e.target.value }))}
+                placeholder="특별 관리가 필요한 사항을 입력하세요"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="petNotes">추가 메모</Label>
+              <Textarea
+                id="petNotes"
+                value={petForm.notes || ""}
+                onChange={(e) => setPetForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="추가 메모를 입력하세요"
+                rows={3}
               />
             </div>
 

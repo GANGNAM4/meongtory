@@ -10,6 +10,12 @@ export interface MyPetRequestDto {
   type?: string;
   weight?: number;
   imageUrl?: string;
+  // 의료기록 관련 필드들 추가
+  medicalHistory?: string;
+  vaccinations?: string;
+  notes?: string;
+  microchipId?: string;
+  specialNeeds?: string;
 }
 
 export interface MyPetResponseDto {
@@ -23,6 +29,12 @@ export interface MyPetResponseDto {
   imageUrl?: string;
   createdAt: string;
   updatedAt: string;
+  // 의료기록 관련 필드들 추가
+  medicalHistory?: string;
+  vaccinations?: string;
+  notes?: string;
+  microchipId?: string;
+  specialNeeds?: string;
 }
 
 export interface MyPetListResponseDto {

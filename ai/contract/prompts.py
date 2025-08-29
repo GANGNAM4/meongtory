@@ -160,6 +160,7 @@ def build_template_based_contract_prompt(request: ContractGenerationRequest) -> 
 6. 추가할 조항은 적절한 위치에 배치해주세요.
 7. 완성된 계약서 형태로 작성해주세요.
 8. placeholder나 변수명을 사용하지 말고 실제 정보를 직접 입력해주세요.
+9. 서명란 위에 날짜 부분의 직접 작성할수 있도록 공간을 남겨주세요.
 
 예시 형식:
 {pet_name} 계약서

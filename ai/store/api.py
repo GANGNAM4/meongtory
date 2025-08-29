@@ -30,12 +30,18 @@ recommender = AnimalRecommender()
 
 # Pydantic 모델들
 class RecommendationRequest(BaseModel):
-    age: Optional[int] = None
-    breed: Optional[str] = None
+    age: int
+    breed: str
     petType: Optional[str] = "dog"
     productCategory: Optional[str] = None
     productName: Optional[str] = None
     recommendationType: Optional[str] = None
+    # 의료기록 관련 필드들 추가
+    medicalHistory: Optional[str] = None
+    vaccinations: Optional[str] = None
+    specialNeeds: Optional[str] = None
+    notes: Optional[str] = None
+    microchipId: Optional[str] = None
 
 class RecommendationResponse(BaseModel):
     success: bool
@@ -103,7 +109,12 @@ async def recommend_products(request: RecommendationRequest):
             season=season,
             product_category=request.productCategory,
             product_name=request.productName,
-            recommendation_type=request.recommendationType
+            recommendation_type=request.recommendationType,
+            medical_history=request.medicalHistory,
+            vaccinations=request.vaccinations,
+            special_needs=request.specialNeeds,
+            notes=request.notes,
+            microchip_id=request.microchipId
         )
         
         logger.info(f"추천 생성 완료: {recommendations[:100]}...")

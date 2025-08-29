@@ -489,17 +489,17 @@ export default function AdminPage({
       const adopted = newStatus === "adopted"
       await petApi.updateAdoptionStatus(petId, adopted)
       
-      // 프론트엔드 상태 업데이트
+      // 프론트엔드 상태 즉시 업데이트 (화면에 바로 반영)
       setPets(prev => prev.map(pet => 
         pet.petId === petId 
           ? { ...pet, adopted: newStatus === "adopted" }
           : pet
       ))
       
-      alert(`입양 상태가 ${newStatus === 'adopted' ? '입양완료' : '입양가능'}로 변경되었습니다.`)
+      toast.success(`입양 상태가 ${newStatus === 'adopted' ? '입양완료' : '입양가능'}으로 변경되었습니다.`)
     } catch (error) {
       console.error('입양 상태 업데이트 오류:', error)
-      alert('입양 상태 업데이트에 실패했습니다.')
+      toast.error('입양 상태 업데이트에 실패했습니다.')
     }
   }
 

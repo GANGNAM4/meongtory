@@ -392,7 +392,7 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
           value: totalAmount, // 실제 상품 금액 사용
         },
         orderId: orderId,
-        orderName: items.length > 0 ? items[0].name : "상품",
+        orderName: items.length > 0 ? items[0].name.replace(/<[^>]*>/g, '') : "상품",
         successUrl: `${window.location.origin}/payment/success`,
         failUrl: `${window.location.origin}/payment/fail`,
         customerEmail: userInfo?.email || "customer123@gmail.com",
@@ -451,7 +451,7 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
                       className="w-16 h-16 object-cover rounded-lg"
                     />
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <h3 className="font-medium text-gray-900">{item.name.replace(/<[^>]*>/g, '')}</h3>
                       <p className="text-sm text-gray-500">
                         {item.price.toLocaleString()}원 × {item.quantity}개
                       </p>

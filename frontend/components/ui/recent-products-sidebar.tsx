@@ -223,7 +223,7 @@ export function RecentProductsSidebar({
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-blue-600" />
+            <Clock className="h-5 w-5 text-yellow-600" />
             <h3 className="font-semibold text-lg">
               최근 본 {productType === "insurance" ? "보험" : "상품"}
             </h3>
@@ -254,7 +254,7 @@ export function RecentProductsSidebar({
       <div className="p-4">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
           </div>
         ) : recentProducts.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
@@ -297,7 +297,7 @@ export function RecentProductsSidebar({
                             </p>
                           )}
                           {product.price && (
-                            <p className="text-sm font-semibold text-blue-600">
+                            <p className="text-sm font-semibold text-yellow-600">
                               {product.price.toLocaleString()}원
                             </p>
                           )}
@@ -327,7 +327,7 @@ export function RecentProductsSidebar({
                 onClick={handleLoadMore}
                 variant="outline"
                 size="sm"
-                className="w-full mt-3 text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                className="w-full mt-3 text-yellow-600 hover:text-yellow-700 border-yellow-200 hover:border-yellow-300"
               >
                 더보기 ({recentProducts.length - displayCount}개 더)
               </Button>

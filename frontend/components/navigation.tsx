@@ -226,6 +226,13 @@ function NavigationHeader({
 }: NavigationHeaderProps) {
   const { isLoggedIn, isAdmin } = useAuth();
 
+  // 디버깅: isAdmin 상태 변화 추적
+  useEffect(() => {
+    console.log("=== NavigationHeader 상태 변화 ===");
+    console.log("isLoggedIn:", isLoggedIn);
+    console.log("isAdmin:", isAdmin);
+  }, [isLoggedIn, isAdmin]);
+
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="container mx-auto px-4">
@@ -294,13 +301,22 @@ function NavigationHeader({
             )}
             {isAdmin && (
               <button
-                onClick={() => onNavigate("admin")}
+                onClick={() => {
+                  console.log("관리자 탭 클릭");
+                  onNavigate("admin");
+                }}
                 className={`text-sm font-medium transition-colors ${
                   currentPage === "admin" ? "text-red-600" : "text-red-700 hover:text-red-600"
                 }`}
               >
                 관리자
               </button>
+            )}
+            {/* 디버깅용 - 개발 완료 후 제거 */}
+            {process.env.NODE_ENV === 'development' && (
+              <span className="text-xs text-gray-400">
+                isAdmin: {isAdmin ? 'true' : 'false'}
+              </span>
             )}
           </nav>
           <div className="flex items-center space-x-3">
@@ -329,6 +345,73 @@ export default function Navigation() {
   const [showSignupModal, setShowSignupModal] = useState(false);
   const [showPasswordRecovery, setShowPasswordRecovery] = useState(false);
   const { isLoggedIn, setIsLoggedIn, setIsAdmin, setCurrentUser, refreshAccessToken, checkLoginStatus } = useAuth();
+
+  // OAuth2 콜백 처리
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get("success");
+    const accessToken = urlParams.get("accessToken");
+    const refreshToken = urlParams.get("refreshToken");
+    const email = urlParams.get("email");
+    const name = urlParams.get("name");
+    const role = urlParams.get("role");
+    
+    if (success === "true" && accessToken && refreshToken && email && name && role) {
+      console.log("=== OAuth2 콜백 처리 ===");
+      console.log("Access Token:", accessToken);
+      console.log("User Info:", { email, name, role });
+      
+      // 토큰 저장
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+      localStorage.setItem("email", email);
+      localStorage.setItem("nickname", name);
+      localStorage.setItem("role", role);
+      
+      // AuthContext 상태 즉시 업데이트
+      setCurrentUser({ id: 0, email, name }); // ID는 /api/accounts/me에서 가져올 예정
+      setIsLoggedIn(true);
+      setIsAdmin(role === "ADMIN");
+      
+      console.log("=== OAuth2 상태 즉시 업데이트 완료 ===");
+      console.log("isAdmin 설정:", role === "ADMIN");
+      
+      // 강제 리렌더링을 위한 약간의 지연 후 상태 재설정
+      setTimeout(() => {
+        setIsAdmin(role === "ADMIN");
+        console.log("OAuth2 상태 재확인:", role === "ADMIN");
+      }, 100);
+      
+      // 사용자 상세 정보 가져오기
+      const fetchUserDetails = async () => {
+        try {
+          const response = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
+            headers: { 
+              Access_Token: accessToken,
+              access_token: accessToken
+            }
+          });
+          const userData = response.data?.data;
+          if (userData) {
+            const { id, email: userEmail, name: userName, role: userRole } = userData;
+            setCurrentUser({ id, email: userEmail, name: userName });
+            setIsAdmin(userRole === "ADMIN");
+            console.log("OAuth2 로그인 완료 (상세 정보 포함):", { id, email: userEmail, name: userName, role: userRole });
+          }
+        } catch (err) {
+          console.error("사용자 정보 조회 실패:", err);
+        }
+      };
+      
+      fetchUserDetails();
+      toast.success("OAuth2 로그인에 성공했습니다!", { duration: 5000 });
+      
+      // URL 파라미터 정리
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [setCurrentUser, setIsLoggedIn, setIsAdmin]);
 
   // 현재 페이지 결정
   useEffect(() => {
@@ -417,13 +500,20 @@ export default function Navigation() {
   ) => {
     const { id, email, name, role, accessToken, refreshToken } = loginData;
     // 수정: 로그인 성공 후 토큰 상태 확인
-    console.log("=== 로그인 성공 ===");
+    console.log("=== 로그인 성공 핸들러 ===");
+    console.log("받은 loginData:", loginData);
+    console.log("Role 값:", role);
+    console.log("role === 'ADMIN':", role === "ADMIN");
     console.log("Access Token:", accessToken);
     console.log("Refresh Token:", refreshToken);
     console.log("localStorage 확인:", localStorage.getItem("accessToken") ? "저장됨" : "저장안됨");
+    
     setCurrentUser({ id, email, name });
     setIsLoggedIn(true);
     setIsAdmin(role === "ADMIN");
+    
+    console.log("=== isAdmin 설정 후 ===");
+    console.log("setIsAdmin 호출됨:", role === "ADMIN");
 
     toast.success("로그인에 성공했습니다", { duration: 5000 });
     router.push("/");

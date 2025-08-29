@@ -7,6 +7,8 @@ import com.my.backend.diary.dto.DiaryResponseDto;
 import com.my.backend.diary.dto.DiaryUpdateDto;
 import com.my.backend.diary.entity.Diary;
 import com.my.backend.diary.repository.DiaryRepository;
+import com.my.backend.pet.entity.MyPet;
+import com.my.backend.pet.repository.MyPetRepository;
 import com.my.backend.s3.S3Service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +37,7 @@ public class DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final AccountRepository accountRepository;
+    private final MyPetRepository myPetRepository;
     private final RestTemplate restTemplate;
     private final S3Service s3Service;
     private final ObjectMapper objectMapper;
@@ -45,9 +48,17 @@ public class DiaryService {
     public DiaryResponseDto createDiary(DiaryRequestDto dto) {
         Account user = accountRepository.findById(dto.getUserId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
+        
+        // MyPet 정보 가져오기 (petId가 제공된 경우)
+        MyPet pet = null;
+        if (dto.getPetId() != null) {
+            pet = myPetRepository.findByMyPetIdAndOwnerId(dto.getPetId(), dto.getUserId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pet not found or not owned by user"));
+        }
+        
         Diary diary = new Diary();
         diary.setUser(user);
+        diary.setPet(pet);
         diary.setTitle(dto.getTitle());
         diary.setText(dto.getText());
         diary.setAudioUrl(dto.getAudioUrl());

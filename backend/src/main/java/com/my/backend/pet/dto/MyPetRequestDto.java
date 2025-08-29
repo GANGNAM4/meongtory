@@ -19,4 +19,11 @@ public class MyPetRequestDto {
     private String type; // 강아지, 고양이 등
     private Double weight;
     private String imageUrl;
+    
+    // 의료기록 관련 필드들 추가
+    private String medicalHistory;
+    private String vaccinations;
+    private String notes;
+    private String microchipId;
+    private String specialNeeds;
 } 

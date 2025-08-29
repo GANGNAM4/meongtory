@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,46 @@ import java.util.stream.Collectors;
 public class SearchService {
 
     private final NaverProductRepository naverProductRepository;
+
+    /**
+     * 검색어 전처리
+     * @param query 원본 검색어
+     * @return 전처리된 검색어
+     */
+    private String preprocessQuery(String query) {
+        if (query == null) {
+            return "";
+        }
+        
+        // 1. 공백 제거 및 정규화
+        String processedQuery = query.trim();
+        
+        // 2. 특수문자 제거 (한글, 영문, 숫자, 공백만 허용)
+        processedQuery = processedQuery.replaceAll("[^\\w\\s가-힣]", "");
+        
+        // 3. 연속된 공백을 하나로 변환
+        processedQuery = processedQuery.replaceAll("\\s+", " ");
+        
+        // 4. 너무 짧은 단어 필터링 (2글자 미만 제거)
+        String[] words = processedQuery.split(" ");
+        StringBuilder filteredQuery = new StringBuilder();
+        
+        for (String word : words) {
+            if (word.length() >= 2) {
+                if (filteredQuery.length() > 0) {
+                    filteredQuery.append(" ");
+                }
+                filteredQuery.append(word);
+            }
+        }
+        
+        // 5. 결과가 비어있으면 원본 반환 (최소 2글자)
+        if (filteredQuery.length() == 0 && processedQuery.length() >= 2) {
+            return processedQuery;
+        }
+        
+        return filteredQuery.toString();
+    }
 
     /**
      * 검색어를 임베딩으로 변환하여 유사한 상품들을 검색
@@ -40,13 +81,17 @@ public class SearchService {
             String query = searchRequest.getQuery();
             int limit = searchRequest.getLimit() != null ? searchRequest.getLimit() : 10;
             
-            log.info("검색어: '{}'", query);
+            // 검색어 전처리
+            query = preprocessQuery(query);
+            
+            log.info("원본 검색어: '{}'", searchRequest.getQuery());
+            log.info("전처리된 검색어: '{}'", query);
             log.info("제한 개수: {}", limit);
             log.info("검색 방식: 임베딩 기반 유사도 검색 (AI 기반)");
             
-            if (query == null || query.trim().isEmpty()) {
-                log.error("검색어가 비어있습니다.");
-                throw new IllegalArgumentException("검색어가 비어있습니다.");
+            if (query == null || query.trim().isEmpty() || query.trim().length() < 2) {
+                log.error("검색어가 비어있거나 너무 짧습니다.");
+                throw new IllegalArgumentException("검색어가 비어있거나 너무 짧습니다. (최소 2글자 필요)");
             }
             
             log.info("AI 서비스 임베딩 검색 API 호출 시작: '{}', limit: {}", query, limit);
@@ -72,10 +117,22 @@ public class SearchService {
         try {
             String aiServiceUrl = "http://ai:9000/search-embeddings";
             
+            log.info("=== AI 서비스 임베딩 검색 호출 시작 ===");
+            log.info("AI 서비스 URL: {}", aiServiceUrl);
+            log.info("검색어: {}", query);
+            log.info("제한 개수: {}", limit);
+            
             // 요청 데이터 생성
             Map<String, Object> requestData = new HashMap<>();
             requestData.put("query", query);
             requestData.put("limit", limit);
+            
+            log.info("AI 서비스 요청 데이터: {}", requestData);
+            
+            // ObjectMapper를 사용하여 JSON 직렬화 확인
+            ObjectMapper objectMapper = new ObjectMapper();
+            String jsonRequest = objectMapper.writeValueAsString(requestData);
+            log.info("JSON 직렬화된 요청 데이터: {}", jsonRequest);
             
             // RestTemplate을 사용하여 AI 서비스 호출
             RestTemplate restTemplate = new RestTemplate();
@@ -84,16 +141,14 @@ public class SearchService {
             
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestData, headers);
             
-                         log.info("AI 서비스 호출 URL: {}", aiServiceUrl);
-             log.info("AI 서비스 요청 데이터: {}", requestData);
-             log.info("AI 서비스 호출 시작...");
+            log.info("AI 서비스 호출 시작...");
             
-                         ResponseEntity<Map> response = restTemplate.postForEntity(aiServiceUrl, entity, Map.class);
-             
-             log.info("AI 서비스 응답 상태 코드: {}", response.getStatusCode());
-             log.info("AI 서비스 응답 바디: {}", response.getBody());
-             
-             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            ResponseEntity<Map> response = restTemplate.postForEntity(aiServiceUrl, entity, Map.class);
+            
+            log.info("AI 서비스 응답 상태 코드: {}", response.getStatusCode());
+            log.info("AI 서비스 응답 바디: {}", response.getBody());
+            
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 Map<String, Object> responseBody = response.getBody();
                 Boolean success = (Boolean) responseBody.get("success");
                 
@@ -114,6 +169,7 @@ public class SearchService {
             
         } catch (Exception e) {
             log.error("AI 서비스 임베딩 검색 API 호출 실패: {}", e.getMessage(), e);
+            log.error("스택 트레이스: ", e);
             return new ArrayList<>();
         }
     }

@@ -442,7 +442,7 @@ export default function CommunityDetailPage({
       setIsEditing(false);
       setImagesToDelete([]);
       
-      toast.success("게시글이 수정되었습니다 ✅");
+      toast.success("게시글이 수정되었습니다 ");
       router.push(`/community/${post.id}`);
     } catch (err: any) {
       console.error("Edit error:", err.message);

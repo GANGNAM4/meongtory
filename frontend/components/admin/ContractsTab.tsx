@@ -227,13 +227,17 @@ export default function ContractsTab({
 
   // 계약서 삭제 핸들러
   const handleDeleteContract = async (contractId: number) => {
-    if (!confirm("정말로 이 계약서를 삭제하시겠습니까?")) {
+    if (!confirm("정말로 이 계약서를 삭제하시겠습니까?\n\n⚠️ 주의: 삭제된 계약서는 복구할 수 없습니다.\n- 계약서와 관련된 모든 데이터가 삭제됩니다.\n- S3에 저장된 PDF 파일도 함께 삭제됩니다.")) {
       return
     }
 
     try {
       const response = await axios.delete(`${getBackendUrl()}/api/contract-generation/${contractId}`)
       if (response.data.success) {
+        // localStorage에서 PDF URL도 삭제
+        localStorage.removeItem(`contract_pdf_url_${contractId}`)
+        console.log(`계약서 ${contractId} 삭제 완료 - PDF URL도 함께 삭제됨`)
+        
         alert("계약서가 삭제되었습니다.")
         fetchGeneratedContracts() // 목록 새로고침
       } else {

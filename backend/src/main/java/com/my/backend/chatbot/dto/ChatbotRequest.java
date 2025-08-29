@@ -7,5 +7,6 @@ import lombok.Setter;
 @Getter
 public class ChatbotRequest {
     private String query;
-
+    private Long petId;
+    private String authToken;
 }

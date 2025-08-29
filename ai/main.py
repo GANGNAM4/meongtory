@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
 import io
@@ -7,9 +8,13 @@ import base64
 import logging
 import sys
 import os
+import logging
+import json
+import httpx
 import tempfile
 import asyncio
 import threading
+from typing import Optional
 
 # AI 서비스 모듈들 import
 from contract.service import ContractAIService
@@ -34,13 +39,55 @@ from category_classifier import CategoryClassifier
 from diary.diary_image_classifier import DiaryImageClassifier
 
 # embedding_update.py 모듈 import
-from embedding_update import EmbeddingUpdater
+from store.embedding_update import EmbeddingUpdater
+
+async def get_mypet_info(pet_id: int):
+    """백엔드에서 MyPet 정보를 가져오는 함수 (내부 통신)"""
+    try:
+        backend_url = "http://backend:8080"
+        
+        # 내부 통신 키 가져오기
+        internal_key = os.getenv("INTERNAL_API_KEY", "default-internal-key")
+        headers = {"X-Internal-Key": internal_key}
+        
+        # 디버깅 로그
+        logger.info(f"Internal key: {internal_key}")
+        logger.info(f"Headers: {headers}")
+        
+        # 내부 통신용 엔드포인트 호출
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{backend_url}/api/mypet/internal/{pet_id}", headers=headers)
+            if response.status_code == 200:
+                pet_data = response.json()
+                if pet_data.get('success'):
+                    pet = pet_data.get('data', {})
+                    # 의료기록 정보도 포함
+                    medical_info = ""
+                    if pet.get('medicalHistory'):
+                        medical_info += f"의료기록: {pet.get('medicalHistory')}, "
+                    if pet.get('vaccinations'):
+                        medical_info += f"예방접종: {pet.get('vaccinations')}, "
+                    if pet.get('specialNeeds'):
+                        medical_info += f"특별관리: {pet.get('specialNeeds')}, "
+                    if pet.get('notes'):
+                        medical_info += f"메모: {pet.get('notes')}, "
+                    
+                    return f"이름: {pet.get('name', 'N/A')}, 품종: {pet.get('breed', 'N/A')}, 나이: {pet.get('age', 'N/A')}세, 성별: {pet.get('gender', 'N/A')}, 체중: {pet.get('weight', 'N/A')}kg, 마이크로칩: {pet.get('microchipId', 'N/A')}, {medical_info}"
+                else:
+                    logger.warning(f"Failed to get pet info for petId {pet_id}: {pet_data.get('error')}")
+                    return None
+            else:
+                logger.warning(f"Failed to get pet info for petId {pet_id}: HTTP {response.status_code}")
+                return None
+    except Exception as e:
+        logger.error(f"Error getting pet info for petId {pet_id}: {str(e)}")
+        return None
 
 # Adoption Agent 모듈 import
 from adoption_agent.agent_service import agent_service
 
 # 로깅 설정
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)  # DEBUG에서 INFO로 변경
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
@@ -54,6 +101,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 한글 인코딩을 위한 미들웨어 추가
+@app.middleware("http")
+async def add_charset_header(request, call_next):
+    response = await call_next(request)
+    if "application/json" in response.headers.get("content-type", ""):
+        response.headers["content-type"] = "application/json; charset=utf-8"
+    return response
 
 app.include_router(breed_router, prefix="/api/ai")
 app.include_router(emotion_router, prefix="/api/ai")
@@ -81,6 +136,13 @@ class BackgroundStoryRequest(BaseModel):
 
 class QueryRequest(BaseModel):
     query: str
+    petId: Optional[int] = None
+
+    class Config:
+        # null 값을 허용하도록 설정
+        json_encoders = {
+            int: lambda v: v if v is not None else None
+        }
 
 class RetrainRequest(BaseModel):
     min_feedback_count: int = 10
@@ -261,10 +323,31 @@ async def transcribe_audio_endpoint(file: UploadFile = File(...)):
 async def chatbot_endpoint(request: QueryRequest):
     """챗봇 쿼리 처리"""
     try:
-        logger.info(f"Received query: {request.query}")
-        response = await process_rag_query(request.query)
+        # 한글 인코딩 확인 및 로깅
+        logger.info(f"Received query (raw): {repr(request.query)}")
+        logger.info(f"Received query (decoded): {request.query}")
+        logger.info(f"Received petId: {request.petId}")
+        
+        # petId가 있으면 MyPet 정보를 포함한 쿼리로 처리
+        if request.petId:
+            # MyPet 정보를 가져와서 쿼리에 포함
+            pet_info = await get_mypet_info(request.petId)
+            if pet_info:
+                enhanced_query = f"펫 정보: {pet_info}\n\n사용자 질문: {request.query}"
+                response = await process_rag_query(enhanced_query)
+            else:
+                response = await process_rag_query(request.query)
+        else:
+            response = await process_rag_query(request.query)
+            
         logger.info(f"Query response: {response['answer']}")
-        return response
+        
+        # 응답에 한글 인코딩 확인
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            content=response,
+            headers={"Content-Type": "application/json; charset=utf-8"}
+        )
     except Exception as e:
         logger.error(f"Error processing chatbot query: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Chatbot endpoint failed: {str(e)}")
@@ -273,13 +356,103 @@ async def chatbot_endpoint(request: QueryRequest):
 async def insurance_chatbot_endpoint(request: InsuranceQueryRequest):
     """보험 전용 챗봇 쿼리 처리"""
     try:
-        logger.info(f"Received insurance query: {request.query}")
-        response = await process_insurance_rag_query(request.query)
+        # 한글 인코딩 확인 및 로깅
+        logger.info(f"Received insurance query (raw): {repr(request.query)}")
+        logger.info(f"Received insurance query (decoded): {request.query}")
+        logger.info(f"Received petId: {request.petId}")
+        
+        response = await process_insurance_rag_query(request.query, request.petId)
         logger.info(f"Insurance query response: {response['answer']}")
-        return response
+        
+        # 응답에 한글 인코딩 확인
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            content=response,
+            headers={"Content-Type": "application/json; charset=utf-8"}
+        )
     except Exception as e:
         logger.error(f"Error processing insurance chatbot query: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Insurance chatbot endpoint failed: {str(e)}")
+
+@app.post("/search/mypet")
+async def search_with_mypet(request: dict):
+    """MyPet 태깅 기반 상품 검색"""
+    try:
+        query = request.get("query", "")
+        pet_id = request.get("petId")
+        limit = request.get("limit", 10)
+        
+        logger.info(f"MyPet 검색 요청: query='{query}', petId={pet_id}, limit={limit}")
+        
+        # embedding_update.py의 MyPet 태깅 검색 사용
+        from store.embedding_update import EmbeddingUpdater
+        
+        updater = EmbeddingUpdater()
+        results = await updater.search_similar_products_with_pet(query, pet_id, limit)
+        
+        logger.info(f"MyPet 검색 결과: {len(results)}개 상품")
+        
+        # 프론트엔드 형식에 맞게 데이터 변환
+        formatted_results = []
+        for item in results:
+            formatted_item = {
+                # 기본 정보
+                'id': item.get('id'),
+                'productId': item.get('product_id', ''),
+                'title': item.get('title', item.get('name', '제목 없음')),
+                'description': item.get('description', ''),
+                'price': item.get('price', 0),
+                'imageUrl': item.get('image_url', '/placeholder.svg'),
+                'mallName': item.get('mall_name', item.get('seller', '판매자 정보 없음')),
+                'productUrl': item.get('product_url', '#'),
+                
+                # 브랜드/제조사 정보
+                'brand': item.get('brand', ''),
+                'maker': item.get('maker', ''),
+                
+                # 카테고리 정보
+                'category1': item.get('category1', ''),
+                'category2': item.get('category2', ''),
+                'category3': item.get('category3', ''),
+                'category4': item.get('category4', ''),
+                
+                # 리뷰/평점 정보
+                'reviewCount': item.get('review_count', 0),
+                'rating': item.get('rating', 0),
+                'searchCount': item.get('search_count', 0),
+                
+                # 날짜 정보
+                'createdAt': item.get('created_at', ''),
+                'updatedAt': item.get('updated_at', ''),
+                
+                # AI 관련 점수
+                'similarity': item.get('similarity', 0),
+                'petMatchScore': item.get('pet_match_score', 0),
+                'pet_score_boost': item.get('pet_score_boost', 0),
+                
+                # 상품 타입
+                'type': item.get('type', 'naver'),
+                
+                # 추가 메타데이터 (원본 데이터 보존)
+                'originalData': item
+            }
+            formatted_results.append(formatted_item)
+        
+        return {
+            "success": True,
+            "data": formatted_results,
+            "message": "MyPet 태깅 검색 완료"
+        }
+        
+    except Exception as e:
+        logger.error(f"MyPet 검색 오류: {e}")
+        return {
+            "success": False,
+            "data": [],
+            "message": f"검색 중 오류 발생: {str(e)}"
+        }
+
+
 
 @app.post("/api/ai/retrain-emotion-model")
 async def retrain_emotion_model(request: RetrainRequest):
@@ -464,14 +637,17 @@ async def search_embeddings(request: EmbeddingSearchRequest):
         
         updater = EmbeddingUpdater()
         
-        # 검색어를 임베딩으로 변환
-        query_embedding = updater.generate_embedding(request.query)
-        if not query_embedding:
-            logger.error("검색어 임베딩 생성 실패")
-            return {"success": False, "results": [], "message": "검색어 임베딩 생성에 실패했습니다."}
+        # @태그가 있는지 확인
+        import re
+        pet_tags = re.findall(r'@([ㄱ-ㅎ가-힣a-zA-Z0-9_]+)', request.query)
         
-        # PostgreSQL에서 cosine similarity로 유사한 상품 검색
-        similar_products = updater.search_similar_products(query_embedding, request.limit)
+        if pet_tags:
+            # @태그가 있으면 MyPet 검색 사용 (petId는 별도로 전달받아야 함)
+            logger.info(f"@태그 발견: {pet_tags}, 일반 검색으로 처리")
+            # TODO: petId를 어떻게 받을지 결정 필요
+        
+        # 일반 임베딩 검색 수행 (최소 유사도 0.3 적용)
+        similar_products = await updater.search_similar_products(request.query, request.limit, min_similarity=0.3)
         
         logger.info(f"임베딩 검색 완료: {len(similar_products)}개 결과")
         

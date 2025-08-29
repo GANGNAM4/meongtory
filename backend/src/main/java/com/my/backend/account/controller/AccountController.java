@@ -2,6 +2,7 @@ package com.my.backend.account.controller;
 
 import com.my.backend.account.dto.AccountRegisterRequestDto;
 import com.my.backend.account.dto.LoginRequestDto;
+import com.my.backend.account.dto.LoginResponseDto;
 import com.my.backend.account.entity.Account;
 import com.my.backend.account.entity.RefreshToken;
 import com.my.backend.account.repository.AccountRepository;
@@ -55,8 +56,8 @@ public class AccountController {
     @PostMapping("/login")
     public ResponseDto<?> login(@RequestBody @Valid LoginRequestDto loginReqDto) {
         try {
-            TokenDto tokenDto = accountService.accountLogin(loginReqDto);
-            return ResponseDto.success(tokenDto);
+            LoginResponseDto loginResponse = accountService.accountLogin(loginReqDto);
+            return ResponseDto.success(loginResponse);
         } catch (Exception e) {
             return ResponseDto.fail("LOGIN_FAILED", e.getMessage());
         }

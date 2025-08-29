@@ -108,6 +108,11 @@ export function useAdminContracts() {
   const deleteContract = async (contractId: number) => {
     try {
       await axios.delete(`${getBackendUrl()}/api/contract-generation/${contractId}`)
+      
+      // localStorage에서 PDF URL도 삭제
+      localStorage.removeItem(`contract_pdf_url_${contractId}`)
+      console.log(`계약서 ${contractId} 삭제 완료 - PDF URL도 함께 삭제됨`)
+      
       await fetchGeneratedContracts() // 목록 새로고침
       return true
     } catch (error) {
@@ -118,8 +123,28 @@ export function useAdminContracts() {
 
   // 계약서 수정
   const editContract = async (contract: GeneratedContract) => {
-    console.log('계약서 수정:', contract)
-    return contract
+    try {
+      const response = await axios.put(`${getBackendUrl()}/api/contract-generation/${contract.id}`, {
+        content: contract.content
+      })
+      
+      if (response.data.success) {
+        // 새로운 PDF URL을 localStorage에 저장
+        const newPdfUrl = response.data.data?.pdfUrl || response.data.pdfUrl
+        if (newPdfUrl) {
+          localStorage.setItem(`contract_pdf_url_${contract.id}`, newPdfUrl)
+          console.log(`계약서 ${contract.id} 수정 완료 - 새로운 PDF URL 저장:`, newPdfUrl)
+        }
+        
+        await fetchGeneratedContracts() // 목록 새로고침
+        return response.data.data || response.data
+      } else {
+        throw new Error('계약서 수정에 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('계약서 수정 실패:', error)
+      throw new Error('계약서 수정에 실패했습니다.')
+    }
   }
 
   // 모든 데이터 페칭

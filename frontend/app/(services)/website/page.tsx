@@ -37,6 +37,7 @@ import axios from "axios"
 import { Toaster, toast } from "react-hot-toast"
 import { getCurrentKSTDate } from "@/lib/utils"
 import { getBackendUrl } from "@/lib/api";
+import { useAuth } from "@/components/navigation";
 
 // Types
 import type { Pet } from "@/types/pets"
@@ -118,9 +119,8 @@ export default function PetServiceWebsite() {
   const router = useRouter();
   const pathname = usePathname();
   const [currentPage, setCurrentPage] = useState("home");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ id: number; email: string; name: string } | null>(null);
+  const { isLoggedIn, isAdmin, currentUser, setIsLoggedIn, setIsAdmin, setCurrentUser } = useAuth();
+  // 로컬 상태 제거, AuthContext 사용
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
@@ -255,60 +255,7 @@ export default function PetServiceWebsite() {
   }, []);
   */
 
-  // OAuth 콜백 처리
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const urlParams = new URLSearchParams(window.location.search);
-    const success = urlParams.get("success");
-    const error = urlParams.get("error");
-    const accessToken = urlParams.get("accessToken");
-    const refreshToken = urlParams.get("refreshToken");
-    if (success && accessToken && refreshToken) {
-      localStorage.setItem("accessToken", accessToken);
-      localStorage.setItem("refreshToken", refreshToken);
-      console.log("=== 로그인 후 localStorage 상태 ===");
-      console.log("accessToken:", localStorage.getItem("accessToken"));
-      console.log("refreshToken:", localStorage.getItem("refreshToken"));
-      const fetchUserInfo = async () => {
-        try {
-          const response = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
-            headers: { 
-              Access_Token: localStorage.getItem("accessToken"),
-              "access_token": localStorage.getItem("accessToken")
-            }
-          });
-          const userData = response.data?.data
-          if (!userData) throw new Error("사용자 데이터가 없습니다")
-          const { id, email, name, role } = userData
-          setCurrentUser({ id, email, name })
-          setIsLoggedIn(true)
-          setIsAdmin(role === "ADMIN")
-          toast.success("OAuth 로그인 되었습니다", { duration: 5000 })
-          router.push("/")
-        } catch (err: any) {
-          console.error("사용자 정보 조회 실패:", err);
-          let errorMessage = "사용자 정보 조회 실패";
-          if (err.response) {
-            errorMessage += ": " + (err.response.data?.message || err.response.statusText);
-          } else if (err.request) {
-            errorMessage += ": 서버에 연결할 수 없습니다";
-          } else {
-            errorMessage += ": " + err.message;
-          }
-          toast.error(errorMessage, { duration: 5000 });
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-          setIsLoggedIn(false);
-          setCurrentUser(null);
-          setIsAdmin(false);
-        }
-      };
-      fetchUserInfo();
-    } else if (error) {
-      toast.error(decodeURIComponent(error), { duration: 5000 });
-      router.push("/");
-    }
-  }, [router]);
+  // OAuth 콜백 처리는 Navigation 컴포넌트의 AuthContext에서 처리됨
 
   // 이벤트 핸들러 (기존과 동일)
   const handleAddToWishlist = (item: WishlistItem) => {
@@ -359,15 +306,19 @@ export default function PetServiceWebsite() {
 
       // 장바구니 추가 API (수량 포함)
       const response = await axios.post(`${getBackendUrl()}/api/carts?productId=${product.productId}&quantity=${quantity}`, null, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: { 
+          "Access_Token": accessToken,
+          "Content-Type": "application/x-www-form-urlencoded" 
+        },
         timeout: 5000,
       })
-      if (response.status !== 200) {
-        throw new Error(`장바구니 추가에 실패했습니다. (${response.status})`)
+      if (response.status !== 200 || !response.data.success) {
+        throw new Error(response.data?.error?.message || `장바구니 추가에 실패했습니다. (${response.status})`)
       }
       await fetchCartItems()
       toast.success(`${product.name}을(를) 장바구니에 추가했습니다`, { duration: 5000 })
-      router.push("/cart")
+      // 전체 새로고침으로 장바구니 데이터 확실하게 로드
+      window.location.href = "/store/cart"
     } catch (error: any) {
       console.error("장바구니 추가 오류:", error)
       toast.error("백엔드 서버 연결에 실패했습니다. 장바구니 추가가 불가능합니다.", { duration: 5000 })
@@ -483,11 +434,11 @@ export default function PetServiceWebsite() {
         headers: { "Access_Token": accessToken }
       })
       
-      if (response.status === 200) {
+      if (response.status === 200 && response.data.success) {
         await fetchCartItems()
         toast.success("장바구니에서 상품을 삭제했습니다")
       } else {
-        throw new Error("장바구니에서 삭제에 실패했습니다.")
+        throw new Error(response.data?.error?.message || "장바구니에서 삭제에 실패했습니다.")
       }
     } catch (error: any) {
       console.error("장바구니 삭제 오류:", error)
@@ -508,11 +459,11 @@ export default function PetServiceWebsite() {
         headers: { "Access_Token": accessToken }
       })
       
-      if (response.status === 200) {
+      if (response.status === 200 && response.data.success) {
         await fetchCartItems()
         toast.success("장바구니 수량을 업데이트했습니다")
       } else {
-        throw new Error("수량 업데이트에 실패했습니다.")
+        throw new Error(response.data?.error?.message || "수량 업데이트에 실패했습니다.")
       }
     } catch (error: any) {
       console.error("수량 업데이트 오류:", error)
@@ -1344,7 +1295,7 @@ export default function PetServiceWebsite() {
                           onClick={() => {
                             if (!isLoggedIn) {
                               toast.error("장바구니를 이용하려면 로그인이 필요합니다", { duration: 5000 });
-                              router.push("/"); // 로그인 모달은 layout.tsx에서 관리
+                              return;
                             } else {
                               router.push("/store/cart");
                             }

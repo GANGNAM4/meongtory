@@ -44,7 +44,7 @@ function PaymentContent() {
       const items: PaymentItem[] = [
         {
           id: parseInt(productId),
-          name: decodeURIComponent(productName),
+          name: decodeURIComponent(productName).replace(/<[^>]*>/g, ''), // HTML 태그 제거
           price: parseInt(price),
           quantity: parseInt(quantity),
           image: decodeURIComponent(imageUrl),
@@ -126,7 +126,7 @@ function PaymentContent() {
                     className="w-16 h-16 object-cover rounded-lg"
                   />
                   <div className="flex-1">
-                    <h3 className="font-medium">{item.name}</h3>
+                    <h3 className="font-medium">{item.name.replace(/<[^>]*>/g, '')}</h3>
                     <p className="text-sm text-gray-500">
                       {item.price.toLocaleString()}원 × {item.quantity}개
                     </p>

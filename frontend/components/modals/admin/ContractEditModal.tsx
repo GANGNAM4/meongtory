@@ -59,6 +59,13 @@ export default function ContractEditModal({ isOpen, onClose, editingContract, on
       })
 
       if (response.data.success) {
+        // 새로운 PDF URL을 localStorage에 저장
+        const newPdfUrl = response.data.data?.pdfUrl || response.data.pdfUrl
+        if (newPdfUrl) {
+          localStorage.setItem(`contract_pdf_url_${editingContract.id}`, newPdfUrl)
+          console.log(`계약서 ${editingContract.id} 수정 완료 - 새로운 PDF URL 저장:`, newPdfUrl)
+        }
+        
         alert("계약서가 수정되었습니다.")
         onClose()
         onUpdateContract()

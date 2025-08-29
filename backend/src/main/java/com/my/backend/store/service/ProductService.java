@@ -8,6 +8,7 @@ import com.my.backend.store.repository.OrderItemRepository;
 import com.my.backend.store.repository.OrderRepository;
 import com.my.backend.store.repository.ProductRepository;
 import com.my.backend.store.repository.CartRepository;
+import com.my.backend.recent.repository.RecentProductRepository;
 import com.my.backend.store.dto.ProductDto;
 import com.my.backend.s3.S3Service;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +27,7 @@ public class ProductService {
     private final CartRepository cartRepository;
     private final OrderItemRepository orderItemRepository;
     private final OrderRepository orderRepository;
+    private final RecentProductRepository recentProductRepository;
     private final S3Service s3Service;
 
     public List<Product> getAllProducts() {
@@ -101,10 +104,18 @@ public class ProductService {
                 .orElseThrow(() -> new RuntimeException("상품을 찾을 수 없습니다: " + id));
         
         try {
-            // 1. 관련된 장바구니 항목들 먼저 삭제
+            // 1. 관련된 최근 본 상품들 먼저 삭제 (모든 계정에서)
+            // 직접 쿼리로 삭제
+            recentProductRepository.deleteAll(
+                recentProductRepository.findAll().stream()
+                    .filter(rp -> rp.getStoreProduct() != null && rp.getStoreProduct().getId().equals(id))
+                    .collect(Collectors.toList())
+            );
+            
+            // 2. 관련된 장바구니 항목들 삭제
             cartRepository.deleteByProduct_Id(id);
             
-            // 2. 관련된 주문들의 product 참조를 null로 설정 (주문은 유지)
+            // 3. 관련된 주문들의 product 참조를 null로 설정 (주문은 유지)
             List<Order> relatedOrders = orderRepository.findByProduct_Id(id);
             
             for (Order order : relatedOrders) {
@@ -112,10 +123,10 @@ public class ProductService {
                 orderRepository.save(order);
             }
             
-            // 3. 관련된 주문 항목들 삭제 (OrderItem)
+            // 4. 관련된 주문 항목들 삭제 (OrderItem)
             orderItemRepository.deleteByProduct_Id(id);
             
-            // 4. 상품 삭제
+            // 5. 상품 삭제
             productRepository.delete(product);
             
             return ResponseDto.success("삭제 완료");

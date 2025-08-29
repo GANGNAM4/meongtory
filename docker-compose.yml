@@ -48,6 +48,7 @@ services:
       - OAUTH2_REDIRECT_URI_BASE=${NEXT_PUBLIC_BACKEND_URL}
       - FRONTEND_URL=${NEXT_PUBLIC_BACKEND_URL}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - ai
     networks:
@@ -77,6 +78,7 @@ services:
       - VECTORSTORE_SEARCH_LIMIT=${VECTORSTORE_SEARCH_LIMIT:-5}
       - SAMPLE_DATA_PATH=${SAMPLE_DATA_PATH}
       - PROMPT_TEMPLATE_PATH=${PROMPT_TEMPLATE_PATH}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     volumes:
       - ./ai:/app
       - ./ai/chatBot:/app/chatBot
