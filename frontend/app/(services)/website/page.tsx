@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Heart, Search, Store, BookOpen, ShoppingCart } from "lucide-react";
+import { Heart, Search, Store, ShoppingCart, MessageSquare } from "lucide-react";
 import AdoptionPage from "../../(pets)/adoption/page";
 import AdoptionDetailPage from "../../(pets)/adoption/[id]/page";
 import AnimalRegistrationPage from "../../(pets)/adoption/register/page";
@@ -28,7 +28,7 @@ import CommunityDetailPage from "../../(community)/community/[id]/page";
 import CommunityWritePage from "../../(community)/community/write/page";
 
 import DogResearchLabPage from "../research/page";
-import PetNamingService from "../naming/page";
+import PetNamingService from "../agent/page";
 
 import AdminPage from "../../(dashboard)/admin/page";
 import MyPage from "../../(dashboard)/my/page";
@@ -1306,11 +1306,11 @@ export default function PetServiceWebsite() {
                           </div>
                           <p className="text-sm font-medium">보호소 입양</p>
                         </button>
-                        <button onClick={() => router.push("/naming")} className="text-center space-y-2 w-full">
+                        <button onClick={() => router.push("/agent")} className="text-center space-y-2 w-full">
                           <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
-                            <BookOpen className="w-8 h-8 text-yellow-600" />
+                            <MessageSquare className="w-8 h-8 text-yellow-600" />
                           </div>
-                          <p className="text-sm font-medium">이름 짓기</p>
+                          <p className="text-sm font-medium">입양 상담</p>
                         </button>
                         {isAdmin && isLoggedIn && (
                           <button

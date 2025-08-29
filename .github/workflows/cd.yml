@@ -85,6 +85,7 @@ jobs:
         docker build \
           --no-cache \
           --build-arg NEXT_PUBLIC_BACKEND_URL=https://${{ env.DOMAIN_NAME }} \
+          --build-arg NEXT_PUBLIC_AI_URL=https://${{ env.DOMAIN_NAME }} \
           --build-arg NEXT_PUBLIC_TOSS_CLIENT_KEY=${{ secrets.NEXT_PUBLIC_TOSS_CLIENT_KEY }} \
           -t ${{ secrets.ECR_REGISTRY }}/mt-frontend:latest \
           ./frontend
@@ -120,6 +121,7 @@ jobs:
         # GitHub Secrets을 사용하여 환경변수 치환
         # Frontend 환경변수 (ALB를 통한 도메인 기반 접근)
         sed -i "s|\${NEXT_PUBLIC_BACKEND_URL}|https://${{ env.DOMAIN_NAME }}|g" docker-compose.production.yml
+        sed -i "s|\${NEXT_PUBLIC_AI_URL}|https://${{ env.DOMAIN_NAME }}|g" docker-compose.production.yml
         
         # Backend 환경변수  
         sed -i "s|\${BACKEND_PORT}|${{ secrets.BACKEND_PORT }}|g" docker-compose.production.yml

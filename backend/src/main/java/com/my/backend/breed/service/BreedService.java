@@ -41,7 +41,7 @@ public class BreedService {
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
         
         ResponseEntity<BreedPredictionResponseDto> response = restTemplate.postForEntity(
-            aiServiceUrl + "/predict",
+            aiServiceUrl + "/api/ai/predict",
             requestEntity,
             BreedPredictionResponseDto.class
         );

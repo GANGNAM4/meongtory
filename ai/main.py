@@ -36,6 +36,9 @@ from diary.diary_image_classifier import DiaryImageClassifier
 # embedding_update.py 모듈 import
 from embedding_update import EmbeddingUpdater
 
+# Adoption Agent 모듈 import
+from adoption_agent.agent_service import agent_service
+
 # 로깅 설정
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -87,8 +90,70 @@ class CategoryClassificationRequest(BaseModel):
 
 class EmbeddingUpdateRequest(BaseModel):
     auto_mode: bool = True
-      
 
+# Adoption Agent 관련 모델
+class AgentStartRequest(BaseModel):
+    session_id: str
+
+class AgentMessageRequest(BaseModel):
+    session_id: str
+    message: str
+
+class AgentSessionRequest(BaseModel):
+    session_id: str
+
+# ===== ADOPTION AGENT API ENDPOINTS =====
+
+@app.on_event("startup")
+async def startup_event():
+    """서버 시작 시 Agent 서비스 초기화"""
+    try:
+        agent_service.initialize()
+        logger.info("Adoption Agent 서비스 초기화 완료")
+    except Exception as e:
+        logger.error(f"Adoption Agent 초기화 실패: {str(e)}")
+
+@app.post("/api/adoption-agent/start")
+async def start_adoption_session(request: AgentStartRequest):
+    """새로운 입양 상담 세션 시작"""
+    try:
+        result = agent_service.start_session(request.session_id)
+        return result
+    except Exception as e:
+        logger.error(f"입양 세션 시작 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"세션 시작 실패: {str(e)}")
+
+@app.post("/api/adoption-agent/message")
+async def send_adoption_message(request: AgentMessageRequest):
+    """입양 상담 메시지 전송"""
+    try:
+        result = agent_service.send_message(request.session_id, request.message)
+        return result
+    except Exception as e:
+        logger.error(f"메시지 전송 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"메시지 처리 실패: {str(e)}")
+
+@app.get("/api/adoption-agent/session/{session_id}")
+async def get_adoption_session(session_id: str):
+    """세션 정보 조회"""
+    try:
+        result = agent_service.get_session_info(session_id)
+        return result
+    except Exception as e:
+        logger.error(f"세션 조회 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"세션 조회 실패: {str(e)}")
+
+@app.delete("/api/adoption-agent/session/{session_id}")
+async def end_adoption_session(session_id: str):
+    """입양 상담 세션 종료"""
+    try:
+        result = agent_service.end_session(session_id)
+        return result
+    except Exception as e:
+        logger.error(f"세션 종료 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"세션 종료 실패: {str(e)}")
+
+# ===== EXISTING API ENDPOINTS =====
 
 @app.post("/predict")
 async def predict_dog_breed(file: UploadFile = File(...)):

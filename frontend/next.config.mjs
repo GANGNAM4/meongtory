@@ -15,6 +15,12 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'shopping-phinf.pstatic.net',
+        port: '',
+        pathname: '/**',
+      },
       // 실시간 로고를 위한 다양한 도메인 허용
       {
         protocol: 'https',
