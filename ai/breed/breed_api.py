@@ -6,7 +6,7 @@ router = APIRouter()
 classifier = DogBreedClassifier()
 
 @router.post("/predict")
-async def predict_dog_breed(file: UploadFile = File(...)):
-    image_bytes = io.BytesIO(await file.read())
+async def predict_dog_breed(image: UploadFile = File(...)):
+    image_bytes = io.BytesIO(await image.read())
     result = classifier.predict(image_bytes)
     return result
