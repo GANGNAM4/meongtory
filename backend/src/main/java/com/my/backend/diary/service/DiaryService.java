@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.Arrays;
 
 @Service
 @RequiredArgsConstructor
@@ -72,6 +74,10 @@ public class DiaryService {
                 Arrays.stream(textCategories),
                 Arrays.stream(imageCategories)
         ).distinct().toArray(String[]::new);
+        
+        log.info("일기 생성 - 텍스트 카테고리: {}, 이미지 카테고리: {}, 최종 카테고리: {}", 
+                Arrays.toString(textCategories), Arrays.toString(imageCategories), Arrays.toString(categories));
+        
         diary.setCategories(categories);
 
         return DiaryResponseDto.from(diaryRepository.save(diary));
@@ -106,41 +112,69 @@ public class DiaryService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
+            String filename = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+            log.info("파일명 추출: {}", filename);
+            
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("file", new ByteArrayResource(imageBytes) {
+            
+            // Custom ByteArrayResource with proper filename
+            Resource fileResource = new ByteArrayResource(imageBytes) {
                 @Override
                 public String getFilename() {
-                    return imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+                    return filename;
                 }
-            });
+            };
+            
+            body.add("file", fileResource);
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+
+            log.info("AI 서비스로 multipart 요청 전송 시작...");
+            log.info("요청 헤더: {}", headers);
+            log.info("파일 리소스 타입: {}", fileResource.getClass().getName());
 
             ResponseEntity<Map> response = restTemplate.postForEntity(
                     classifyUrl,
                     requestEntity,
                     Map.class
             );
+            
+            log.info("AI 서비스 요청 완료");
 
             log.info("AI 서비스 응답 - 상태 코드: {}, 응답 본문: {}", response.getStatusCode(), response.getBody());
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                // [수정] AI 응답에서 category 추출 및 한국어 태그로 매핑
-                Map<String, Object> clipResult = (Map<String, Object>) response.getBody().get("clip_result");
-                String category = (String) clipResult.get("category");
+                // AI 응답에서 category 추출 및 한국어 태그로 매핑
+                Map<String, Object> responseBody = response.getBody();
+                String category = null;
+                
+                // 여러 방법으로 카테고리 추출 시도
+                if (responseBody.containsKey("category")) {
+                    category = (String) responseBody.get("category");
+                } else if (responseBody.containsKey("clip_result")) {
+                    Map<String, Object> clipResult = (Map<String, Object>) responseBody.get("clip_result");
+                    if (clipResult != null && clipResult.containsKey("category")) {
+                        category = (String) clipResult.get("category");
+                    }
+                }
+                
+                if (category != null) {
+                    // 영어 카테고리를 한국어 태그로 변환
+                    Map<String, String> categoryToTag = new HashMap<>();
+                    categoryToTag.put("dog medicine", "약");
+                    categoryToTag.put("dog food", "사료");
+                    categoryToTag.put("dog toy", "장난감");
+                    categoryToTag.put("dog clothing", "옷");
+                    categoryToTag.put("dog accessory", "용품");
+                    categoryToTag.put("dog treat", "간식");
 
-                // 영어 카테고리를 한국어 태그로 변환
-                Map<String, String> categoryToTag = new HashMap<>();
-                categoryToTag.put("dog medicine", "약");
-                categoryToTag.put("dog food", "사료");
-                categoryToTag.put("dog toy", "장난감");
-                categoryToTag.put("dog clothing", "옷");
-                categoryToTag.put("dog accessory", "용품");
-                categoryToTag.put("dog treat", "간식");
-
-                String koreanTag = categoryToTag.getOrDefault(category, "기타");
-                log.info("이미지 분류 성공 - 영어 카테고리: {}, 한국어 태그: {}", category, koreanTag);
-                return new String[]{koreanTag};
+                    String koreanTag = categoryToTag.getOrDefault(category, "기타");
+                    log.info("이미지 분류 성공 - 영어 카테고리: {}, 한국어 태그: {}", category, koreanTag);
+                    return new String[]{koreanTag};
+                } else {
+                    log.error("AI 서비스 응답에서 카테고리를 찾을 수 없음: {}", responseBody);
+                    return new String[0];
+                }
             } else {
                 log.error("AI 서비스에서 이미지 분류 실패 - 상태 코드: {}", response.getStatusCode());
                 return new String[0];

@@ -36,7 +36,7 @@ from store.api import app as storeai_app
 sys.path.append(os.path.join(os.path.dirname(__file__), 'diary'))
 from transcribe import transcribe_audio
 from category_classifier import CategoryClassifier
-from diary.diary_image_classifier import DiaryImageClassifier
+# from diary.diary_image_classifier import DiaryImageClassifier  # Lazy loading으로 변경
 
 # embedding_update.py 모듈 import
 from store.embedding_update import EmbeddingUpdater
@@ -92,7 +92,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
-classifier = DiaryImageClassifier(use_finetuned=False)  # Zero-shot CLIP
+classifier = None  # Lazy loading for CLIP model
 
 app.add_middleware(
     CORSMiddleware,
@@ -510,15 +510,42 @@ def build_story_prompt(request: BackgroundStoryRequest) -> str:
     
     return prompt
 
+def get_classifier():
+    """CLIP 모델을 lazy loading으로 초기화"""
+    global classifier
+    if classifier is None:
+        try:
+            logger.info("CLIP 모델 초기화 시작...")
+            from diary.diary_image_classifier import DiaryImageClassifier
+            classifier = DiaryImageClassifier(use_finetuned=False)
+            logger.info("CLIP 모델 초기화 완료")
+        except Exception as e:
+            logger.error(f"CLIP 모델 초기화 실패: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"CLIP 모델 초기화 실패: {str(e)}")
+    return classifier
+
 @app.post("/classify-image")
 async def classify_image(file: UploadFile = File(...)):
     """
     이미지 업로드 후 CLIP으로 분류, LLM으로 보완
     """
     try:
+        logger.info(f"이미지 분류 요청 수신 - 파일명: {file.filename}, 타입: {file.content_type}")
+        
+        if not file or not file.filename:
+            raise HTTPException(status_code=422, detail="파일이 제공되지 않았습니다.")
+        
         image_bytes = await file.read()
-        # CLIP 분류
-        result = classifier.classify_image(image_bytes)
+        logger.info(f"이미지 바이트 읽기 완료 - 크기: {len(image_bytes)} bytes")
+        
+        if len(image_bytes) == 0:
+            raise HTTPException(status_code=422, detail="빈 파일입니다.")
+        
+        # CLIP 분류 (lazy loading)
+        logger.info("CLIP 모델로 이미지 분류 시작")
+        clip_classifier = get_classifier()
+        result = clip_classifier.classify_image(image_bytes)
+        logger.info(f"CLIP 분류 결과: {result}")
         category = result["category"]
         confidence = result["confidence"]
         
@@ -547,9 +574,15 @@ async def classify_image(file: UploadFile = File(...)):
         llm_result = response.choices[0].message.content.strip()
         
         logger.info(f"Image classified: CLIP={result}, LLM={llm_result}")
+        
+        # 백엔드에서 기대하는 형식으로 응답
         return {
-            "clip_result": result,
-            "llm_result": llm_result
+            "clip_result": {
+                "category": category,
+                "confidence": confidence
+            },
+            "llm_result": llm_result,
+            "category": category  # 직접 접근 가능하도록 추가
         }
     except Exception as e:
         logger.error(f"Image classification endpoint failed: {str(e)}")

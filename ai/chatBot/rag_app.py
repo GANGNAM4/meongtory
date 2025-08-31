@@ -27,7 +27,7 @@ DB_NAME = os.getenv("DB_NAME", "meong")
 CONNECTION_STRING = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "all-MiniLM-L6-v2")
+EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 VECTORSTORE_COLLECTION_NAME = os.getenv("VECTORSTORE_COLLECTION_NAME", "chatbot_vectors")
 VECTORSTORE_DISTANCE_STRATEGY = os.getenv("VECTORSTORE_DISTANCE_STRATEGY", "cosine")
 VECTORSTORE_SEARCH_LIMIT = int(os.getenv("VECTORSTORE_SEARCH_LIMIT", "5"))
@@ -155,10 +155,31 @@ async def process_rag_query(query: str):
         logger.info(f"Processing query (raw): {repr(query)}")
         logger.info(f"Processing query (decoded): {query}")
         
-        results = vectorstore.similarity_search(query, k=VECTORSTORE_SEARCH_LIMIT)
-        context = "\n".join([doc.page_content for doc in results])
+        # 더 많은 결과를 검색하여 정확도 향상
+        results = vectorstore.similarity_search(query, k=10)  # k를 5에서 10으로 증가
         
-        logger.info(f"Retrieved context: {context[:200]}...")  # 컨텍스트 앞부분만 로깅
+        # 각 검색 결과의 점수와 내용 로깅
+        for i, doc in enumerate(results):
+            logger.info(f"Search result {i+1}: {doc.page_content[:100]}...")
+        
+        # 키워드 기반 필터링 추가
+        query_lower = query.lower()
+        filtered_results = []
+        
+        # 로그인 관련 키워드 확인
+        if any(keyword in query_lower for keyword in ['로그인', '로그', '인증', '계정', '회원']):
+            login_docs = [doc for doc in results if any(keyword in doc.page_content for keyword in ['로그인', '회원가입', 'SNS', '구글', '카카오', '네이버'])]
+            if login_docs:
+                filtered_results = login_docs[:3]  # 로그인 관련 문서 우선 선택
+                logger.info("Found login-related documents, prioritizing them")
+        
+        # 필터링된 결과가 없으면 원래 결과 사용
+        if not filtered_results:
+            filtered_results = results[:VECTORSTORE_SEARCH_LIMIT]
+        
+        context = "\n".join([doc.page_content for doc in filtered_results])
+        
+        logger.info(f"Retrieved context after filtering: {context[:200]}...")  # 컨텍스트 앞부분만 로깅
         
         prompt = prompt_template.format(context=context, query=query)
         logger.info(f"Generated prompt: {prompt[:200]}...")  # 프롬프트 앞부분만 로깅

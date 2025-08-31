@@ -124,6 +124,9 @@ export default function StorePage({
   // useAuth 훅을 사용하여 실제 인증 상태 가져오기
   const { isAdmin: authIsAdmin, isLoggedIn: authIsLoggedIn } = useAuth()
   
+  // props로 받은 isAdmin과 AuthContext의 isAdmin을 모두 확인
+  const canViewSimilarity = propIsAdmin || authIsAdmin;
+  
   // props와 auth 상태를 병합 (auth 상태가 우선)
   const isAdmin = authIsAdmin || propIsAdmin
   const isLoggedIn = authIsLoggedIn || propIsLoggedIn
@@ -1217,8 +1220,8 @@ export default function StorePage({
                       저장중...
                     </div>
                   )}
-                                    {/* 임베딩 검색 유사도 점수 표시 */}
-                  {isSearchMode && naverProduct.similarity !== undefined && naverProduct.similarity !== null && (
+                                    {/* 임베딩 검색 유사도 점수 표시 (관리자만) */}
+                  {canViewSimilarity && isSearchMode && naverProduct.similarity !== undefined && naverProduct.similarity !== null && (
                     <div className="absolute bottom-2 left-2 bg-purple-500 text-white px-2 py-1 rounded text-xs font-bold z-10">
                       유사도: {(naverProduct.similarity * 100).toFixed(1)}%
                     </div>

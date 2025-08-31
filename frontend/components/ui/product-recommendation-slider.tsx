@@ -4,6 +4,7 @@ import { Button } from './button';
 import { Badge } from './badge';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/navigation';
 
 interface ProductRecommendationSliderProps {
   products: Array<{
@@ -33,6 +34,7 @@ export function ProductRecommendationSlider({
   subtitle
 }: ProductRecommendationSliderProps) {
   const router = useRouter();
+  const { isAdmin } = useAuth();
   const [currentIndex, setCurrentIndex] = React.useState(0);
 
   const itemsPerView = 3; // 한 번에 보여줄 아이템 수
@@ -111,8 +113,8 @@ export function ProductRecommendationSlider({
                   className="w-full h-48 object-cover rounded-lg"
                 />
 
-                {/* 유사도 표시 */}
-                {product.similarity !== undefined && (
+                {/* 유사도 표시 (관리자만) */}
+                {isAdmin && product.similarity !== undefined && (
                   <Badge className="absolute bottom-2 right-2 bg-blue-500 hover:bg-blue-600 text-white">
                     유사도: {(product.similarity * 100).toFixed(1)}%
                   </Badge>

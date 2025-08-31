@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './card';
 import { Button } from './button';
 import { Badge } from './badge';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/navigation';
 
 interface ProductRecommendationCardProps {
   product: {
@@ -30,7 +31,11 @@ export function ProductRecommendationCard({
   isAdmin = false
 }: ProductRecommendationCardProps) {
   const router = useRouter();
+  const { isAdmin: authIsAdmin } = useAuth();
   
+  // props로 받은 isAdmin과 AuthContext의 isAdmin을 모두 확인
+  const canViewSimilarity = isAdmin || authIsAdmin;
+
   const handleCardClick = () => {
     const productId = product.id || product.productId;
     if (productId) {
@@ -65,7 +70,7 @@ export function ProductRecommendationCard({
             </Badge>
           )}
           {/* 임베딩 검색 유사도 점수 표시 (관리자만) */}
-          {isAdmin && product.similarity !== undefined && (
+          {canViewSimilarity && product.similarity !== undefined && (
             <div className="absolute bottom-2 left-2 bg-purple-500 text-white px-2 py-1 rounded text-xs font-bold z-10">
               유사도: {product.similarity.toFixed(2)}
             </div>

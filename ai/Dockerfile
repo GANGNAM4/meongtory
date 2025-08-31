@@ -37,8 +37,8 @@ RUN pip install -r requirements.txt --timeout=120 --retries=10
 
 COPY . .
 
-# Pre-download models
-RUN python -c "from transformers import CLIPModel, CLIPProcessor; CLIPModel.from_pretrained('openai/clip-vit-base-patch32'); CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32')"
+# Pre-download models (commented out due to network issues)
+# RUN python -c "from transformers import CLIPModel, CLIPProcessor; CLIPModel.from_pretrained('openai/clip-vit-base-patch32'); CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32')"
 
 EXPOSE 9000
 

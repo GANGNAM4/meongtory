@@ -10,6 +10,7 @@ import Image from "next/image"
 import axios from "axios"
 import { useRouter } from "next/navigation"
 import { ProductRecommendationSlider } from "@/components/ui/product-recommendation-slider"
+import { useAuth } from "@/components/navigation"
 import { getBackendUrl } from '@/lib/api'
 import { recentApi } from '@/lib/api'
 import { RecentProductsSidebar } from "@/components/ui/recent-products-sidebar"
@@ -88,6 +89,7 @@ interface PageProps {
 
 export default function NaverProductDetailPage({ params }: PageProps) {
   const router = useRouter()
+  const { isAdmin } = useAuth();
   
   // URL 파라미터에서 productId를 추출
   let productId: string | null = null
@@ -372,6 +374,78 @@ export default function NaverProductDetailPage({ params }: PageProps) {
     }
   };
 
+  // 추천 상품을 장바구니에 추가하는 함수
+  const handleRecommendationAddToCart = async (productId: number, productInfo: any) => {
+    const isLoggedIn = !!localStorage.getItem("accessToken");
+    if (!isLoggedIn) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
+
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      
+      // 추천 상품이 네이버 상품인지 확인
+      if (productInfo.source === 'NAVER') {
+        // 네이버 상품인 경우 네이버 전용 API 사용
+        const response = await axios.post(`${getBackendUrl()}/api/naver-shopping/cart/add`, {
+          productId: productInfo.productId || productInfo.id,
+          title: productInfo.name,
+          description: productInfo.description || '',
+          price: productInfo.price,
+          imageUrl: productInfo.imageUrl,
+          mallName: productInfo.externalMallName || '네이버',
+          productUrl: productInfo.externalProductUrl || '',
+          brand: productInfo.brand || '',
+          maker: '',
+          category1: productInfo.category || '',
+          category2: '',
+          category3: '',
+          category4: '',
+          reviewCount: 0,
+          rating: 0,
+          searchCount: 0
+        }, {
+          params: { quantity: 1 },
+          headers: {
+            "Access_Token": accessToken,
+            "Content-Type": "application/json"
+          }
+        });
+        
+        if (response.status === 200 && response.data.success) {
+          alert("추천 상품이 장바구니에 추가되었습니다!");
+          // 장바구니 페이지로 이동
+          router.push('/store/cart');
+        } else {
+          throw new Error(response.data?.error?.message || "추천 상품 장바구니 추가에 실패했습니다.");
+        }
+      } else {
+        // 일반 상품인 경우 일반 장바구니 API 사용
+        const response = await axios.post(`${getBackendUrl()}/api/cart/add`, {
+          productId: productId,
+          quantity: 1
+        }, {
+          headers: {
+            "Access_Token": accessToken,
+            "Content-Type": "application/json"
+          }
+        });
+        
+        if (response.status === 200 && response.data.success) {
+          alert("추천 상품이 장바구니에 추가되었습니다!");
+          // 장바구니 페이지로 이동
+          router.push('/store/cart');
+        } else {
+          throw new Error(response.data?.error?.message || "추천 상품 장바구니 추가에 실패했습니다.");
+        }
+      }
+    } catch (error: any) {
+      console.error("추천 상품 장바구니 추가 오류:", error);
+      alert("추천 상품 장바구니 추가에 실패했습니다.");
+    }
+  };
+
   // 바로 구매
   const handleBuyNow = async () => {
     if (!product) return;
@@ -648,6 +722,7 @@ export default function NaverProductDetailPage({ params }: PageProps) {
                   products={recommendations} 
                   title=""
                   subtitle=""
+                  onAddToCart={handleRecommendationAddToCart}
                 />
               ) : (
                 <div className="text-center py-8">

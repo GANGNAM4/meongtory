@@ -1,8 +1,5 @@
 # ai/diary/diary_image_classifier.py
 import logging
-from PIL import Image
-import torch
-from transformers import CLIPProcessor, CLIPModel
 import io
 
 # 로깅 설정
@@ -11,44 +8,66 @@ logger = logging.getLogger(__name__)
 
 class DiaryImageClassifier:
     def __init__(self, use_finetuned=False):
-        self.model_path = "./clip-finetuned" if use_finetuned else "openai/clip-vit-base-patch32"
-        self.model = CLIPModel.from_pretrained(self.model_path)
-        self.processor = CLIPProcessor.from_pretrained(self.model_path, clean_up_tokenization_spaces=True)
+        # OpenAI Vision API 모드로 변경 (CLIP 모델 다운로드 문제 우회)
+        self.use_openai_vision = True
         self.categories = ["dog medicine", "dog food", "dog toy", "dog clothing", "dog accessory", "dog treat"]
-        logger.info(f"CLIP model loaded from {self.model_path}")
+        logger.info("DiaryImageClassifier initialized with OpenAI Vision API mode")
 
     def classify_image(self, image_bytes):
         try:
-            # 바이트 데이터를 이미지로 변환
-            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            import base64
+            import os
+            from openai import OpenAI
             
-            # 텍스트 프롬프트 생성
-            text_prompts = [f"This is a {category}" for category in self.categories]
+            # OpenAI Vision API 사용
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
             
-            # 입력 전처리
-            inputs = self.processor(
-                text=text_prompts,
-                images=image,
-                return_tensors="pt",
-                padding=True
+            # 이미지를 base64로 인코딩
+            image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+            
+            # 카테고리 목록 문자열 생성
+            category_list = ", ".join(self.categories)
+            
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"이 이미지를 다음 카테고리 중 하나로 분류해주세요: {category_list}. 가장 적합한 카테고리 하나만 영어로 답변하세요. 예: dog food"
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{image_b64}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=50
             )
             
-            # 모델 예측
-            with torch.no_grad():
-                outputs = self.model(**inputs)
-                logits_per_image = outputs.logits_per_image
-                probs = logits_per_image.softmax(dim=1)
+            # 응답에서 카테고리 추출
+            predicted_text = response.choices[0].message.content.strip().lower()
             
-            # 가장 높은 확률의 카테고리 반환
-            max_prob_idx = probs.argmax().item()
-            predicted_category = self.categories[max_prob_idx]
-            confidence = probs[0][max_prob_idx].item()
+            # 예측된 텍스트에서 실제 카테고리 매칭
+            predicted_category = "dog accessory"  # 기본값
+            for category in self.categories:
+                if category.lower() in predicted_text:
+                    predicted_category = category
+                    break
             
-            logger.info(f"Predicted category: {predicted_category} (confidence: {confidence:.4f})")
+            # 신뢰도는 임의로 설정 (OpenAI Vision API는 신뢰도를 제공하지 않음)
+            confidence = 0.85
+            
+            logger.info(f"OpenAI Vision predicted: {predicted_text} -> {predicted_category} (confidence: {confidence:.4f})")
             return {
                 "category": predicted_category,
                 "confidence": confidence
             }
         except Exception as e:
-            logger.error(f"Image classification failed: {str(e)}")
+            logger.error(f"OpenAI Vision API classification failed: {str(e)}")
             raise

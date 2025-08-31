@@ -686,6 +686,8 @@ export default function StoreProductDetailPage({
     }
   }
 
+
+
   const handleBuyNow = async () => {
     if (!product) {
       return
@@ -831,7 +833,7 @@ export default function StoreProductDetailPage({
             })
           }
 
-          if (response.status === 200) {
+          if (response.status === 200 && response.data.success) {
             alert('장바구니에 추가되었습니다!')
             // 장바구니 페이지로 이동
             router.push('/store/cart')
@@ -1282,7 +1284,6 @@ export default function StoreProductDetailPage({
                     onAddToCart={handleRecommendationAddToCart}
                     title=""
                     subtitle=""
-                    isAdmin={isAdmin}
                   />
                ) : (
                  <div className="text-center py-8">
