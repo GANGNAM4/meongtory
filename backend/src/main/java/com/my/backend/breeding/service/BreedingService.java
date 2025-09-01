@@ -66,19 +66,30 @@ public class BreedingService {
 
             log.info("AI 서비스 호출 시작: {}/predict-breeding", aiBaseUrl);
             
-            BreedingResultDto result = getAiClient().post()
+            String jsonResponse = getAiClient().post()
                     .uri("/predict-breeding")
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .body(BodyInserters.fromMultipartData(body))
                     .retrieve()
-                    .bodyToMono(BreedingResultDto.class)
+                    .bodyToMono(String.class)
                     .block();
 
-            log.info("AI 서비스 응답 받음: {}", result);
+            log.info("AI 서비스 JSON 응답 받음: {}", jsonResponse);
 
-            if (result == null) {
+            if (jsonResponse == null || jsonResponse.trim().isEmpty()) {
                 throw new RuntimeException("AI 서버로부터 결과를 받지 못했습니다.");
             }
+
+            // JSON 파싱 (Python에서 이미 백분율로 변환됨)
+            ObjectMapper objectMapper = new ObjectMapper();
+            BreedingResultDto result = objectMapper.readValue(jsonResponse, BreedingResultDto.class);
+
+            log.info("AI 응답 파싱 완료: 확률={}%, 품종={}", result.getProbability(), result.getResultBreed());
+
+            log.info("최종 파싱된 결과: {}", result);
+
+            
+            
 
             // 이미지 생성 안 하면 빈 문자열 유지
             if (result.getImage() == null) result.setImage("");

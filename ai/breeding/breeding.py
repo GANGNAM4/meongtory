@@ -85,10 +85,13 @@ def predict_breeding(parent1_image: bytes, parent2_image: bytes) -> BreedingPred
                 "description": f"{parent1_breed}와 {parent2_breed}의 특성을 모두 가진 활발하고 사랑스러운 믹스견입니다."
             }
 
-        # probability 값을 정수로 변환 (% 기호 제거)
+        # probability 값을 백분율로 변환
         probability = prediction["probability"]
         if isinstance(probability, str):
             probability = int(probability.replace("%", ""))
+        elif isinstance(probability, float):
+            # 실수를 백분율로 변환 (0.75 -> 75)
+            probability = int(probability * 100)
         else:
             probability = int(probability)
 
