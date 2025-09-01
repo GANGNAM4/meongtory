@@ -8,7 +8,7 @@ Pet 검색 Function Tool
 
 import requests
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
 
 logger = logging.getLogger(__name__)

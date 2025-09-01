@@ -5,21 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { 
   MessageSquare, 
   Send, 
   ArrowLeft, 
   Bot, 
   User,
-  Heart,
-  Shield,
-  ShoppingBag,
-  CheckCircle,
   Loader2
 } from 'lucide-react';
-import Image from 'next/image';
 import { toast } from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -28,11 +21,7 @@ import remarkGfm from 'remark-gfm';
 import type { 
   AgentState, 
   AgentAction, 
-  AgentStage, 
-  AgentResponse,
-  Pet,
-  InsuranceProduct,
-  RecommendedProduct
+  AgentResponse
 } from '@/types/agent';
 
 // Agent State Reducer
@@ -176,10 +165,6 @@ export default function AdoptionAgentPage() {
         if (data.progress) {
           console.log('Updating progress from API:', data.progress);
           dispatch({ type: 'SET_PROGRESS', payload: data.progress });
-        } else if (data.stage_info?.progress) {
-          // stage_info 안에 progress가 있는 경우
-          console.log('Updating progress from stage_info:', data.stage_info.progress);
-          dispatch({ type: 'SET_PROGRESS', payload: data.stage_info.progress });
         }
         
         // 단계별 데이터 업데이트
@@ -217,43 +202,6 @@ export default function AdoptionAgentPage() {
     startSession();
   }, []);
 
-  // 단계별 아이콘
-  const getStageIcon = (stage: AgentStage) => {
-    switch (stage) {
-      case 'pet_search':
-      case 'pet_selected':
-        return <Heart className="w-5 h-5" />;
-      case 'insurance':
-        return <Shield className="w-5 h-5" />;
-      case 'products':
-        return <ShoppingBag className="w-5 h-5" />;
-      case 'completed':
-        return <CheckCircle className="w-5 h-5" />;
-      default:
-        return <MessageSquare className="w-5 h-5" />;
-    }
-  };
-
-  // 단계별 제목
-  const getStageTitle = (stage: AgentStage) => {
-    switch (stage) {
-      case 'initial':
-        return '상담 시작';
-      case 'pet_search':
-        return '강아지 검색';
-      case 'pet_selected':
-        return '강아지 선택 완료';
-      case 'insurance':
-        return '보험 추천';
-      case 'products':
-        return '상품 추천';
-      case 'completed':
-        return '추천 완료';
-      default:
-        return '입양 상담';
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 헤더 */}
@@ -270,40 +218,21 @@ export default function AdoptionAgentPage() {
                 <ArrowLeft className="w-4 h-4" />
               </Button>
               <div className="flex items-center space-x-2">
-                {getStageIcon(state.stage)}
+                <Bot className="w-6 h-6 text-blue-600" />
                 <h1 className="text-xl font-bold text-gray-900">
-                  {getStageTitle(state.stage)}
+                  멍토리 입양 상담
                 </h1>
               </div>
             </div>
-            {state.sessionId && (
-              <Badge variant="outline" className="text-xs">
-                진행률: {state.progress.percentage}%
-              </Badge>
-            )}
           </div>
           
-          {/* 진행률 바 */}
-          {state.sessionId && (
-            <div className="mt-4">
-              <Progress value={state.progress.percentage} className="h-2" />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>시작</span>
-                <span>강아지 선택</span>
-                <span>보험 추천</span>
-                <span>상품 추천</span>
-                <span>완료</span>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-6">
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* 채팅 영역 */}
-          <div className="lg:col-span-2">
-            <Card className="h-[600px] flex flex-col">
+        <div className="flex justify-center">
+          <div className="w-full max-w-4xl">
+            <Card className="h-[700px] flex flex-col">
               <CardHeader className="flex-shrink-0 border-b">
                 <CardTitle className="flex items-center space-x-2">
                   <Bot className="w-5 h-5 text-blue-600" />
@@ -378,203 +307,6 @@ export default function AdoptionAgentPage() {
                 </div>
               </div>
             </Card>
-          </div>
-
-          {/* 사이드바 - 진행 정보 */}
-          <div className="space-y-4">
-            {/* 현재 단계 정보 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">현재 단계</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    {getStageIcon(state.stage)}
-                    <span className="font-medium">{getStageTitle(state.stage)}</span>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {(() => {
-                      switch (state.stage) {
-                        case 'initial':
-                          return '원하는 강아지 특성을 알려주세요';
-                        case 'pet_search':
-                          return '추천 강아지를 검색하고 있습니다';
-                        case 'pet_selected':
-                          return '보험 추천을 준비하고 있습니다';
-                        case 'insurance':
-                          return '적합한 보험을 추천드립니다';
-                        case 'products':
-                          return '필요한 용품을 추천드립니다';
-                        case 'completed':
-                          return '모든 추천이 완료되었습니다';
-                        default:
-                          return '입양 상담이 진행 중입니다';
-                      }
-                    })()}
-                  </div>
-                  
-                  {/* 진행률 표시 */}
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>진행률</span>
-                      <span>{state.progress.percentage}%</span>
-                    </div>
-                    <Progress value={state.progress.percentage} className="h-1.5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 추천 강아지 */}
-            {state.recommendedPets.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">추천 강아지</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {state.recommendedPets.slice(0, 3).map((pet, index) => (
-                    <div key={pet.petId} className="p-2 border rounded-lg">
-                      <div className="flex items-center space-x-2">
-                        {pet.imageUrl ? (
-                          <div className="w-12 h-12 relative rounded-full overflow-hidden">
-                            <Image
-                              src={pet.imageUrl}
-                              alt={pet.name}
-                              fill
-                              className="object-cover"
-                              sizes="48px"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                            <span className="text-sm font-medium">{index + 1}</span>
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{pet.name}</p>
-                          <p className="text-xs text-gray-500">{pet.breed} • {pet.age}살</p>
-                          {pet.match_score && (
-                            <p className="text-xs text-blue-500">매칭도: {pet.match_score}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* 선택된 강아지 */}
-            {state.selectedPet && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">선택한 강아지</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      {state.selectedPet.imageUrl ? (
-                        <div className="w-16 h-16 relative rounded-full overflow-hidden">
-                          <Image
-                            src={state.selectedPet.imageUrl}
-                            alt={state.selectedPet.name}
-                            fill
-                            className="object-cover"
-                            sizes="64px"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <Heart className="w-8 h-8 text-red-500" />
-                      )}
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-1">
-                          <Heart className="w-4 h-4 text-red-500" />
-                          <span className="font-medium">{state.selectedPet.name}</span>
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          {state.selectedPet.breed} • {state.selectedPet.age}살
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* 추천 상품 */}
-            {state.recommendedProducts.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">추천 상품</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {state.recommendedProducts.slice(0, 3).map((product, index) => (
-                    <div key={product.productId} className="p-2 border rounded-lg">
-                      <div className="flex items-center space-x-2">
-                        {product.imageUrl ? (
-                          <div className="w-12 h-12 relative rounded overflow-hidden">
-                            <Image
-                              src={product.imageUrl}
-                              alt={product.name}
-                              fill
-                              className="object-cover"
-                              sizes="48px"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-12 h-12 bg-green-100 rounded flex items-center justify-center">
-                            <ShoppingBag className="w-6 h-6 text-green-600" />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{product.name}</p>
-                          <p className="text-xs text-gray-500">{product.category}</p>
-                          {product.price && (
-                            <p className="text-xs text-orange-600">
-                              {product.price.toLocaleString()}원
-                            </p>
-                          )}
-                          {product.recommendation_score && (
-                            <p className="text-xs text-blue-500">
-                              추천도: {product.recommendation_score}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* 에러 표시 */}
-            {state.error && (
-              <Card className="border-red-200">
-                <CardContent className="pt-4">
-                  <div className="text-red-600 text-sm">
-                    <p>⚠️ {state.error}</p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="mt-2"
-                      onClick={startSession}
-                    >
-                      다시 시도
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
       </div>
