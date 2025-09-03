@@ -131,38 +131,27 @@ export default function PetsTab({ onNavigateToAnimalRegistration, onUpdatePet, o
 
   // 반려동물 삭제
   const handleDeletePet = async (petId: number, petName: string) => {
-    if (!confirm(`정말로 "${petName}"을(를) 삭제하시겠습니까?\n\n⚠️ 주의: 삭제된 펫 정보는 복구할 수 없습니다.\n- 연관된 입양신청들도 모두 삭제됩니다.\n- 업로드된 이미지도 함께 삭제됩니다.`)) {
+    if (!confirm(`정말로 ${petName}을(를) 삭제하시겠습니까?`)) {
       return
     }
 
     try {
-      console.log(`펫 삭제 시작: ${petName} (ID: ${petId})`)
-      
-      // 백엔드에서 이미 연관된 데이터들을 모두 처리하므로 직접 삭제만 호출
-      await petApi.deletePet(petId)
-      
-      console.log(`펫 삭제 완료: ${petName}`)
-      toast.success(`"${petName}"이(가) 성공적으로 삭제되었습니다.`)
-      fetchAllData() // 데이터 새로고침
-    } catch (error: any) {
-      console.error('펫 삭제 실패:', error)
-      
-      // 더 구체적인 에러 메시지 표시
-      let errorMessage = '펫 삭제에 실패했습니다.'
-      
-      if (error?.response?.status === 400) {
-        errorMessage = '잘못된 요청입니다. 연관된 데이터로 인해 삭제할 수 없을 수 있습니다.'
-      } else if (error?.response?.status === 403) {
-        errorMessage = '펫을 삭제할 권한이 없습니다.'
-      } else if (error?.response?.status === 404) {
-        errorMessage = '삭제하려는 펫을 찾을 수 없습니다.'
-      } else if (error?.response?.status === 500) {
-        errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
-      } else if (error?.message) {
-        errorMessage = `삭제 중 오류가 발생했습니다: ${error.message}`
+      // 이미지가 있으면 S3에서도 삭제
+      const pet = pets.find((p: Pet) => p.petId === petId)
+      if (pet?.imageUrl) {
+        try {
+          await s3Api.deleteFile(pet.imageUrl)
+        } catch (s3Error) {
+          console.error('S3 이미지 삭제 실패:', s3Error)
+        }
       }
-      
-      toast.error(errorMessage)
+
+      await petApi.deletePet(petId)
+      toast.success('반려동물이 삭제되었습니다.')
+      fetchAllData() // 데이터 새로고침
+    } catch (error) {
+      console.error('반려동물 삭제 실패:', error)
+      toast.error('삭제에 실패했습니다.')
     }
   }
 

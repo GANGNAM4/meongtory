@@ -4,7 +4,7 @@ import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import java.util.Arrays;
 
-@Converter
+@Converter(autoApply = true)
 public class StringArrayConverter implements AttributeConverter<String[], String> {
 
     @Override

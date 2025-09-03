@@ -530,7 +530,6 @@ export default function NaverProductDetailPage({ params }: PageProps) {
             <ArrowLeft className="h-4 w-4 mr-2" />
             스토어로 돌아가기
           </Button>
-          <h1 className="text-2xl font-bold text-gray-900">네이버 상품 상세</h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -547,11 +546,7 @@ export default function NaverProductDetailPage({ params }: PageProps) {
                   target.src = '/placeholder.svg?height=600&width=600';
                 }}
               />
-              <div className="absolute top-4 right-4">
-                <Badge className="bg-blue-500 text-white">
-                  네이버
-                </Badge>
-              </div>
+              {/* 네이버 배지 제거 */}
             </div>
           </div>
 

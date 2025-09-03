@@ -39,6 +39,7 @@ import { getBackendUrl, petApi, handleApiError, s3Api, adoptionRequestApi, produ
 import axios from "axios"
 import { formatToKST, formatToKSTWithTime, getCurrentKSTDate } from "@/lib/utils"
 import { toast } from "sonner"
+import { useAuth } from "@/components/navigation"
 
 
 interface Product {
@@ -128,8 +129,7 @@ interface AdminPageProps {
   onEditProduct: (product: Product) => void
   onDeleteProduct: (productId: number) => void
   onUpdateOrderStatus: (orderId: number, status: "PENDING" | "COMPLETED" | "CANCELLED") => void
-  isAdmin: boolean
-  onAdminLogout: () => void // New prop for admin logout
+  onAdminLogout: () => void
 }
 
 interface AdoptionRequest {
@@ -167,7 +167,6 @@ export default function AdminPage({
   pets: initialPets,
   products: initialProducts,
 
-  communityPosts,
   adoptionInquiries: initialAdoptionInquiries,
   comments,
   onNavigateToStoreRegistration,
@@ -180,10 +179,11 @@ export default function AdminPage({
   onEditProduct,
   onDeleteProduct,
   onUpdateOrderStatus,
-  isAdmin,
   onAdminLogout, // Destructure new prop
 }: AdminPageProps) {
   const router = useRouter()
+  const { isAdmin } = useAuth(); // useAuth를 최상위로 이동
+  
   const [activeTab, setActiveTab] = useState("dashboard")
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedPetForEdit, setSelectedPetForEdit] = useState<Pet | null>(null)
@@ -194,6 +194,8 @@ export default function AdminPage({
   const [products, setProducts] = useState<Product[]>([]);
   const [adoptionRequests, setAdoptionRequests] = useState<AdoptionRequest[]>([]);
   const [naverProductCount, setNaverProductCount] = useState<number>(0);
+  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
+  const [totalCommunityPosts, setTotalCommunityPosts] = useState<number>(0);
 
   // 계약서 관련 state 변수들 (입양관리에서 계약서 보기용)
   const [selectedContract, setSelectedContract] = useState<any>(null)
@@ -311,7 +313,24 @@ export default function AdminPage({
         const url = window.URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
-        link.setAttribute('download', `contract-${contractId}.pdf`)
+        
+        // 백엔드에서 전송한 파일명 사용 (Content-Disposition 헤더에서 추출)
+        const contentDisposition = response.headers['content-disposition']
+        let filename = null
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="([^"]+)"/)
+          if (filenameMatch) {
+            filename = filenameMatch[1]
+          }
+        }
+        
+        // 백엔드 파일명이 없으면 기본값 사용
+        if (!filename) {
+          filename = `contract-${contractId}.pdf`
+        }
+        
+        link.setAttribute('download', filename)
         document.body.appendChild(link)
         link.click()
         link.remove()
@@ -430,19 +449,53 @@ export default function AdminPage({
     fetchNaverProductCount();
   }, []);
 
-  // if (!isAdmin) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <Card className="p-8 text-center">
-  //         <CardContent>
-  //           <h2 className="text-2xl font-bold text-red-600 mb-4">접근 권한이 없습니다</h2>
-  //           <p className="text-gray-600 mb-4">관리자만 접근할 수 있는 페이지입니다.</p>
-  //           <Button onClick={onClose}>홈으로 돌아가기</Button>
-  //         </CardContent>
-  //       </Card>
-  //     </div>
-  //   )
-  // }
+  // 커뮤니티 게시글을 백엔드에서 가져오기
+  useEffect(() => {
+    const fetchCommunityPosts = async () => {
+      try {
+        const accessToken = localStorage.getItem("accessToken");
+        if (!accessToken) {
+          console.log("Access token not found");
+          return;
+        }
+
+        const response = await axios.get(`${getBackendUrl()}/api/community/posts`, {
+          headers: {
+            'Authorization': accessToken,
+            'Access_Token': accessToken,
+          },
+        });
+
+        if (response.data && response.data.content) {
+          const posts = response.data.content;
+          setCommunityPosts(posts);
+          setTotalCommunityPosts(response.data.totalElements || 0);
+        } else {
+          console.error("커뮤니티 게시글 API 응답 오류:", response.data);
+        }
+      } catch (error) {
+        console.error("커뮤니티 게시글 로드 실패:", error);
+        setCommunityPosts([]);
+      }
+    };
+
+    fetchCommunityPosts();
+  }, []);
+
+  // 관리자 권한 체크
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <CardContent>
+            <h2 className="text-2xl font-bold text-red-600 mb-4">접근 권한이 없습니다</h2>
+            <p className="text-gray-600 mb-4">관리자만 접근할 수 있는 페이지입니다.</p>
+            <Button onClick={onClose}>홈으로 돌아가기</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -722,7 +775,7 @@ export default function AdminPage({
                   <MessageSquare className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{communityPosts?.length ?? 0}</div>
+                  <div className="text-2xl font-bold">{totalCommunityPosts}</div>
                   <p className="text-xs text-muted-foreground">전체 게시글 수</p>
                 </CardContent>
               </Card>

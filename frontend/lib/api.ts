@@ -6,22 +6,30 @@ export const getBackendUrl = () => {
   return url;
 };
 
-// 인증이 필요 없는 엔드포인트 목록
+// 인증이 필요 없는 엔드포인트 목록 (정확 경로 기준)
+// 주의: 부분 문자열 매칭으로 인한 오동작을 막기 위해 '/api' 포함한 prefix로만 비교합니다.
 const PUBLIC_ENDPOINTS = [
-  '/accounts/register',
-  '/accounts/login', 
-  '/accounts/refresh',
-  '/naver-shopping', 
-  '/products', 
+  '/api/accounts/register',
+  '/api/accounts/login', 
+  '/api/accounts/refresh',
+  '/api/naver-shopping',
+  // 필요한 경우에만 공개 처리: '/api/products'가 다른 경로의 부분 문자열로 매칭되지 않도록 정확 경로 사용
+  // '/api/products'  // 일반 상품 조회가 완전 공개여야 한다면 주석 해제
 ];
 
 // axios 인터셉터 설정 - 요청 시 인증 토큰 자동 추가
 axios.interceptors.request.use(
   (config) => {
-    // PUBLIC_ENDPOINTS에 포함된 경로에는 토큰을 추가하지 않음
-    const isPublicEndpoint = PUBLIC_ENDPOINTS.some((endpoint) =>
-      config.url?.includes(endpoint)
-    );
+    // PUBLIC_ENDPOINTS에 포함된 경로에는 토큰을 추가하지 않음 (부분 문자열이 아닌 pathname 기준)
+    let isPublicEndpoint = false;
+    try {
+      const requestUrl = new URL(config.url || '', getBackendUrl());
+      const pathname = requestUrl.pathname;
+      isPublicEndpoint = PUBLIC_ENDPOINTS.some((endpoint) => pathname.startsWith(endpoint));
+    } catch {
+      // URL 파싱 실패 시 기존 로직을 안전하게 폴백(보수적으로 토큰 추가 쪽이 낫지만 기존 동작 유지)
+      isPublicEndpoint = false;
+    }
     if (!isPublicEndpoint) {
       const token = localStorage.getItem('accessToken');
       if (token) {
@@ -54,7 +62,7 @@ axios.interceptors.response.use(
               },
             }
           );
-          const newAccessToken = response.data.accessToken;
+          const newAccessToken = response.data?.data?.accessToken;
           localStorage.setItem('accessToken', newAccessToken);
 
           // 원래 요청 재시도

@@ -34,7 +34,7 @@ public class Diary {
     @Column(columnDefinition = "TEXT")
     private String text;
 
-    @Column(name = "categories", columnDefinition = "text[]")
+    @Column(name = "categories", columnDefinition = "TEXT")
     @Convert(converter = StringArrayConverter.class)
     private String[] categories;
 

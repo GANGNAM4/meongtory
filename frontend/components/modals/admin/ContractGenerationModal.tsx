@@ -298,7 +298,23 @@ export default function ContractGenerationModal({
           const url = window.URL.createObjectURL(blob)
           const link = document.createElement('a')
           link.href = url
-          link.setAttribute('download', `contract-${contractId}.pdf`)
+          // 백엔드에서 전송한 파일명 사용 (Content-Disposition 헤더에서 추출)
+          const contentDisposition = response.headers['content-disposition']
+          let filename = null
+          
+          if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="([^"]+)"/)
+            if (filenameMatch) {
+              filename = filenameMatch[1]
+            }
+          }
+          
+          // 백엔드 파일명이 없으면 기본값 사용
+          if (!filename) {
+            filename = `contract-${contractId}.pdf`
+          }
+          
+          link.setAttribute('download', filename)
           document.body.appendChild(link)
           link.click()
           link.remove()
@@ -336,7 +352,23 @@ export default function ContractGenerationModal({
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `contract-${contractId}.pdf`)
+      // 백엔드에서 전송한 파일명 사용 (Content-Disposition 헤더에서 추출)
+      const contentDisposition = response.headers['content-disposition']
+      let filename = null
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/)
+        if (filenameMatch) {
+          filename = filenameMatch[1]
+        }
+      }
+      
+      // 백엔드 파일명이 없으면 기본값 사용
+      if (!filename) {
+        filename = `contract-${contractId}.pdf`
+      }
+      
+      link.setAttribute('download', filename)
       document.body.appendChild(link)
       link.click()
       link.remove()

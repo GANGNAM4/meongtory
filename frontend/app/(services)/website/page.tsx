@@ -5,7 +5,9 @@ import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Heart, Search, Store, ShoppingCart, MessageSquare } from "lucide-react";
+import { LegodtButton } from "@/components/ui/legodt-button";
+import { LegodtCard, LegodtCardHeader, LegodtCardTitle, LegodtCardContent } from "@/components/ui/legodt-card";
+import { Heart, Search, Store, ShoppingCart, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import AdoptionPage from "../../(pets)/adoption/page";
 import AdoptionDetailPage from "../../(pets)/adoption/[id]/page";
 import AnimalRegistrationPage from "../../(pets)/adoption/register/page";
@@ -133,6 +135,71 @@ export default function PetServiceWebsite() {
 
   const [favoriteInsurance, setFavoriteInsurance] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // 스크롤 위치에 따른 활성 섹션 추적
+  const [activeSection, setActiveSection] = useState('hero');
+  
+  // 이미지 슬라이드 관련 상태
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  // 슬라이드 이미지 배열 (영어 파일명)
+  const slideImages = [
+    "/corgi-licking-hand.jpg",
+    "/dog-cat-illustration.png",
+    "/golden-retriever-hug.jpg",
+    "/italian-greyhound-fashion.jpg",
+    "/golden-retriever-empathy.jpg"
+  ];
+
+  // 자동 슬라이드 효과
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => 
+        prevIndex === slideImages.length - 1 ? 0 : prevIndex + 1
+      );
+    }, 3000); // 3초마다 이미지 변경
+
+    return () => clearInterval(interval);
+  }, [slideImages.length]);
+
+  // 수동 슬라이드 제어
+  const goToNextImage = () => {
+    setCurrentImageIndex((prevIndex) => 
+      prevIndex === slideImages.length - 1 ? 0 : prevIndex + 1
+    );
+  };
+
+  const goToPreviousImage = () => {
+    setCurrentImageIndex((prevIndex) => 
+      prevIndex === 0 ? slideImages.length - 1 : prevIndex - 1
+    );
+  };
+
+  const goToImage = (index: number) => {
+    setCurrentImageIndex(index);
+  };
+
+  // 스크롤 이벤트로 활성 섹션 감지
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = ['hero', 'services', 'features', 'contact'];
+      const currentSection = sections.find(section => {
+        const element = document.getElementById(section);
+        if (element) {
+          const rect = element.getBoundingClientRect();
+          return rect.top <= 100 && rect.bottom > 100;
+        }
+        return false;
+      });
+      
+      if (currentSection) {
+        setActiveSection(currentSection);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   const [pets, setPets] = useState<Pet[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [insurances, setInsurances] = useState<Insurance[]>([]);
@@ -1207,112 +1274,457 @@ export default function PetServiceWebsite() {
       default:
         return (
           <div className="min-h-screen bg-white">
-            <section className="bg-gradient-to-br from-yellow-50 to-orange-50 py-20">
-              <div className="container mx-auto px-4">
-                <div className="grid lg:grid-cols-2 gap-12 items-center">
-                  <div className="space-y-6">
-                    <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                      펫보험 추천으로
-                      <br />더 편한
-                      <br />
-                      반려 라이프를 즐기세요
-                    </h1>
-                    <p className="text-xl text-gray-600">우리 아이의 시간을 더 행복하게, 반려동물의 삶을 더 편하게</p>
-                  </div>
-                  <div className="relative">
-                    <div className="relative z-10">
-                      <Image
-                        src="/jjj_포메라니안.jpg"
-                        alt="Pet service interface mockup"
-                        width={600}
-                        height={400}
-                        className="w-full h-auto"
-                      />
+            {/* 플로팅 네비게이션 */}
+            <div className="fixed right-6 top-1/2 transform -translate-y-1/2 z-50 hidden lg:block">
+              <nav className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg border border-slate-200">
+                <div className="flex flex-col space-y-3">
+                  <button
+                    onClick={() => document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' })}
+                    className={`w-3 h-3 rounded-full transition-colors duration-300 ${
+                      activeSection === 'hero' ? 'bg-yellow-500' : 'bg-slate-300 hover:bg-yellow-500'
+                    }`}
+                    title="메인"
+                  />
+                  <button
+                    onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}
+                    className={`w-3 h-3 rounded-full transition-colors duration-300 ${
+                      activeSection === 'services' ? 'bg-yellow-500' : 'bg-slate-300 hover:bg-yellow-500'
+                    }`}
+                    title="서비스"
+                  />
+                  <button
+                    onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                    className={`w-3 h-3 rounded-full transition-colors duration-300 ${
+                      activeSection === 'features' ? 'bg-yellow-500' : 'bg-slate-300 hover:bg-yellow-500'
+                    }`}
+                    title="특징"
+                  />
+                  <button
+                    onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+                    className={`w-3 h-3 rounded-full transition-colors duration-300 ${
+                      activeSection === 'contact' ? 'bg-yellow-500' : 'bg-slate-300 hover:bg-yellow-500'
+                    }`}
+                    title="연락처"
+                  />
+                </div>
+              </nav>
+            </div>
+
+            {/* 모바일 하단 네비게이션 */}
+            <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 lg:hidden">
+              <nav className="bg-white/90 backdrop-blur-sm rounded-full px-6 py-3 shadow-lg border border-slate-200">
+                <div className="flex space-x-4">
+                  <button
+                    onClick={() => document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' })}
+                    className={`px-3 py-1 text-sm rounded-full transition-colors duration-300 ${
+                      activeSection === 'hero' ? 'bg-yellow-500 text-white' : 'text-slate-600 hover:bg-yellow-100'
+                    }`}
+                  >
+                    홈
+                  </button>
+                  <button
+                    onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}
+                    className={`px-3 py-1 text-sm rounded-full transition-colors duration-300 ${
+                      activeSection === 'services' ? 'bg-yellow-500 text-white' : 'text-slate-600 hover:bg-yellow-100'
+                    }`}
+                  >
+                    서비스
+                  </button>
+                  <button
+                    onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                    className={`px-3 py-1 text-sm rounded-full transition-colors duration-300 ${
+                      activeSection === 'features' ? 'bg-yellow-500 text-white' : 'text-slate-600 hover:bg-yellow-100'
+                    }`}
+                  >
+                    특징
+                  </button>
+                  <button
+                    onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+                    className={`px-3 py-1 text-sm rounded-full transition-colors duration-300 ${
+                      activeSection === 'contact' ? 'bg-yellow-500 text-white' : 'text-slate-600 hover:bg-yellow-100'
+                    }`}
+                  >
+                    연락처
+                  </button>
+                </div>
+              </nav>
+            </div>
+
+            {/* 히어로 섹션 */}
+            <section id="hero" className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center py-16 sm:py-20 md:py-24">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+                  <div className="space-y-8 text-center lg:text-left">
+                    <div className="space-y-4">
+                      <div className="inline-block px-4 py-2 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                        Let Life Be Your Playground
+                      </div>
+                      <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-slate-900 leading-tight">
+                        펫과 함께하는
+                        <br className="hidden sm:block" />
+                        <span className="text-yellow-500">특별한 라이프</span>
+                      </h1>
                     </div>
-                    <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-yellow-200 rounded-full opacity-50"></div>
-                    <div className="absolute -top-10 -left-10 w-24 h-24 bg-orange-200 rounded-full opacity-30"></div>
+                    <p className="text-lg sm:text-xl text-slate-600 max-w-lg lg:max-w-none mx-auto lg:mx-0 leading-relaxed">
+                      입양부터 쇼핑, 보험까지. 반려동물과 함께하는 모든 순간을 더 특별하게
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                      <LegodtButton 
+                        variant="secondary"
+                        size="lg"
+                        onClick={() => router.push("/insurance")}
+                      >
+                        펫보험 추천받기
+                      </LegodtButton>
+                      <LegodtButton 
+                        variant="outline"
+                        size="lg"
+                        onClick={() => router.push("/store")}
+                      >
+                        펫용품 쇼핑
+                      </LegodtButton>
+                    </div>
+                    
+                    {/* 섹션 이동 버튼 */}
+                    <div className="pt-4">
+                      <LegodtButton 
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' })}
+                        className="text-slate-600 hover:text-yellow-500"
+                      >
+                        서비스 살펴보기 ↓
+                      </LegodtButton>
+                    </div>
+                  </div>
+                  <div className="relative order-first lg:order-last">
+                    {/* 이미지 슬라이드 컨테이너 */}
+                    <div className="relative z-10 overflow-hidden rounded-2xl shadow-2xl">
+                      <div className="relative w-full h-[400px] lg:h-[500px]">
+                        {/* 현재 이미지 */}
+                        <Image
+                          src={slideImages[currentImageIndex]}
+                          alt={`Pet service image ${currentImageIndex + 1}`}
+                          fill
+                          className="object-cover transition-opacity duration-500"
+                          priority
+                        />
+                        
+                        {/* 이전/다음 버튼 */}
+                        <button
+                          onClick={goToPreviousImage}
+                          className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-slate-800 p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+                          aria-label="이전 이미지"
+                        >
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        
+                        <button
+                          onClick={goToNextImage}
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-slate-800 p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110"
+                          aria-label="다음 이미지"
+                        >
+                          <ChevronRight className="w-5 h-5" />
+                        </button>
+                        
+                        {/* 인디케이터 */}
+                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                          {slideImages.map((_, index) => (
+                            <button
+                              key={index}
+                              onClick={() => goToImage(index)}
+                              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                                index === currentImageIndex 
+                                  ? 'bg-yellow-500 scale-125' 
+                                  : 'bg-white/60 hover:bg-white/80'
+                              }`}
+                              aria-label={`이미지 ${index + 1}로 이동`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </section>
-            <section className="py-20 bg-gray-50">
-              <div className="container mx-auto px-4">
-                <div className="grid md:grid-cols-2 gap-8 justify-center">
-                  <Card className="relative overflow-hidden bg-white shadow-lg hover:shadow-xl transition-shadow">
-                    <div className="absolute top-4 right-4 bg-yellow-400 text-black px-3 py-1 rounded-full text-sm font-medium transform rotate-12">
-                      UPDATE
+            
+            {/* 서비스 섹션 */}
+            <section id="services" className="min-h-screen bg-white flex items-center py-16 sm:py-20 md:py-24">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="text-center mb-16">
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-6">우리 아이를 위한 모든 것</h2>
+                  <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto">입양부터 쇼핑, 보험까지 반려동물과 함께하는 행복한 라이프스타일</p>
+                </div>
+                
+                {/* 서비스 그리드 */}
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                  {/* 입양 서비스 */}
+                  <LegodtCard variant="elevated" className="overflow-hidden group cursor-pointer" onClick={() => router.push("/adoption")}>
+                    <LegodtCardHeader className="text-center pb-6 bg-gradient-to-r from-pink-50 to-rose-50">
+                      <div className="w-16 h-16 bg-pink-100 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform duration-300">
+                        <Heart className="w-8 h-8 text-pink-600" />
+                      </div>
+                      <LegodtCardTitle size="md" className="text-slate-900">
+                        보호소 입양
+                      </LegodtCardTitle>
+                    </LegodtCardHeader>
+                    <LegodtCardContent className="p-6">
+                      <p className="text-slate-600 text-center mb-4">새로운 가족을 찾고 있는 반려동물들과 만나보세요</p>
+                      <div className="text-center">
+                        <span className="text-sm text-pink-600 font-medium">500+ 성공적인 입양</span>
+                      </div>
+                    </LegodtCardContent>
+                  </LegodtCard>
+
+                  {/* 쇼핑 서비스 */}
+                  <LegodtCard variant="elevated" className="overflow-hidden group cursor-pointer" onClick={() => router.push("/store")}>
+                    <LegodtCardHeader className="text-center pb-6 bg-gradient-to-r from-green-50 to-emerald-50">
+                      <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform duration-300">
+                        <Store className="w-8 h-8 text-green-600" />
+                      </div>
+                      <LegodtCardTitle size="md" className="text-slate-900">
+                        펫용품 쇼핑
+                      </LegodtCardTitle>
+                    </LegodtCardHeader>
+                    <LegodtCardContent className="p-6">
+                      <p className="text-slate-600 text-center mb-4">AI 추천으로 우리 아이에게 딱 맞는 용품을 찾아보세요</p>
+                      <div className="text-center">
+\                      </div>
+                    </LegodtCardContent>
+                  </LegodtCard>
+
+                  {/* 보험 서비스 */}
+                  <LegodtCard variant="elevated" className="overflow-hidden group cursor-pointer" onClick={() => router.push("/insurance")}>
+                    <LegodtCardHeader className="text-center pb-6 bg-gradient-to-r from-blue-50 to-cyan-50">
+                      <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform duration-300">
+                        <Heart className="w-8 h-8 text-blue-600" />
+                      </div>
+                      <LegodtCardTitle size="md" className="text-slate-900">
+                        펫보험 추천
+                      </LegodtCardTitle>
+                    </LegodtCardHeader>
+                    <LegodtCardContent className="p-6">
+                      <p className="text-slate-600 text-center mb-4">AI가 분석한 맞춤형 펫보험으로 안심하세요</p>
+                      <div className="text-center">
+                      </div>
+                    </LegodtCardContent>
+                  </LegodtCard>
+
+                  {/* AI 상담 서비스 */}
+                  <LegodtCard variant="elevated" className="overflow-hidden group cursor-pointer" onClick={() => router.push("/agent")}>
+                    <LegodtCardHeader className="text-center pb-6 bg-gradient-to-r from-purple-50 to-violet-50">
+                      <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform duration-300">
+                        <MessageSquare className="w-8 h-8 text-purple-600" />
+                      </div>
+                      <LegodtCardTitle size="md" className="text-slate-900">
+                        AI 입양 상담
+                      </LegodtCardTitle>
+                    </LegodtCardHeader>
+                    <LegodtCardContent className="p-6">
+                      <p className="text-slate-600 text-center mb-4">전문 AI가 최적의 반려동물을 추천해드립니다</p>
+                      <div className="text-center">
+                      </div>
+                    </LegodtCardContent>
+                  </LegodtCard>
+
+                  {/* 커뮤니티 서비스 */}
+                  <LegodtCard variant="elevated" className="overflow-hidden group cursor-pointer" onClick={() => router.push("/community")}>
+                    <LegodtCardHeader className="text-center pb-6 bg-gradient-to-r from-orange-50 to-amber-50">
+                      <div className="w-16 h-16 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform duration-300">
+                        <MessageSquare className="w-8 h-8 text-orange-600" />
+                      </div>
+                      <LegodtCardTitle size="md" className="text-slate-900">
+                        펫 커뮤니티
+                      </LegodtCardTitle>
+                    </LegodtCardHeader>
+                    <LegodtCardContent className="p-6">
+                      <p className="text-slate-600 text-center mb-4">반려동물 이야기를 나누고 정보를 공유하세요</p>
+                      <div className="text-center">
+                        <span className="text-sm text-orange-600 font-medium">활발한 소통</span>
+                      </div>
+                    </LegodtCardContent>
+                  </LegodtCard>
+
+                  {/* 다이어리 서비스 */}
+                  <LegodtCard variant="elevated" className="overflow-hidden group cursor-pointer" onClick={() => router.push("/diary")}>
+                    <LegodtCardHeader className="text-center pb-6 bg-gradient-to-r from-teal-50 to-cyan-50">
+                      <div className="w-16 h-16 bg-teal-100 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform duration-300">
+                        <Search className="w-8 h-8 text-teal-600" />
+                      </div>
+                      <LegodtCardTitle size="md" className="text-slate-900">
+                        성장 다이어리
+                      </LegodtCardTitle>
+                    </LegodtCardHeader>
+                    <LegodtCardContent className="p-6">
+                      <p className="text-slate-600 text-center mb-4">우리 아이의 소중한 순간들을 기록해보세요</p>
+                      <div className="text-center">
+                        <span className="text-sm text-teal-600 font-medium">추억 보관</span>
+                      </div>
+                    </LegodtCardContent>
+                  </LegodtCard>
+                </div>
+                
+                {/* 다음 섹션으로 이동 */}
+                <div className="text-center mt-16">
+                  <LegodtButton 
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="text-slate-600 hover:text-yellow-500"
+                  >
+                    더 많은 기능 보기 ↓
+                  </LegodtButton>
+                </div>
+              </div>
+            </section>
+            
+            {/* 특징 섹션 */}
+            <section id="features" className="min-h-screen bg-slate-50 flex items-center py-16 sm:py-20 md:py-24">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="text-center mb-16">
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-6">왜 멍토리를 선택해야 할까요?</h2>
+                  <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto">AI 기술과 함께하는 스마트한 반려동물 케어의 특별함</p>
+                </div>
+                
+                <div className="grid md:grid-cols-2 gap-16 max-w-6xl mx-auto items-center">
+                  {/* 특징 리스트 */}
+                  <div className="space-y-8">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <MessageSquare className="w-6 h-6 text-yellow-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">24/7 AI 챗봇 상담</h3>
+                        <p className="text-slate-600">언제든지 반려동물 관련 궁금한 점을 즉시 해결할 수 있습니다. 전문적이고 정확한 답변을 제공합니다.</p>
+                      </div>
                     </div>
-                    <CardHeader className="text-center pb-4">
-                      <CardTitle className="text-2xl font-bold text-gray-900 border-b-4 border-yellow-400 inline-block pb-2">
-                        입양
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => router.push("/adoption")} className="text-center space-y-2 w-full">
-                          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
-                            <Heart className="w-8 h-8 text-yellow-600 fill-yellow-600" />
-                          </div>
-                          <p className="text-sm font-medium">보호소 입양</p>
-                        </button>
-                        <button onClick={() => router.push("/agent")} className="text-center space-y-2 w-full">
-                          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
-                            <MessageSquare className="w-8 h-8 text-yellow-600" />
-                          </div>
-                          <p className="text-sm font-medium">입양 상담</p>
-                        </button>
-                        {isAdmin && isLoggedIn && (
-                          <button
-                            onClick={() => router.push("/adoption/register")}
-                            className="text-center space-y-2 w-full"
-                          >
-                            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
-                              <Search className="w-8 h-8 text-yellow-600" />
-                            </div>
-                            <p className="text-sm font-medium">동물등록</p>
-                          </button>
-                        )}
+                    
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Store className="w-6 h-6 text-green-600" />
                       </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
-                    <CardHeader className="text-center pb-4">
-                      <CardTitle className="text-2xl font-bold text-gray-900 border-b-4 border-green-400 inline-block pb-2">
-                        스토어
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => router.push("/store")} className="text-center space-y-2 w-full">
-                          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                            <Store className="w-8 h-8 text-green-600" />
-                          </div>
-                          <p className="text-sm font-medium">펫용품 쇼핑</p>
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (!isLoggedIn) {
-                              toast.error("장바구니를 이용하려면 로그인이 필요합니다", { duration: 5000 });
-                              return;
-                            } else {
-                              router.push("/store/cart");
-                            }
-                          }}
-                          className="text-center space-y-2 w-full"
-                        >
-                          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto relative">
-                            <ShoppingCart className="w-8 h-8 text-green-600" />
-                            {isLoggedIn && cart.length > 0 && (
-                              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                {cart.length}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm font-medium">장바구니</p>
-                        </button>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">AI 맞춤 추천</h3>
+                        <p className="text-slate-600">우리 아이의 특성을 분석하여 가장 적합한 용품과 보험을 추천해드립니다.</p>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                    
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Heart className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">안전한 입양 중개</h3>
+                        <p className="text-slate-600">검증된 보호소와 연계하여 건강하고 안전한 입양 과정을 보장합니다.</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Search className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">성장 기록 관리</h3>
+                        <p className="text-slate-600">우리 아이의 소중한 순간들을 체계적으로 기록하고 관리할 수 있습니다.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* 통계 카드 */}
+                  <div className="bg-white rounded-2xl p-8 shadow-lg">
+                    <h3 className="text-2xl font-bold text-slate-900 mb-8 text-center">우리의 성과</h3>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="text-center">
+                        <p className="text-slate-600 text-sm">성공적인 입양</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-slate-600 text-sm">상품 판매</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-slate-600 text-sm">보험 가입</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-slate-600 text-sm">만족 고객</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-8 p-4 bg-slate-50 rounded-lg">
+                      <p className="text-center text-slate-600 text-sm">
+                        "멍토리 덕분에 우리 아이에게 딱 맞는 보험을 찾았어요!"
+                      </p>
+                      <p className="text-center text-slate-500 text-xs mt-2">- 실제 이용 고객</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 연락처 섹션으로 이동 */}
+                <div className="text-center mt-16">
+                  <LegodtButton 
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="text-slate-600 hover:text-yellow-500"
+                  >
+                    문의하기 ↓
+                  </LegodtButton>
+                </div>
+              </div>
+            </section>
+            
+            {/* 연락처 섹션 */}
+            <section id="contact" className="min-h-screen bg-slate-900 text-white flex items-center py-16 sm:py-20 md:py-24">
+              <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-4xl mx-auto text-center">
+                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6">함께 시작해보세요</h2>
+                  <p className="text-lg sm:text-xl text-slate-300 mb-12 max-w-2xl mx-auto">
+                    반려동물과 함께하는 행복한 라이프스타일을 지금 바로 경험해보세요
+                  </p>
+                  
+                  <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto mb-12">
+                    <LegodtButton 
+                      variant="secondary"
+                      size="lg"
+                      onClick={() => router.push("/adoption")}
+                      className="w-full"
+                    >
+                      입양 시작하기
+                    </LegodtButton>
+                    <LegodtButton 
+                      variant="outline"
+                      size="lg"
+                      onClick={() => router.push("/store")}
+                      className="w-full border-white text-black hover:bg-white hover:text-slate-900"
+                    >
+                      쇼핑하기
+                    </LegodtButton>
+                  </div>
+                  
+                  <div className="border-t border-slate-700 pt-8">
+                    <p className="text-slate-400 mb-4">문의사항이 있으시나요?</p>
+                    <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-8">
+                      <div className="flex items-center space-x-2">
+                        <MessageSquare className="w-5 h-5 text-yellow-500" />
+                        <span className="text-slate-300">24/7 AI 챗봇 상담</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Heart className="w-5 h-5 text-yellow-500" />
+                        <span className="text-slate-300">전문 상담사 연결</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* 맨 위로 이동 */}
+                  <div className="mt-16">
+                    <LegodtButton 
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' })}
+                      className="text-slate-400 hover:text-yellow-500"
+                    >
+                      맨 위로 ↑
+                    </LegodtButton>
+                  </div>
                 </div>
               </div>
             </section>

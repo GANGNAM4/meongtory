@@ -15,6 +15,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -71,11 +73,19 @@ public class ContractGenerationController {
             
             System.out.println("PDF 생성 완료, 파일 크기: " + fileContent.length + " bytes");
             
-            String filename = "contract-" + id + ".pdf";
+            // ContractFileService에서 파일명 생성
+            String filename = contractFileService.generateFilename(contract.getContent());
+            System.out.println("=== 파일명 생성 완료 ===");
+            System.out.println("생성된 파일명: " + filename);
+            System.out.println("Content-Disposition 헤더: attachment; filename=\"" + filename + "\"");
+            
             ByteArrayResource resource = new ByteArrayResource(fileContent);
             
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                    .header(HttpHeaders.PRAGMA, "no-cache")
+                    .header(HttpHeaders.EXPIRES, "0")
                     .contentType(MediaType.APPLICATION_PDF)
                     .body(resource);
                     
@@ -113,4 +123,6 @@ public class ContractGenerationController {
         contractGenerationService.deleteGeneratedContract(id);
         return ResponseEntity.ok(ResponseDto.success(null));
     }
+    
+
 } 

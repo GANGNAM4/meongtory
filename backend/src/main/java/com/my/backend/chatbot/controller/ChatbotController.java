@@ -21,9 +21,4 @@ public class ChatbotController {
     public ChatbotResponse query(@RequestBody ChatbotRequest request) {
         return chatbotService.queryAI(request);
     }
-
-    @PostMapping("/insurance")
-    public ChatbotResponse queryInsurance(@RequestBody ChatbotRequest request) {
-        return chatbotService.queryInsuranceAI(request);
-    }
 }
