@@ -147,10 +147,7 @@ export default function PetInsurancePage({
       try {
         setLoading(true)
         setError(null)
-        console.log('=== fetchData 시작 ===')
         const data = await insuranceApi.getAll()
-        console.log('API에서 받은 원본 데이터:', data)
-        console.log('데이터 길이:', data ? data.length : 0)
         
         const mapped: InsuranceProduct[] = (data || []).map((d: any) => ({
           id: d.id,
@@ -163,11 +160,8 @@ export default function PetInsurancePage({
           redirectUrl: d.redirectUrl || null,
           requirements: Array.isArray(d.requirements) ? d.requirements : (d.requirements ? d.requirements.split('|').map((r: string) => r.trim()).filter((r: string) => r.length > 0) : null),
         }))
-        console.log('매핑된 데이터:', mapped)
-        console.log('매핑된 데이터 길이:', mapped.length)
         setProducts(mapped)
         setFilteredProducts(mapped)
-        console.log('products 상태 설정 완료')
       } catch (e) {
         setError("보험 상품을 불러오지 못했습니다.")
       } finally {
@@ -1132,7 +1126,6 @@ export default function PetInsurancePage({
 
         {/* 보험 상품 그리드 */}
         {(() => {
-          console.log('렌더링 상태 확인:', { loading, error, productsLength: filteredProducts.length })
           if (loading) {
             return (
               <div className="text-center py-8 sm:py-12">

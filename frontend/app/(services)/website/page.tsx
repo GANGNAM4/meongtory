@@ -197,7 +197,6 @@ export default function PetServiceWebsite() {
         setCurrentUser({ id, email, name });
         setIsAdmin(role === "ADMIN");
         setIsLoggedIn(true);
-        console.log("Initial login check successful:", { id, email, name, role });
       } catch (err: any) {
         console.error("사용자 정보 조회 실패:", err);
         if (err.code === "ECONNABORTED" || err.code === "ERR_NETWORK" || !err.response) {
@@ -407,7 +406,6 @@ export default function PetServiceWebsite() {
           }
         })
       setCart(cartItems)
-      console.log('장바구니 설정 완료:', cartItems.length, '개')
     } catch (error: any) {
       console.error("장바구니 조회 오류:", error);
       setCart([]);

@@ -142,7 +142,6 @@ function CommunityWritePageContent({ onShowLogin }: CommunityWritePageProps) {
           return;
         }
         let token = localStorage.getItem("accessToken");
-        console.log("Access Token:", token ? "존재함" : "없음");
         if (!token) {
           setError("로그인이 필요합니다. 로그인 모달을 엽니다.");
           if (onShowLogin) {
@@ -311,8 +310,6 @@ function CommunityWritePageContent({ onShowLogin }: CommunityWritePageProps) {
 
       const savedPost = res.data;
 
-      console.log("Saved Post:", savedPost);
-
       const newPost: CommunityPost = {
         id: savedPost.id,
         title: savedPost.title,
@@ -362,7 +359,6 @@ function CommunityWritePageContent({ onShowLogin }: CommunityWritePageProps) {
               },
             });
             const savedPost = res.data;
-            console.log("Saved Post after refresh:", savedPost);
             toast.success("게시글이 등록되었습니다 ✅");
             setTitle("");
             setContent("");

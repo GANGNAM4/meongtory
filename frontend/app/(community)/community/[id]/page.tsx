@@ -87,7 +87,6 @@ export default function CommunityDetailPage({
 
   const getAuthHeaders = (): Record<string, string> => {
     const token = localStorage.getItem("accessToken");
-    console.log("Access Token:", token);
     return token ? { Access_Token: token } : {};
   };
 
@@ -533,16 +532,6 @@ export default function CommunityDetailPage({
     post.ownerEmail &&
     currentUserEmail &&
     (currentUserEmail === post.ownerEmail || currentUserRole === "ROLE_ADMIN");
-
-  // 디버깅을 위한 로그
-  console.log("canEditOrDelete check:", {
-    postOwnerEmail: post.ownerEmail,
-    currentUserEmail,
-    currentUserRole,
-    canEditOrDelete,
-    isOwner: currentUserEmail === post.ownerEmail,
-    isAdmin: currentUserRole === "ROLE_ADMIN"
-  });
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">

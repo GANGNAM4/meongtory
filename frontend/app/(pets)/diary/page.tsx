@@ -48,23 +48,8 @@ export default function GrowthDiaryPage({
   const router = useRouter();
   const { toast } = useToast();
 
-  const refetchDiaries = async (category?: string, page: number = 0, date?: string, sort?: string) => {
-    console.log("=== refetchDiaries called ===");
-    console.log("Fetching diaries for current user, isLoggedIn:", isLoggedIn);
-    console.log("Category filter:", category);
-    console.log("Page:", page);
-    console.log("Date filter:", date);
-    console.log("Sort option:", sort || sortOption);
-    
     try {
       const data: DiaryPageResponse = await fetchDiaries(category, page, 7, sort || sortOption, date);
-      console.log("=== fetchDiaries success ===");
-      console.log("Raw data received:", data);
-      console.log("Data type:", typeof data);
-      console.log("Content length:", data.content.length);
-      console.log("Total pages:", data.totalPages);
-      console.log("Total elements:", data.totalElements);
-      
       setDiaryEntries(data.content);
       setTotalPages(data.totalPages);
       setTotalElements(data.totalElements);
@@ -87,15 +72,10 @@ export default function GrowthDiaryPage({
   };
 
   const handleEdit = (diaryId: number) => {
-    console.log("=== handleEdit called ===");
-    console.log("Diary ID:", diaryId);
-    console.log("Current URL:", window.location.href);
     window.location.href = `/diary/edit/${diaryId}`;
   };
 
   const handleViewEntry = (diaryId: number) => {
-    console.log("=== handleViewEntry called ===");
-    console.log("Diary ID:", diaryId);
     router.push(`/diary/${diaryId}`);
   };
 
@@ -141,7 +121,6 @@ export default function GrowthDiaryPage({
 
     try {
       await deleteDiary(diaryToDelete);
-      console.log(`Diary ${diaryToDelete} deleted successfully`);
       toast({
         title: "삭제 완료",
         description: "삭제가 완료되었습니다.",
@@ -175,9 +154,6 @@ export default function GrowthDiaryPage({
   };
 
   useEffect(() => {
-    console.log("=== useEffect triggered ===");
-    console.log("Current userId:", currentUser?.id, "isLoggedIn:", isLoggedIn);
-    
     const initialize = async () => {
       setIsLoading(true);
       await checkLoginStatus();
@@ -217,13 +193,8 @@ export default function GrowthDiaryPage({
   }, [showSortDropdown]);
 
   const userEntries = diaryEntries.filter((entry) => {
-    console.log("Filtering entry:", entry);
-    console.log("Entry userId:", entry.userId, "Entry title:", entry.title);
     return true; // 모든 일기 표시
   });
-
-  console.log("userEntries length:", userEntries.length);
-  console.log("userEntries:", userEntries);
 
   if (isLoading) {
     return (
@@ -237,10 +208,7 @@ export default function GrowthDiaryPage({
     return (
       <GrowthDiaryWritePage
         onBack={() => {
-          console.log("=== onBack callback executed ===");
-          console.log("Setting isWriteMode to false");
           setIsWriteMode(false);
-          console.log("Calling refetchDiaries");
           refetchDiaries(activeTab === "전체" ? undefined : activeTab, currentPage, selectedDate, sortOption);
         }}
         currentUserId={Number(currentUser?.id) || Number(currentUserId)}
@@ -433,8 +401,6 @@ export default function GrowthDiaryPage({
                                 size="sm" 
                                 variant="ghost" 
                                 onClick={(e) => {
-                                  console.log("=== Edit button clicked ===");
-                                  console.log("Entry diaryId:", entry.diaryId);
                                   e.stopPropagation();
                                   handleEdit(entry.diaryId);
                                 }}

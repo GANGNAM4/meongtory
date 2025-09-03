@@ -428,7 +428,6 @@ export default function StoreProductDetailPage({
       }
       
       localStorage.setItem('recentStoreProducts', JSON.stringify(products))
-      console.log('localStorage에 최근 본 상품 추가됨:', simplifiedProduct)
     } catch (error) {
       console.error("localStorage 저장 실패:", error)
     }
@@ -538,8 +537,6 @@ export default function StoreProductDetailPage({
             throw new Error('상품을 찾을 수 없습니다.');
           }
         }
-        
-        console.log('상품 상세 데이터:', rawData);
         
         // 백엔드 응답을 프론트엔드 형식으로 변환
         const data: Product = {

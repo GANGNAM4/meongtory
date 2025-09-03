@@ -49,26 +49,16 @@ export function RecentProductsSidebar({
 
   // 최근 본 상품 로드
   const loadRecentProducts = async () => {
-    console.log('=== RecentProductsSidebar.loadRecentProducts 시작 ===')
-    console.log('productType:', productType)
-    console.log('isLoggedIn:', isLoggedIn)
-    
     if (!isLoggedIn) {
       // 비로그인 시: localStorage에서 로드
-      console.log('비로그인 상태 - localStorage에서 로드')
       const localProducts = getLocalRecentProducts(productType)
-      console.log('localStorage에서 로드된 상품:', localProducts)
       setRecentProducts(localProducts)
       return
     }
 
     try {
-      console.log('로그인 상태 - API에서 로드 시도')
       setLoading(true)
       const data = await recentApi.getRecentProducts(productType)
-      console.log('API 응답 데이터:', data)
-      console.log('API 응답 데이터 타입:', typeof data)
-      console.log('API 응답 데이터 길이:', Array.isArray(data) ? data.length : '배열이 아님')
       setRecentProducts(data)
     } catch (error: any) {
       console.error("최근 본 상품 로드 실패:", error)

@@ -148,8 +148,6 @@ export default function InsuranceDetailPage() {
 
   // 최근 본 상품 관리 함수들
   const addToRecentProducts = async (product: InsuranceProduct) => {
-    console.log('=== addToRecentProducts 호출 ===')
-    console.log('product:', product)
     
     if (typeof window === 'undefined') {
       console.log('window가 undefined - 서버 사이드 렌더링 중')

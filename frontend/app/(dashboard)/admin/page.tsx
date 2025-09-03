@@ -331,7 +331,6 @@ export default function AdminPage({
   const fetchProducts = async () => {
     try {
       const accessToken = localStorage.getItem("accessToken");
-      console.log('Access Token:', accessToken ? 'Found' : 'Not found');
 
       if (!accessToken) {
         throw new Error('인증 토큰이 없습니다.');

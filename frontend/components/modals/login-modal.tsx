@@ -61,37 +61,15 @@ export default function LoginModal({
         { headers: { "Content-Type": "application/json" } }
       );
 
-      // 수정: 로그인 요청 URL 로그 추가
-      console.log("로그인 요청 URL:", `${getBackendUrl()}/api/accounts/login`);
-      console.log("로그인 응답:", response.data);
-
       const { data } = response.data;
-      console.log("=== 백엔드 응답 data 부분 ===");
-      console.log("data:", data);
-      console.log("data.role:", data.role);
-      
       const { id, email: userEmail, name, role, accessToken, refreshToken } = data;
       
-      console.log("=== 추출된 값들 ===");
-      console.log("id:", id);
-      console.log("email:", userEmail);
-      console.log("name:", name);
-      console.log("role:", role);
-      console.log("role 타입:", typeof role);
-
       // 로컬 스토리지에 토큰 저장
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
       localStorage.setItem("email", userEmail);
       localStorage.setItem("nickname", name);
       localStorage.setItem("role", role);
-
-      // 수정: 토큰 저장 후 확인 로그 강화
-      console.log("=== 로그인 모달에서 토큰 저장 ===");
-      console.log("저장된 Access Token:", accessToken ? "존재함" : "없음");
-      console.log("저장된 Refresh Token:", refreshToken ? "존재함" : "없음");
-      console.log("Access Token 길이:", accessToken?.length);
-      console.log("localStorage에서 확인:", localStorage.getItem("accessToken") ? "저장됨" : "저장안됨");
 
       // onLoginSuccess 호출
       onLoginSuccess({

@@ -100,9 +100,7 @@ export const petApi = {
         }
       });
     }
-    console.log('Fetching pets with URL:', `${getBackendUrl()}/api/pets?${params.toString()}`);
     const response = await axios.get(`${getBackendUrl()}/api/pets?${params.toString()}`);
-    console.log('Raw pets response:', response.data);
     // 응답이 배열이면 그대로 반환, 아니면 response.data.data 반환
     return Array.isArray(response.data) ? response.data : response.data.data;
   },
@@ -294,11 +292,8 @@ export const insuranceApi = {
   // 기본 CRUD
   getAll: async (): Promise<any[]> => {
     const url = `${getBackendUrl()}/api/insurance`;
-    console.log('보험 API 호출 URL:', url);
-    console.log('백엔드 URL:', getBackendUrl());
     try {
       const response = await axios.get(url);
-      console.log('보험 API 응답:', response.data);
       
       // ResponseDto 형태로 응답이 오므로 response.data.data를 반환
       if (!response.data || !response.data.success) {
@@ -310,7 +305,6 @@ export const insuranceApi = {
         throw new Error("보험 데이터가 배열 형식이 아닙니다.");
       }
       
-      console.log('Final insurance products to return:', products);
       return products;
     } catch (error) {
       console.error('보험 API 호출 실패:', error);
