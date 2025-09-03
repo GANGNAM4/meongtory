@@ -353,8 +353,6 @@ export default function NaverProductDetailPage({ params }: PageProps) {
         searchCount: product.searchCount || 0
       };
       
-      console.log("장바구니 추가 요청 데이터:", requestData);
-      
       // 네이버 상품 전용 API 사용
       const response = await axios.post(`${getBackendUrl()}/api/naver-shopping/cart/add`, requestData, {
         params: { quantity },
@@ -363,8 +361,6 @@ export default function NaverProductDetailPage({ params }: PageProps) {
           "Content-Type": "application/json"
         }
       });
-      
-      console.log("장바구니 추가 응답:", response.data);
       
       if (response.status === 200 && response.data.success) {
         alert("네이버 상품이 장바구니에 추가되었습니다!");

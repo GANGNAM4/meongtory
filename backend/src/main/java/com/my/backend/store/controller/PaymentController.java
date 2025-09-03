@@ -65,9 +65,6 @@ public class PaymentController {
                             .build());
         }
 
-        log.info("결제 금액 임시 저장: orderId={}, amount={}, user={}",
-                request.orderId(), request.amount(), userDetails.getAccount().getEmail());
-
         try {
             // 세션에 주문 ID와 금액 저장
             session.setAttribute(request.orderId(), request.amount().toString());
@@ -87,7 +84,6 @@ public class PaymentController {
      */
     @PostMapping("/verifyAmount")
     public ResponseEntity<?> verifyAmount(HttpSession session, @RequestBody ConfirmPaymentRequest request) {
-        log.info("결제 금액 검증: orderId={}, amount={}", request.orderId(), request.amount());
 
         try {
             // 세션에서 저장된 금액 조회
@@ -111,7 +107,6 @@ public class PaymentController {
                                 .build());
             }
 
-            log.info("결제 금액 검증 성공: orderId={}, amount={}", request.orderId(), request.amount());
             return ResponseEntity.ok().body("Amount verification successful");
         } catch (Exception e) {
             log.error("결제 금액 검증 실패: orderId={}, error={}", request.orderId(), e.getMessage(), e);
@@ -141,15 +136,8 @@ public class PaymentController {
                             .build());
         }
 
-        log.info("=== 결제 승인 시작 ===");
-        log.info("결제 승인 요청: paymentKey={}, orderId={}, amount={}, user={}",
-                request.paymentKey(), request.orderId(), request.amount(), userDetails.getAccount().getEmail());
-
-        log.info("토스페이먼츠 API 호출 시작...");
-
         try {
             // 1. 요청 데이터 검증
-            log.info("요청 데이터 검증 시작...");
             if (request.paymentKey() == null || request.paymentKey().trim().isEmpty()) {
                 throw new IllegalArgumentException("paymentKey가 비어있습니다.");
             }
@@ -159,20 +147,13 @@ public class PaymentController {
             if (request.amount() == null || request.amount() <= 0) {
                 throw new IllegalArgumentException("amount가 유효하지 않습니다: " + request.amount());
             }
-            log.info("요청 데이터 검증 완료");
 
             // 2. 토스페이먼츠 결제 승인 API 호출
-            log.info("토스페이먼츠 API 호출 시작...");
             HttpResponse<String> response = requestTossPaymentConfirm(request);
 
             if (response.statusCode() == 200) {
                 // 3. 결제 성공 시 DB 저장
                 try {
-                    log.info("토스페이먼츠 API 응답 성공, DB 저장 시작...");
-                    log.info("응답 상태 코드: {}", response.statusCode());
-                    log.info("응답 헤더: {}", response.headers());
-                    log.info("응답 본문: {}", response.body());
-
                     if (response.body() == null || response.body().trim().isEmpty()) {
                         throw new RuntimeException("토스페이먼츠 API 응답이 비어있습니다.");
                     }
@@ -182,7 +163,6 @@ public class PaymentController {
                     // 4. 응답 데이터 생성
                     ConfirmPaymentResponse confirmResponse = createConfirmResponse(payment, response.body());
 
-                    log.info("결제 승인 성공: orderId={}, paymentKey={}", request.orderId(), request.paymentKey());
                     return ResponseEntity.ok(confirmResponse);
                 } catch (Exception e) {
                     log.error("DB 저장 실패: orderId={}, error={}", request.orderId(), e.getMessage(), e);
@@ -217,8 +197,6 @@ public class PaymentController {
      */
     @PostMapping("/cancel")
     public ResponseEntity<?> cancelPayment(@RequestBody CancelPaymentRequest request) {
-        log.info("결제 취소 요청: paymentKey={}, reason={}", request.paymentKey(), request.cancelReason());
-
         try {
             // 1. 토스페이먼츠 결제 취소 API 호출
             HttpResponse<String> response = requestTossPaymentCancel(request);
@@ -227,7 +205,6 @@ public class PaymentController {
                 // 2. 결제 상태 업데이트
                 paymentService.updatePaymentStatus(request.paymentKey(), TossPaymentStatus.CANCELED);
 
-                log.info("결제 취소 성공: paymentKey={}", request.paymentKey());
                 return ResponseEntity.ok().body("Payment canceled successfully");
             } else {
                 log.error("토스페이먼츠 취소 API 호출 실패: statusCode={}, body={}", response.statusCode(), response.body());
@@ -249,8 +226,6 @@ public class PaymentController {
      */
     @GetMapping("/payment/{orderId}")
     public ResponseEntity<?> getPaymentInfo(@PathVariable String orderId) {
-        log.info("결제 정보 조회: orderId={}", orderId);
-
         try {
             TossPayment payment = paymentService.getPaymentByOrderId(orderId);
             ConfirmPaymentResponse response = createConfirmResponse(payment, null);
@@ -276,9 +251,6 @@ public class PaymentController {
                 .put("paymentKey", request.paymentKey());
 
         String requestBody = objectMapper.writeValueAsString(requestObj);
-        log.info("토스페이먼츠 API 요청 본문: {}", requestBody);
-        log.info("토스페이먼츠 API URL: https://api.tosspayments.com/v1/payments/confirm");
-        log.info("Authorization 헤더: {}", getAuthorizationHeader().substring(0, 20) + "...");
 
         HttpRequest httpRequest = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.tosspayments.com/v1/payments/confirm"))
@@ -332,7 +304,6 @@ public class PaymentController {
         try {
             CancelPaymentRequest cancelRequest = new CancelPaymentRequest(paymentKey, reason, null);
             requestTossPaymentCancel(cancelRequest);
-            log.info("결제 취소 완료: paymentKey={}, reason={}", paymentKey, reason);
         } catch (Exception e) {
             log.error("결제 취소 실패: paymentKey={}, error={}", paymentKey, e.getMessage(), e);
         }

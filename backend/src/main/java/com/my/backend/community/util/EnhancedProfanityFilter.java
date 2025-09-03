@@ -44,7 +44,6 @@ public class EnhancedProfanityFilter {
 
         // 1단계: 정규식 기반 보조 필터링
         if (containsBadWordRegex(content)) {
-            log.info("정규식 필터에서 비속어 감지: {}", content);
             return true;
         }
 
@@ -52,7 +51,6 @@ public class EnhancedProfanityFilter {
         if (openaiApiKey != null && !openaiApiKey.trim().isEmpty()) {
             try {
                 if (isInappropriateByOpenAI(content)) {
-                    log.info("OpenAI Moderation API에서 비속어 감지: {}", content);
                     return true;
                 }
             } catch (Exception e) {
@@ -128,10 +126,6 @@ public class EnhancedProfanityFilter {
             // harassment와 hate score 확인
             double harassmentScore = categoryScores.path("harassment").asDouble(0.0);
             double hateScore = categoryScores.path("hate").asDouble(0.0);
-            
-            // 로그 출력 (flagged 여부 + 카테고리 + 점수)
-            log.info("Moderation check for '{}': flagged={}, categories={}, harassment={}, hate={}",
-                    text, flagged, categories.toString(), harassmentScore, hateScore);
             
             // flagged이거나 harassment/hate score가 0.3을 초과하면 부적절
             return flagged || harassmentScore > 0.3 || hateScore > 0.3;

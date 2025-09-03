@@ -30,15 +30,11 @@ public class StoreAiController {
                                 @RequestBody ProductRecommendationRequestDto requestDto,
                                 @AuthenticationPrincipal UserDetailsImpl userDetails) {
         try {
-            log.info("상품 추천 요청 받음 - productId: {}, requestDto: {}, userId: {}", 
-                    productId, requestDto, userDetails.getId());
-            
             Long accountId = userDetails.getId();
             List<ProductRecommendationResponseDto> recommendations = 
                 storeAiService.getProductRecommendations(
                     productId, accountId, requestDto.getMyPetId(), requestDto.getRecommendationType());
             
-            log.info("상품 추천 성공 - 추천 개수: {}", recommendations.size());
             return ResponseEntity.ok(ResponseDto.success(recommendations));
         } catch (Exception e) {
             log.error("상품 추천 요청 실패: {}", e.getMessage(), e);

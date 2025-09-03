@@ -119,7 +119,6 @@ export default function ProductsTab({
       
       // 기존 상품들 가져오기
       const apiProducts = await productApi.getProducts()
-      console.log('API Products response:', apiProducts)
 
       // apiProducts가 배열인지 확인
       if (!apiProducts || !Array.isArray(apiProducts)) {
@@ -129,7 +128,6 @@ export default function ProductsTab({
       }
 
       const convertedProducts = apiProducts.map((product: any, index: number) => {
-        console.log(`Converting product ${index + 1}:`, product)
         return {
           id: product.id || product.productId || 0,
           name: removeHtmlTags(product.name || product.productName || '이름 없음'),
@@ -172,8 +170,6 @@ export default function ProductsTab({
             productUrl: naverProduct.productUrl || '#'
           }))
           
-          console.log(`네이버 상품 ${naverProducts.length}개 로드됨`)
-          
           // 기존 상품과 네이버 상품 합치기
           const allProducts = [...convertedProducts, ...naverProducts]
           
@@ -186,7 +182,6 @@ export default function ProductsTab({
           setProducts(sortedProducts)
           setCurrentPage(0)
           setHasMore(naverProducts.length === 20) // 20개면 더 있을 가능성이 있음
-          console.log('Products state updated (with Naver products):', sortedProducts)
         } else {
           // 네이버 상품이 없으면 기존 상품만 표시
           const sortedProducts = convertedProducts.sort((a: AdminProduct, b: AdminProduct) => {
@@ -224,16 +219,12 @@ export default function ProductsTab({
     }
     
     try {
-      console.log('상품 삭제 요청:', productId, '네이버 상품:', isNaverProduct)
-      
       if (isNaverProduct) {
         // 네이버 상품 삭제
         await axios.delete(`${getBackendUrl()}/api/naver-shopping/products/${productId}`)
-        console.log('네이버 상품 삭제 완료')
       } else {
         // 기존 상품 삭제
         await productApi.deleteProduct(productId)
-        console.log('기존 상품 삭제 완료')
       }
       
       setProducts((prev: AdminProduct[]) => prev.filter((p: AdminProduct) => p.id !== productId))
@@ -268,8 +259,6 @@ export default function ProductsTab({
     setNaverError(null)
     
     try {
-      console.log('네이버 상품 가져오기 시작...')
-      
              // 이전에 가져온 페이지 정보를 localStorage에서 가져오기
        const lastPageInfo = localStorage.getItem('naverLastPageInfo')
        let startPageOffset = 0
@@ -277,7 +266,6 @@ export default function ProductsTab({
        if (lastPageInfo) {
          const pageInfo = JSON.parse(lastPageInfo)
          startPageOffset = pageInfo.lastStartPage || 0
-         console.log(`이전 시작 페이지: ${startPageOffset}, 다음 시작 페이지: ${startPageOffset + 1}`)
        } else {
          console.log(`첫 실행: 1페이지부터 시작`)
        }
@@ -410,10 +398,6 @@ export default function ProductsTab({
       const totalTargetProducts = 500 // 총 목표 상품 수
       const productsPerCategory = Math.floor(totalTargetProducts / categories.length) // 카테고리당 상품 수
       
-      console.log(`총 목표 상품 수: ${totalTargetProducts}개`)
-      console.log(`카테고리 수: ${categories.length}개`)
-      console.log(`카테고리당 목표 상품 수: ${productsPerCategory}개`)
-      
              let totalSaved = 0
        let newProductsCount = 0
        let updatedProductsCount = 0
@@ -425,9 +409,6 @@ export default function ProductsTab({
         const searchTerms = searchCategories[category as keyof typeof searchCategories]
         categoryStats[category] = { new: 0, updated: 0, total: 0 }
         
-        console.log(`\n=== ${category} 카테고리 시작 ===`)
-        console.log(`${category} 카테고리 - 검색어 ${searchTerms.length}개`)
-        
         let categoryProductCount = 0
         
         // 각 검색어로 상품 가져오기
@@ -436,13 +417,10 @@ export default function ProductsTab({
           
           // 카테고리당 목표 상품 수에 도달하면 다음 카테고리로
           if (categoryProductCount >= productsPerCategory) {
-            console.log(`${category} 카테고리 목표 달성 (${categoryProductCount}/${productsPerCategory})`)
             break
           }
           
           try {
-            console.log(`[${i + 1}/${searchTerms.length}] ${term} 검색 중...`)
-            
             // 페이징 처리를 통해 상품 가져오기
             const maxPages = 10 // 최대 10페이지까지
             const itemsPerPage = 10
@@ -454,9 +432,7 @@ export default function ProductsTab({
              // 100페이지를 넘어가면 1페이지부터 다시 시작
              if (randomStartPage > 100) {
                randomStartPage = 1
-               console.log(`${term} - 100페이지 초과, 1페이지부터 다시 시작`)
              }
-            console.log(`${term} - 랜덤 시작 페이지: ${randomStartPage}`)
             
             for (let page = 0; page < maxPages; page++) {
               // 카테고리당 목표 상품 수에 도달하면 다음 검색어로
@@ -485,11 +461,8 @@ export default function ProductsTab({
                 
                 // 결과가 없으면 다음 검색어로 넘어가기
                 if (items.length === 0) {
-                  console.log(`${term} - 페이지 ${currentPage}: 더 이상 상품이 없습니다.`)
                   break
                 }
-                
-                console.log(`${term} - 페이지 ${currentPage}: ${items.length}개 상품 발견`)
                 
                 // 각 상품을 DB에 저장
                 for (const item of items) {
@@ -523,11 +496,9 @@ export default function ProductsTab({
                       if (result && result.isNewProduct) {
                         newProductsCount++
                         categoryStats[category].new++
-                        console.log(`새 상품 저장됨: ${item.title}`)
                       } else {
                         updatedProductsCount++
                         categoryStats[category].updated++
-                        console.log(`기존 상품 업데이트됨: ${item.title}`)
                       }
                       totalSaved++
                       categoryStats[category].total++
@@ -550,14 +521,12 @@ export default function ProductsTab({
           }
         }
         
-        console.log(`${category} 카테고리 완료: 새 상품 ${categoryStats[category].new}개, 업데이트 ${categoryStats[category].updated}개, 총 ${categoryStats[category].total}개`)
       }
       
              // 다음 실행을 위해 페이지 정보 저장 (100페이지 초과 시 1페이지부터 다시 시작)
        let nextStartPage = maxStartPage + 1
        if (nextStartPage > 100) {
          nextStartPage = 1
-         console.log(`100페이지 초과, 다음 실행은 1페이지부터 시작`)
        }
        
        const nextPageInfo = {
@@ -565,8 +534,6 @@ export default function ProductsTab({
          timestamp: new Date().toISOString()
        }
        localStorage.setItem('naverLastPageInfo', JSON.stringify(nextPageInfo))
-       console.log(`다음 실행 시작 페이지: ${nextPageInfo.lastStartPage}`)
-      
       // 결과 요약 생성
       let resultMessage = `네이버 상품 가져오기 완료!\n\n`
       resultMessage += `총 새로 저장된 상품: ${newProductsCount}개\n`
@@ -583,11 +550,9 @@ export default function ProductsTab({
       
       // 임베딩 업데이트 실행
       try {
-        console.log('임베딩 업데이트 시작...')
         const embeddingResponse = await axios.post(`${getBackendUrl()}/api/naver-shopping/update-embeddings`)
         
         if (embeddingResponse.data.success) {
-          console.log('임베딩 업데이트 요청 성공')
           alert('네이버 상품 가져오기 및 임베딩 업데이트가 완료되었습니다!')
         } else {
           console.error('임베딩 업데이트 요청 실패:', embeddingResponse.data)
@@ -721,8 +686,6 @@ export default function ProductsTab({
                         size="sm" 
                         variant="outline"
                         onClick={() => {
-                          console.log('Edit button clicked for product:', product);
-                          console.log('Product ID:', product.id);
                           onEditProduct(product);
                         }}
                       >

@@ -40,10 +40,6 @@ public class OpenAiService {
      */
     public String generateComment(String postContent, String category) {
         try {
-            log.info("=== AI 댓글 생성 시작 ===");
-            log.info("게시글 내용: {}", postContent);
-            log.info("카테고리: {}", category);
-            
             if (openaiApiKey == null || openaiApiKey.isEmpty()) {
                 log.error("OpenAI API Key가 설정되지 않았습니다.");
                 return getFallbackComment(category);
@@ -65,12 +61,9 @@ public class OpenAiService {
             requestBody.put("max_tokens", 100);
             requestBody.put("temperature", 0.7);
 
-            log.info("OpenAI API 요청 시작...");
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
             String response = restTemplate.postForObject(openaiApiUrl, request, String.class);
-            log.info("OpenAI API 응답 받음: {}자", response != null ? response.length() : 0);
-            
             if (response == null) {
                 log.error("OpenAI API 응답이 null입니다.");
                 return getFallbackComment(category);
@@ -95,8 +88,6 @@ public class OpenAiService {
                 log.warn("생성된 댓글이 비어있습니다. 기본 댓글 사용");
                 return getFallbackComment(category);
             }
-
-            log.info("생성된 AI 댓글: {}", generatedComment);
             return generatedComment;
 
         } catch (Exception e) {

@@ -64,9 +64,6 @@ function PaymentSuccessContent() {
 
         setPaymentInfo(response.data);
         
-        // 결제 승인이 완료된 후에만 장바구니 정리
-        console.log('결제 승인 완료, 장바구니 정리 시작');
-        
         try {
           // 백엔드 장바구니 전체 삭제 (결제 완료된 주문의 상품들)
           const deleteResponse = await axios.delete(`${getBackendUrl()}/api/carts/clear`, {
@@ -78,7 +75,6 @@ function PaymentSuccessContent() {
           });
           
           if (deleteResponse.status === 200) {
-            console.log('백엔드 장바구니 정리 완료');
           } else {
             console.warn('백엔드 장바구니 정리 실패, 로컬만 정리');
           }
@@ -95,7 +91,6 @@ function PaymentSuccessContent() {
         localStorage.removeItem('naverCart'); // 네이버 장바구니도 정리
         sessionStorage.removeItem('cartItems');
         
-        console.log('장바구니 정리 완료');
       } catch (error: any) {
         console.error('결제 승인 실패:', error);
         if (axios.isAxiosError(error)) {

@@ -69,7 +69,6 @@ export default function AdoptionRequestsTab({
           try {
             // 펫의 adopted 상태를 true로 업데이트
             await petApi.updateAdoptionStatus(approvedRequest.petId, true);
-            console.log(`펫 ${approvedRequest.petId}의 입양 상태를 완료로 업데이트했습니다.`);
           } catch (error) {
             console.error('펫 상태 업데이트 실패:', error);
           }

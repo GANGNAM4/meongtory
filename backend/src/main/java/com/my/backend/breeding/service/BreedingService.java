@@ -36,16 +36,12 @@ public class BreedingService {
 
     public BreedingResultDto predictBreeding(MultipartFile parent1, MultipartFile parent2) {
         try {
-            log.info("교배 예측 시작 - AI 서비스 URL: {}", aiBaseUrl);
-            
             // 1) 입력 검증
             if (parent1 == null || parent1.isEmpty() || parent2 == null || parent2.isEmpty()) {
                 throw new IllegalArgumentException("부모 이미지가 제공되지 않았습니다.");
             }
             String p1 = parent1.getOriginalFilename();
             String p2 = parent2.getOriginalFilename();
-            log.info("파일 정보 - parent1: {} ({} bytes), parent2: {} ({} bytes)", 
-                    p1, parent1.getSize(), p2, parent2.getSize());
             
             if ((p1 != null && !p1.matches(".*\\.(jpg|jpeg|png)$")) ||
                     (p2 != null && !p2.matches(".*\\.(jpg|jpeg|png)$"))) {
@@ -64,8 +60,6 @@ public class BreedingService {
                 @Override public String getFilename() { return p2 != null ? p2 : "parent2.jpg"; }
             });
 
-            log.info("AI 서비스 호출 시작: {}/predict-breeding", aiBaseUrl);
-            
             String jsonResponse = getAiClient().post()
                     .uri("/predict-breeding")
                     .contentType(MediaType.MULTIPART_FORM_DATA)
@@ -83,13 +77,6 @@ public class BreedingService {
             // JSON 파싱 (Python에서 이미 백분율로 변환됨)
             ObjectMapper objectMapper = new ObjectMapper();
             BreedingResultDto result = objectMapper.readValue(jsonResponse, BreedingResultDto.class);
-
-            log.info("AI 응답 파싱 완료: 확률={}%, 품종={}", result.getProbability(), result.getResultBreed());
-
-            log.info("최종 파싱된 결과: {}", result);
-
-            
-            
 
             // 이미지 생성 안 하면 빈 문자열 유지
             if (result.getImage() == null) result.setImage("");

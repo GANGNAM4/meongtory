@@ -50,7 +50,6 @@ public class S3Service {
             }
 
             String uuidFileName = generateFileName(originalFileName);
-            log.info("Uploading file: {} (UUID: {}) to S3 bucket: {}", originalFileName, uuidFileName, bucketName);
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -61,7 +60,6 @@ public class S3Service {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileData));
 
             String s3Url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + uuidFileName;
-            log.info("S3 업로드 성공: {}", s3Url);
             return s3Url;
         } catch (Exception e) {
             log.error("Failed to upload file to S3: {}", e.getMessage());
@@ -82,7 +80,6 @@ public class S3Service {
             byte[] fileData = file.getBytes();
 
             String uuidFileName = generateFileName(originalFileName);
-            log.info("Uploading file: {} (UUID: {}) to S3 bucket: {}", originalFileName, uuidFileName, bucketName);
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -93,7 +90,6 @@ public class S3Service {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileData));
 
             String s3Url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + uuidFileName;
-            log.info("S3 업로드 성공: {}", s3Url);
             return s3Url;
         } catch (Exception e) {
             log.error("Failed to upload file to S3: {}", e.getMessage());
@@ -111,7 +107,6 @@ public class S3Service {
             }
 
             String fileName = generateDiaryFileName(originalFileName);
-            log.info("Uploading diary image: {} to S3 bucket: {}", fileName, bucketName);
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -122,7 +117,6 @@ public class S3Service {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileData));
 
             String s3Url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + fileName;
-            log.info("Diary image uploaded successfully: {}", s3Url);
             return s3Url;
         } catch (Exception e) {
             log.error("Failed to upload diary image to S3: {}", e.getMessage());
@@ -133,9 +127,6 @@ public class S3Service {
     // Base64 이미지 업로드 메서드 (일기용)
     public String uploadDiaryBase64Image(String base64Image, String originalFileName) {
         try {
-            log.info("=== S3 Diary Base64 이미지 업로드 시작 ===");
-            log.info("Bucket: {}", bucketName);
-
             if (s3Client == null) {
                 log.warn("S3Client is null - returning mock URL");
                 String mockFileName = generateDiaryFileName(originalFileName);
@@ -150,10 +141,8 @@ public class S3Service {
 
             String imageData = parts[1];
             byte[] imageBytes = java.util.Base64.getDecoder().decode(imageData);
-            log.info("이미지 크기: {} bytes", imageBytes.length);
 
             String fileName = generateDiaryFileName(originalFileName);
-            log.info("생성된 일기 이미지 파일명: {}", fileName);
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -164,7 +153,6 @@ public class S3Service {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(imageBytes));
 
             String s3Url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + fileName;
-            log.info("일기 이미지 S3 업로드 성공: {}", s3Url);
             return s3Url;
         } catch (Exception e) {
             log.error("일기 이미지 S3 업로드 실패: {}", e.getMessage());
@@ -182,7 +170,6 @@ public class S3Service {
             }
 
             String fileName = generateDiaryAudioFileName(originalFileName);
-            log.info("Uploading diary audio: {} to S3 bucket: {}", fileName, bucketName);
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -193,7 +180,6 @@ public class S3Service {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileData));
 
             String s3Url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + fileName;
-            log.info("Diary audio uploaded successfully: {}", s3Url);
             return s3Url;
         } catch (Exception e) {
             log.error("Failed to upload diary audio to S3: {}", e.getMessage());
@@ -204,9 +190,6 @@ public class S3Service {
     // Base64 이미지 업로드 메서드 (입양 펫용)
     public String uploadBase64Image(String base64Image) {
         try {
-            log.info("=== S3 Base64 이미지 업로드 시작 (입양 펫용) ===");
-            log.info("Bucket: {}", bucketName);
-
             if (s3Client == null) {
                 log.warn("S3Client is null - returning mock URL");
                 return "https://mock-s3-bucket.s3.amazonaws.com/adoption/image.jpg";
@@ -220,11 +203,9 @@ public class S3Service {
 
             String imageData = parts[1];
             byte[] imageBytes = java.util.Base64.getDecoder().decode(imageData);
-            log.info("이미지 크기: {} bytes", imageBytes.length);
 
             String fileName = generateFileName("image.jpg");
             String adoptionKey = "adoption/" + fileName;
-            log.info("생성된 파일명: {}", adoptionKey);
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -235,7 +216,6 @@ public class S3Service {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(imageBytes));
 
             String s3Url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + adoptionKey;
-            log.info("S3 Base64 업로드 성공 (입양 펫): {}", s3Url);
             return s3Url;
         } catch (Exception e) {
             log.error("S3 Base64 업로드 실패: {}", e.getMessage());
@@ -246,8 +226,7 @@ public class S3Service {
     // 스토어 상품용 Base64 이미지 업로드 메서드 (/products 폴더에 저장)
     public String uploadProductBase64Image(String base64Image) {
         try {
-            log.info("=== S3 Base64 이미지 업로드 시작 (스토어 상품용) ===");
-            log.info("Bucket: {}", bucketName);
+
 
             if (s3Client == null) {
                 log.warn("S3Client is null - returning mock URL");
@@ -262,11 +241,9 @@ public class S3Service {
 
             String imageData = parts[1];
             byte[] imageBytes = java.util.Base64.getDecoder().decode(imageData);
-            log.info("이미지 크기: {} bytes", imageBytes.length);
 
             String fileName = generateFileName("image.jpg");
             String productKey = "products/" + fileName;
-            log.info("생성된 파일명: {}", productKey);
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -277,7 +254,6 @@ public class S3Service {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(imageBytes));
 
             String s3Url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + productKey;
-            log.info("S3 Base64 업로드 성공 (스토어 상품): {}", s3Url);
             return s3Url;
         } catch (Exception e) {
             log.error("S3 Base64 업로드 실패: {}", e.getMessage());
@@ -299,7 +275,6 @@ public class S3Service {
 
             String uuidFileName = generateFileName(originalFileName);
             String mypetKey = "mypet/" + uuidFileName;
-            log.info("Uploading MyPet image: {} (UUID: {}) to S3 bucket: {} in mypet folder", originalFileName, uuidFileName, bucketName);
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -310,7 +285,6 @@ public class S3Service {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileData));
 
             String s3Url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + mypetKey;
-            log.info("MyPet S3 업로드 성공: {}", s3Url);
             return s3Url;
         } catch (Exception e) {
             log.error("Failed to upload MyPet image to S3: {}", e.getMessage());
@@ -332,7 +306,6 @@ public class S3Service {
 
             String uuidFileName = generateFileName(originalFileName);
             String adoptionKey = "adoption/" + uuidFileName;
-            log.info("Uploading Adoption Pet image: {} (UUID: {}) to S3 bucket: {} in adoption folder", originalFileName, uuidFileName, bucketName);
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -343,7 +316,6 @@ public class S3Service {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileData));
 
             String s3Url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + adoptionKey;
-            log.info("Adoption Pet S3 업로드 성공: {}", s3Url);
             return s3Url;
         } catch (Exception e) {
             log.error("Failed to upload Adoption Pet image to S3: {}", e.getMessage());
@@ -365,7 +337,6 @@ public class S3Service {
 
             String uuidFileName = generateEmotionFileName(originalFileName);
             String emotionKey = "emotion/" + uuidFileName;
-            log.info("Uploading Emotion Feedback image: {} (UUID: {}) to S3 bucket: {} in emotion folder", originalFileName, uuidFileName, bucketName);
 
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -376,7 +347,6 @@ public class S3Service {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileData));
 
             String s3Url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + emotionKey;
-            log.info("Emotion Feedback S3 업로드 성공: {}", s3Url);
             return s3Url;
         } catch (Exception e) {
             log.error("Failed to upload Emotion Feedback image to S3: {}", e.getMessage());
@@ -440,8 +410,6 @@ public class S3Service {
                 key = filePathOrUrl.substring(filePathOrUrl.indexOf(".com/") + 5);
             }
 
-            log.info("Downloading file from S3: bucket={}, key={}", bucketName, key);
-
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                     .bucket(bucketName)
                     .key(key)
@@ -450,7 +418,6 @@ public class S3Service {
             ResponseInputStream<GetObjectResponse> response = s3Client.getObject(getObjectRequest);
             byte[] fileData = response.readAllBytes();
             
-            log.info("File downloaded successfully from S3: {} ({} bytes)", key, fileData.length);
             return fileData;
         } catch (Exception e) {
             log.error("Failed to download file from S3: {}", e.getMessage());
@@ -472,15 +439,12 @@ public class S3Service {
                 key = filePathOrUrl.substring(filePathOrUrl.indexOf(".com/") + 5);
             }
 
-            log.info("Deleting file from S3: bucket={}, key={}", bucketName, key);
-
             DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
                     .bucket(bucketName)
                     .key(key)
                     .build();
 
             s3Client.deleteObject(deleteObjectRequest);
-            log.info("File deleted successfully from S3: {}", key);
         } catch (Exception e) {
             log.error("Failed to delete file from S3: {}", e.getMessage());
             throw new RuntimeException("S3 delete failed", e);
@@ -497,7 +461,6 @@ public class S3Service {
             }
 
             String adoptionKey = "adoption/" + fileName;
-            log.info("Deleting adoption pet image from S3: {}", adoptionKey);
 
             DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
                     .bucket(bucketName)
@@ -505,7 +468,6 @@ public class S3Service {
                     .build();
 
             s3Client.deleteObject(deleteObjectRequest);
-            log.info("Adoption pet image deleted successfully from S3: {}", adoptionKey);
         } catch (Exception e) {
             log.error("Failed to delete adoption pet image from S3: {}", e.getMessage());
             throw new RuntimeException("Adoption pet S3 delete failed", e);
@@ -520,13 +482,11 @@ public class S3Service {
                 return;
             }
             String mypetKey = "mypet/" + fileName;
-            log.info("Deleting MyPet image from S3: {}", mypetKey);
             DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
                     .bucket(bucketName)
                     .key(mypetKey)
                     .build();
             s3Client.deleteObject(deleteObjectRequest);
-            log.info("MyPet image deleted successfully from S3: {}", mypetKey);
         } catch (Exception e) {
             log.error("Failed to delete MyPet image from S3: {}", e.getMessage());
             throw new RuntimeException("MyPet S3 delete failed", e);
@@ -545,7 +505,6 @@ public class S3Service {
             byte[] pdfData;
             try {
                 pdfData = contractFileService.generatePDF(content);
-                log.info("PDF 생성 성공: contract-{}", contractId);
             } catch (Exception e) {
                 log.error("PDF 생성 실패: {}", e.getMessage());
                 // PDF 생성 실패 시에도 계속 진행 (mock URL 반환)
@@ -555,8 +514,6 @@ public class S3Service {
             String fileName = "contract-" + contractId + ".pdf";
             String contractKey = "contracts/" + fileName;
             
-            log.info("Uploading contract PDF: {} to S3 bucket: {}", fileName, bucketName);
-
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
                     .key(contractKey)
@@ -566,7 +523,6 @@ public class S3Service {
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(pdfData));
 
             String s3Url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + contractKey;
-            log.info("Contract PDF S3 업로드 성공: {}", s3Url);
             return s3Url;
         } catch (Exception e) {
             log.error("Failed to upload contract PDF to S3: {}", e.getMessage());
@@ -586,15 +542,12 @@ public class S3Service {
             String fileName = "contract-" + contractId + ".pdf";
             String contractKey = "contracts/" + fileName;
             
-            log.info("Deleting contract PDF from S3: {}", contractKey);
-            
             DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
                     .bucket(bucketName)
                     .key(contractKey)
                     .build();
             
             s3Client.deleteObject(deleteObjectRequest);
-            log.info("Contract PDF deleted successfully from S3: {}", contractKey);
         } catch (Exception e) {
             log.error("Failed to delete contract PDF from S3: {}", e.getMessage());
             throw new RuntimeException("Contract PDF S3 delete failed", e);

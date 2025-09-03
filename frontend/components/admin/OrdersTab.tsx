@@ -52,8 +52,6 @@ export default function OrdersTab({
         setLoadingMore(true)
       }
       
-      console.log('주문 데이터 가져오기 시작...', { page: isInitial ? 0 : page });
-      
       // 인증 토큰 가져오기
       const accessToken = localStorage.getItem("accessToken");
       const refreshToken = localStorage.getItem("refreshToken");
@@ -70,10 +68,8 @@ export default function OrdersTab({
         "Refresh_Token": refreshToken || ''
       };
       
-      console.log('요청 헤더:', headers);
       const currentPage = isInitial ? 0 : page;
       const response = await axios.get(`${getBackendUrl()}/api/orders/admin/all?page=${currentPage}&size=20`, { headers });
-      console.log('주문 API 응답:', response);
       
       // ResponseDto 형태로 응답이 오므로 response.data.data를 사용
       if (!response.data || !response.data.success) {
@@ -81,14 +77,11 @@ export default function OrdersTab({
       }
       
       const data: any[] = response.data.data || [];
-      console.log('받은 주문 데이터:', data);
       
       // 백엔드에서 받은 데이터를 프론트엔드 형식으로 변환 (결제 완료 및 취소된 주문 포함)
       const ordersWithItems: Order[] = data
         .filter((order: any) => order.status === 'PAID' || order.status === 'CANCELED') // 결제 완료 및 취소된 주문 포함
         .map((order: any) => {
-          console.log('변환 중인 주문 데이터:', order);
-          
           // 주문 상태에 따른 paymentStatus 결정
           let paymentStatus: "PENDING" | "COMPLETED" | "CANCELLED";
           if (order.status === 'PAID') {
@@ -192,8 +185,6 @@ export default function OrdersTab({
   // 주문 상태 업데이트
   const handleUpdateOrderStatus = async (orderId: number, status: "PENDING" | "COMPLETED" | "CANCELLED") => {
     try {
-      console.log(`주문 상태 변경 요청: 주문ID ${orderId}, 상태 ${status}`);
-      
       // 인증 토큰 가져오기
       const accessToken = localStorage.getItem("accessToken");
       const refreshToken = localStorage.getItem("refreshToken");
@@ -216,8 +207,6 @@ export default function OrdersTab({
                            status === 'CANCELLED' ? 'CANCELED' : 'CREATED';
       
       const response = await axios.patch(`${getBackendUrl()}/api/orders/${orderId}/status?status=${backendStatus}`, {}, { headers });
-      console.log('업데이트된 주문:', response.data);
-      
       // 현재 주문 목록에서 해당 주문만 업데이트
       setOrders(prev => prev.map(order => 
         order.orderId === orderId 
@@ -349,10 +338,6 @@ export default function OrdersTab({
                       <div className="space-y-2">
                         <h4 className="font-medium text-sm">주문 상품:</h4>
                         {order.orderItems.map((item, index) => {
-                          console.log('주문 아이템:', item);
-                          console.log('주문 아이템의 ImageUrl:', item.ImageUrl);
-                          console.log('이미지 표시 여부:', !!item.ImageUrl);
-                          
                           return (
                             <div key={item.id || `order-item-${index}`} className="flex items-center space-x-3 p-2 bg-gray-50 rounded overflow-visible">
                               <img
@@ -365,10 +350,7 @@ export default function OrdersTab({
                                   target.src = "/placeholder.svg";
                                 }}
                                 onLoad={(e) => {
-                                  console.log('이미지 로딩 성공:', item.ImageUrl);
                                   const target = e.target as HTMLImageElement;
-                                  console.log('이미지 실제 크기:', target.naturalWidth, 'x', target.naturalHeight);
-                                  console.log('이미지 표시 크기:', target.width, 'x', target.height);
                                 }}
                               />
                               <div className="flex-1">

@@ -150,25 +150,20 @@ export default function InsuranceDetailPage() {
   const addToRecentProducts = async (product: InsuranceProduct) => {
     
     if (typeof window === 'undefined') {
-      console.log('window가 undefined - 서버 사이드 렌더링 중')
       return
     }
     
     const { isLoggedIn } = useAuth()
-    console.log('isLoggedIn:', isLoggedIn)
     
     if (isLoggedIn) {
       // 로그인 시: DB에 저장
-      console.log('로그인 상태 - DB에 저장 시도')
       try {
         await recentApi.addToRecent(product.id, "insurance")
-        console.log('DB 저장 성공')
       } catch (error) {
         console.error("최근 본 상품 저장 실패:", error)
       }
     } else {
       // 비로그인 시: localStorage에 저장
-      console.log('비로그인 상태 - localStorage에 저장')
       addToLocalRecentProducts(product)
       
       // localStorage 변경 이벤트 발생 (다른 탭/컴포넌트에서 감지)

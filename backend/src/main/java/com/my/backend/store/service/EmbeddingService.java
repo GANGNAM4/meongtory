@@ -26,8 +26,6 @@ public class EmbeddingService {
     public CompletableFuture<String> updateEmbeddingsAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                log.info("AI 서비스 임베딩 업데이트 요청 시작");
-                
                 String aiServiceUrl = "http://ai:9000/update-embeddings";
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
@@ -36,8 +34,6 @@ public class EmbeddingService {
                 // 빈 요청 바디 (필요한 경우 파라미터 추가 가능)
                 HttpEntity<String> entity = new HttpEntity<>(headers);
                 
-                log.info("AI 서비스 호출 URL: {}", aiServiceUrl);
-                
                 ResponseEntity<String> response = restTemplate.exchange(
                     aiServiceUrl,
                     HttpMethod.POST,
@@ -45,11 +41,7 @@ public class EmbeddingService {
                     String.class
                 );
                 
-                log.info("AI 서비스 응답 상태: {}", response.getStatusCode());
-                log.info("AI 서비스 응답: {}", response.getBody());
-                
                 if (response.getStatusCode().is2xxSuccessful()) {
-                    log.info("임베딩 업데이트 성공");
                     return "임베딩 업데이트가 성공적으로 완료되었습니다.\n" + response.getBody();
                 } else {
                     log.error("임베딩 업데이트 실패. 상태 코드: {}", response.getStatusCode());

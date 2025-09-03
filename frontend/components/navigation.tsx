@@ -49,7 +49,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshAccessToken = useCallback(async () => {
     try {
       const refreshToken = localStorage.getItem("refreshToken");
-      console.log("리프레시 토큰:", refreshToken || "없음");
       if (!refreshToken) {
         console.error("리프레시 토큰이 없습니다.");
         return null;
@@ -144,7 +143,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (!isLoggedIn) {
               setIsLoggedIn(true);
             }
-            console.log("Retry login check successful:", { id, email, name, role });
             hasCheckedLogin.current = true;
             retryCount.current = 0;
           } catch (retryErr) {
@@ -416,7 +414,6 @@ export default function Navigation() {
       // 강제 리렌더링을 위한 약간의 지연 후 상태 재설정
       setTimeout(() => {
         setIsAdmin(role === "ADMIN");
-        console.log("OAuth2 상태 재확인:", role === "ADMIN");
       }, 100);
       
       // 사용자 상세 정보 가져오기
@@ -433,7 +430,6 @@ export default function Navigation() {
             const { id, email: userEmail, name: userName, role: userRole } = userData;
             setCurrentUser({ id, email: userEmail, name: userName });
             setIsAdmin(userRole === "ADMIN");
-            console.log("OAuth2 로그인 완료 (상세 정보 포함):", { id, email: userEmail, name: userName, role: userRole });
           }
         } catch (err) {
           console.error("사용자 정보 조회 실패:", err);

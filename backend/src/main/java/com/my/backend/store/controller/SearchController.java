@@ -42,22 +42,11 @@ public class SearchController {
             @RequestParam(required = false, defaultValue = "10") Integer limit) {
         
         try {
-            log.info("=== 임베딩 기반 유사도 검색 요청 시작 ===");
-            log.info("검색어: '{}'", query);
-            log.info("제한 개수: {}", limit);
-            log.info("검색 방식: 임베딩 기반 유사도 검색 (AI 기반)");
-            log.info("엔드포인트: /api/search");
-            
             SearchRequestDto searchRequest = new SearchRequestDto();
             searchRequest.setQuery(query);
             searchRequest.setLimit(limit);
             
-            log.info("SearchRequestDto 생성 완료: {}", searchRequest);
-            
             List<SearchResponseDto> results = searchService.searchByEmbedding(searchRequest);
-            
-            log.info("임베딩 기반 유사도 검색 결과 개수: {}", results.size());
-            log.info("=== 임베딩 기반 유사도 검색 요청 완료 ===");
             
             return ResponseEntity.ok(results);
             
@@ -78,8 +67,6 @@ public class SearchController {
     @PostMapping
     public ResponseEntity<List<SearchResponseDto>> searchProductsPost(@RequestBody SearchRequestDto searchRequest) {
         try {
-            log.info("POST 검색 요청: query='{}', limit={}", 
-                    searchRequest.getQuery(), searchRequest.getLimit());
             
             List<SearchResponseDto> results = searchService.searchByEmbedding(searchRequest);
             
@@ -106,8 +93,6 @@ public class SearchController {
             Integer petId = (Integer) request.get("petId");
             Integer limit = (Integer) request.get("limit");
             
-            log.info("MyPet 태깅 검색 요청: query='{}', petId={}, limit={}", query, petId, limit);
-            
             // AI 서비스 호출
             RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
@@ -122,13 +107,10 @@ public class SearchController {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(aiRequest, headers);
             
             String aiEndpoint = aiServiceUrl + "/search/mypet";
-            log.info("AI 서비스 호출: {}", aiEndpoint);
             
             Map<String, Object> aiResponse = restTemplate.postForObject(aiEndpoint, entity, Map.class);
             
             if (aiResponse != null) {
-                log.info("AI 서비스 응답 성공: {}개 결과", 
-                    aiResponse.get("data") != null ? ((List<?>) aiResponse.get("data")).size() : 0);
                 
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", true);

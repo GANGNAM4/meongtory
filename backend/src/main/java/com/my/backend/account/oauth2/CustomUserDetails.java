@@ -29,7 +29,6 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
     public CustomUserDetails(Account account, Map<String, Object> attributes) {
         this.account = account;
         this.attributes = attributes;
-        log.info("CustomUserDetails attributes: {}", attributes);
     }
 
     @Override

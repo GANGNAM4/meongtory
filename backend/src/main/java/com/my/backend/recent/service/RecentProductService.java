@@ -38,17 +38,12 @@ public class RecentProductService {
 
     @Transactional
     public void addToRecentProducts(Long accountId, Long productId, String productType) {
-        System.out.println("=== RecentProductService.addToRecentProducts ===");
-        System.out.println("accountId: " + accountId);
-        System.out.println("productId: " + productId);
-        System.out.println("productType: " + productType);
         
         // 이미 있는지 확인
         RecentProduct existing = recentProductRepository
                 .findByAccountIdAndProductTypeAndProductId(accountId, productType, productId);
         
         if (existing != null) {
-            System.out.println("기존 항목 발견, 삭제 중...");
             // 기존 항목 삭제 (나중에 다시 추가하여 최신순으로 정렬)
             recentProductRepository.delete(existing);
         }
@@ -72,8 +67,6 @@ public class RecentProductService {
                     .build();
         } else if ("store".equals(productType)) {
             // 스토어 상품 조회 (일반 상품 또는 네이버 상품)
-            System.out.println("=== 스토어 상품 조회 ===");
-            System.out.println("스토어 상품 조회 시도 - productId: " + productId);
             
             try {
                 // 먼저 일반 상품에서 조회
@@ -81,8 +74,6 @@ public class RecentProductService {
                 
                 if (storeProduct != null) {
                     // 일반 상품인 경우
-                    System.out.println("일반 상품 조회 성공 - 상품명: " + storeProduct.getName());
-                    System.out.println("일반 상품 ID: " + storeProduct.getId());
                     
                     recentProduct = RecentProduct.builder()
                             .account(account)
@@ -94,17 +85,12 @@ public class RecentProductService {
                     NaverProduct naverProduct = naverProductRepository.findById(productId)
                             .orElseThrow(() -> new IllegalArgumentException("스토어 상품을 찾을 수 없습니다: " + productId));
                     
-                    System.out.println("네이버 상품 조회 성공 - 상품명: " + naverProduct.getTitle());
-                    System.out.println("네이버 상품 ID: " + naverProduct.getId());
-                    
                     recentProduct = RecentProduct.builder()
                             .account(account)
                             .naverProduct(naverProduct)
                             .productType(productType)
                             .build();
                 }
-                        
-                System.out.println("RecentProduct 생성 완료");
             } catch (Exception e) {
                 System.out.println("스토어 상품 조회 실패: " + e.getMessage());
                 throw e;

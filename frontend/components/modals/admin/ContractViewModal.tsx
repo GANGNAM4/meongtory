@@ -34,12 +34,6 @@ export default function ContractViewModal({ isOpen, onClose, contract, pet, onEd
 
   const petInfo = parsePetInfo(contract)
   
-  // 디버깅용 로그
-  console.log("Contract data:", contract)
-  console.log("Parsed petInfo:", petInfo)
-  console.log("Pet data:", pet)
-  console.log("Pet gender:", pet?.gender)
-
   const handleDownloadContract = async (contractId: number) => {
     try {
       const accessToken = localStorage.getItem('accessToken')
@@ -69,7 +63,6 @@ export default function ContractViewModal({ isOpen, onClose, contract, pet, onEd
              const filenameMatch = contentDisposition.match(/filename="([^"]+)"/)
              if (filenameMatch) {
                filename = filenameMatch[1]
-               console.log("백엔드에서 전송한 파일명:", filename)
              }
            }
            

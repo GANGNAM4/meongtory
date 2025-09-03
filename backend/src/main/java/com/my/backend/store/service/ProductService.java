@@ -39,17 +39,12 @@ public class ProductService {
     }
 
     public Product createProduct(Product product) {
-        log.info("=== ProductService.createProduct 시작 ===");
-        log.info("입력 상품: {}", product);
-        
         if (product.getRegistrationDate() == null) {
             product.setRegistrationDate(LocalDate.now());
-            log.info("등록일 설정: {}", product.getRegistrationDate());
         }
 
         if (product.getRegisteredBy() == null || product.getRegisteredBy().trim().isEmpty()) {
             product.setRegisteredBy("admin");
-            log.info("등록자 설정: {}", product.getRegisteredBy());
         }
 
         if (product.getImageUrl() != null && product.getImageUrl().startsWith("data:")) {
@@ -62,11 +57,7 @@ public class ProductService {
             }
         }
 
-        log.info("데이터베이스 저장 시도...");
         Product savedProduct = productRepository.save(product);
-        log.info("데이터베이스 저장 성공: ID={}", savedProduct.getId());
-        
-        log.info("새 상품 등록됨: '{}'", savedProduct.getName());
         
         return savedProduct;
     }
@@ -159,7 +150,6 @@ public class ProductService {
             return ResponseDto.success("삭제 완료");
             
         } catch (Exception e) {
-            System.out.println("=== 상품 삭제 서비스 실패 ===");
             System.out.println("에러 메시지: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("상품 삭제 중 오류가 발생했습니다: " + e.getMessage());

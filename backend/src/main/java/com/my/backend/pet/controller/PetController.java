@@ -37,9 +37,6 @@ public class PetController {
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) Long lastId) {
         
-        log.info("Fetching pets with filters - name: {}, breed: {}, gender: {}, adopted: {}, vaccinated: {}, neutered: {}, status: {}, type: {}, location: {}, age: {}-{}, limit: {}, lastId: {}", 
-                name, breed, gender, adopted, vaccinated, neutered, status, type, location, minAge, maxAge, limit, lastId);
-        
         List<Pet> pets = petService.getPetsWithFilters(name, breed, gender, adopted, vaccinated, neutered, status, type, location, minAge, maxAge, limit, lastId);
         return ResponseEntity.ok(pets);
     }
@@ -47,7 +44,6 @@ public class PetController {
     // 펫 상세 조회
     @GetMapping("/{petId}")
     public ResponseEntity<Pet> getPetById(@PathVariable Long petId) {
-        log.info("Fetching pet with id: {}", petId);
         
         Optional<Pet> pet = petService.getPetById(petId);
         return pet.map(ResponseEntity::ok)
@@ -59,7 +55,6 @@ public class PetController {
     // 펫 등록
     @PostMapping
     public ResponseEntity<Pet> createPet(@RequestBody Pet pet) {
-        log.info("Creating new pet: {}", pet.getName());
         Pet createdPet = petService.createPet(pet);
         return ResponseEntity.ok(createdPet);
     }
@@ -67,15 +62,8 @@ public class PetController {
     // 펫 정보 수정
     @PutMapping("/{petId}")
     public ResponseEntity<Pet> updatePet(@PathVariable Long petId, @RequestBody Pet petDetails) {
-        log.info("=== 펫 수정 요청 시작 ===");
-        log.info("Pet ID: {}", petId);
-        log.info("Received pet data - name: {}, breed: {}, personality: {}, imageUrl: {}", 
-                petDetails.getName(), petDetails.getBreed(), petDetails.getPersonality(), petDetails.getImageUrl());
-        log.info("Full pet details: {}", petDetails);
-        
         try {
             Pet updatedPet = petService.updatePet(petId, petDetails);
-            log.info("펫 수정 성공: {}", updatedPet.getName());
             return ResponseEntity.ok(updatedPet);
         } catch (Exception e) {
             log.error("Error updating pet: {}", e.getMessage(), e);
@@ -89,7 +77,6 @@ public class PetController {
     public ResponseEntity<Pet> updateAdoptionStatus(
             @PathVariable Long petId,
             @RequestParam Boolean adopted) {
-        log.info("Updating adoption status for pet {}: {}", petId, adopted);
         try {
             Pet updatedPet = petService.updateAdoptionStatus(petId, adopted);
             return ResponseEntity.ok(updatedPet);
@@ -104,7 +91,6 @@ public class PetController {
     public ResponseEntity<Pet> updatePetImageUrl(
             @PathVariable Long petId,
             @RequestParam String imageUrl) {
-        log.info("Updating image URL for pet with id: {}", petId);
         try {
             Pet updatedPet = petService.updatePetImageUrl(petId, imageUrl);
             return ResponseEntity.ok(updatedPet);
@@ -117,7 +103,6 @@ public class PetController {
     // 펫 삭제
     @DeleteMapping("/{petId}")
     public ResponseEntity<Void> deletePet(@PathVariable Long petId) {
-        log.info("Deleting pet with id: {}", petId);
         try {
             petService.deletePet(petId);
             return ResponseEntity.ok().build();

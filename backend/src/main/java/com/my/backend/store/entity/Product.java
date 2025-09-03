@@ -76,9 +76,7 @@ public class Product {
             try {
                 // 공백 제거 후 enum 변환
                 String trimmedCategory = categoryStr.trim();
-                System.out.println("카테고리 변환 시도: '" + trimmedCategory + "'");
                 this.category = Category.valueOf(trimmedCategory);
-                System.out.println("카테고리 변환 성공: " + this.category);
             } catch (IllegalArgumentException e) {
                 System.out.println("잘못된 카테고리 값: '" + categoryStr + "', 기본값 '용품'으로 설정");
                 System.out.println("사용 가능한 카테고리: " + java.util.Arrays.toString(Category.values()));

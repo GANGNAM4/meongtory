@@ -526,8 +526,6 @@ export default function CartPage() {
   }
 
   const handlePaymentSuccess = async (paymentInfo: any) => {
-    console.log('결제 성공 핸들러 호출됨 (토스페이먼츠 플로우에서는 실제로 호출되지 않음):', paymentInfo);
-    
     // 토스페이먼츠 플로우에서는 /payment/success 페이지에서 장바구니 정리가 이루어짐
     // 여기서는 단순히 상태만 정리
     setShowPayment(false)

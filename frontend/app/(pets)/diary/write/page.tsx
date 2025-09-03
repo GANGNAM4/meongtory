@@ -81,23 +81,15 @@ export default function GrowthDiaryWritePage({
   }, [toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    console.log("=== handleSubmit called ===");
     e.preventDefault();
     setError("");
 
     // 중복 제출 방지
     if (isSubmitting) {
-      console.log("=== Already submitting, ignoring request ===");
       return;
     }
 
-    console.log("Title:", title);
-    console.log("Content:", content);
-    console.log("Title trimmed:", title.trim());
-    console.log("Content trimmed:", content.trim());
-
     if (!title.trim() || !content.trim()) {
-      console.log("=== Validation failed ===");
       setError("제목과 내용을 모두 입력해주세요.");
       toast({
         title: "입력 오류",
@@ -107,16 +99,11 @@ export default function GrowthDiaryWritePage({
       return;
     }
 
-    console.log("=== Validation passed, proceeding with diary creation ===");
-    
     // 제출 상태 활성화 (버튼 비활성화 및 "작성 중..." 표시)
     setIsSubmitting(true);
 
     // 현재 로그인된 사용자의 실제 ID 가져오기
-    console.log("Getting userId from localStorage...");
     const userId = localStorage.getItem("userId");
-    console.log("userId from localStorage:", userId);
-    console.log("currentUserId prop:", currentUserId);
     
     let finalUserId = userId;
     if (!userId) {
@@ -201,9 +188,6 @@ export default function GrowthDiaryWritePage({
         petId: selectedPetId ? Number(selectedPetId) : undefined,
       };
 
-      console.log("Creating diary with data:", diaryData);
-      console.log("Calling createDiary API...");
-
       const result = await axios.post(`${getBackendUrl()}/api/diary`, diaryData, {
         headers: {
           "Access_Token": localStorage.getItem('accessToken') || '',
@@ -211,21 +195,14 @@ export default function GrowthDiaryWritePage({
         },
       });
 
-      console.log("Diary created successfully:", result);
-      console.log("Result type:", typeof result);
-      console.log("Result keys:", Object.keys(result));
-
       // 성공 토스트 메시지 표시
       toast({
         title: "작성 완료",
         description: "작성이 완료되었습니다!",
       });
       
-      console.log("=== Diary creation completed, calling onBack ===");
-      
       // 약간의 지연 후 뒤로가기 (토스트 메시지가 보이도록)
       setTimeout(() => {
-        console.log("=== Executing onBack callback ===");
         onBack();
       }, 1000);
     } catch (err: any) {

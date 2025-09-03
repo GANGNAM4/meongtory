@@ -696,7 +696,6 @@ export default function StorePage({
         // AI 검색 결과를 상태에 저장
         setAiSearchResults(results)
         setIsSearchMode(true) // 검색 모드 활성화
-        console.log('MyPet 기반 검색 결과:', results);
       }
     } catch (error) {
       console.error('MyPet 기반 검색 실패:', error);
@@ -788,8 +787,6 @@ export default function StorePage({
         searchCount: naverProduct.searchCount || 0
       };
       
-      console.log("장바구니 추가 요청 데이터:", requestData);
-      
       // 네이버 상품 전용 API 사용
       const response = await axios.post(`${getBackendUrl()}/api/naver-shopping/cart/add`, requestData, {
         params: { quantity: 1 },
@@ -798,8 +795,6 @@ export default function StorePage({
           "Content-Type": "application/json"
         }
       });
-      
-      console.log("장바구니 추가 응답:", response.data);
       
       if (response.status === 200 && response.data.success) {
         alert("네이버 상품이 장바구니에 추가되었습니다!");
@@ -1296,19 +1291,12 @@ export default function StorePage({
                 <CardContent className="p-4">
                   <div className="mb-2" onClick={() => {
                     try {
-                      console.log('네이버 상품 클릭됨:', naverProduct);
-                      console.log('similarity:', naverProduct.similarity);
-                      console.log('id:', naverProduct.id);
-                      console.log('productId:', naverProduct.productId);
-                      
                       if (typeof onViewProduct === 'function') {
                         onViewProduct(naverProduct);
                       } else {
                         // onViewProduct가 없으면 직접 라우팅
                         // 모든 경우에 productId를 사용 (백엔드 API가 productId로 조회)
                         let productId = naverProduct.productId;
-                        console.log('상품 상세 페이지로 이동 - productId 사용:', productId);
-                        
                         if (!productId) {
                           console.error('productId가 없음:', naverProduct);
                           return;
@@ -1316,7 +1304,6 @@ export default function StorePage({
                         
                         const encodedId = encodeURIComponent(productId);
                         const targetUrl = `/store/naver/${encodedId}`;
-                        console.log('네이버 상품 상세 페이지로 이동:', targetUrl);
                         window.location.href = targetUrl;
                       }
                     } catch (error) {

@@ -76,31 +76,19 @@ public class SearchService {
      */
     public List<SearchResponseDto> searchByEmbedding(SearchRequestDto searchRequest) {
         try {
-            log.info("=== SearchService.searchByEmbedding 시작 (임베딩 기반 유사도 검색) ===");
-            
             String query = searchRequest.getQuery();
             int limit = searchRequest.getLimit() != null ? searchRequest.getLimit() : 10;
             
             // 검색어 전처리
             query = preprocessQuery(query);
             
-            log.info("원본 검색어: '{}'", searchRequest.getQuery());
-            log.info("전처리된 검색어: '{}'", query);
-            log.info("제한 개수: {}", limit);
-            log.info("검색 방식: 임베딩 기반 유사도 검색 (AI 기반)");
-            
             if (query == null || query.trim().isEmpty() || query.trim().length() < 2) {
                 log.error("검색어가 비어있거나 너무 짧습니다.");
                 throw new IllegalArgumentException("검색어가 비어있거나 너무 짧습니다. (최소 2글자 필요)");
             }
             
-            log.info("AI 서비스 임베딩 검색 API 호출 시작: '{}', limit: {}", query, limit);
-            
             // AI 서비스의 임베딩 검색 API 호출
             List<SearchResponseDto> results = callAIServiceEmbeddingSearch(query, limit);
-            
-            log.info("AI 서비스 임베딩 검색 완료: {}개 결과", results.size());
-            log.info("=== SearchService.searchByEmbedding 완료 (임베딩 기반 유사도 검색) ===");
             
             return results;
             
@@ -117,22 +105,14 @@ public class SearchService {
         try {
             String aiServiceUrl = "http://ai:9000/search-embeddings";
             
-            log.info("=== AI 서비스 임베딩 검색 호출 시작 ===");
-            log.info("AI 서비스 URL: {}", aiServiceUrl);
-            log.info("검색어: {}", query);
-            log.info("제한 개수: {}", limit);
-            
             // 요청 데이터 생성
             Map<String, Object> requestData = new HashMap<>();
             requestData.put("query", query);
             requestData.put("limit", limit);
             
-            log.info("AI 서비스 요청 데이터: {}", requestData);
-            
             // ObjectMapper를 사용하여 JSON 직렬화 확인
             ObjectMapper objectMapper = new ObjectMapper();
             String jsonRequest = objectMapper.writeValueAsString(requestData);
-            log.info("JSON 직렬화된 요청 데이터: {}", jsonRequest);
             
             // RestTemplate을 사용하여 AI 서비스 호출
             RestTemplate restTemplate = new RestTemplate();
@@ -141,12 +121,7 @@ public class SearchService {
             
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestData, headers);
             
-            log.info("AI 서비스 호출 시작...");
-            
             ResponseEntity<Map> response = restTemplate.postForEntity(aiServiceUrl, entity, Map.class);
-            
-            log.info("AI 서비스 응답 상태 코드: {}", response.getStatusCode());
-            log.info("AI 서비스 응답 바디: {}", response.getBody());
             
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 Map<String, Object> responseBody = response.getBody();
@@ -154,7 +129,6 @@ public class SearchService {
                 
                 if (success != null && success) {
                     List<Map<String, Object>> results = (List<Map<String, Object>>) responseBody.get("results");
-                    log.info("AI 서비스 응답 성공: {}개 결과", results != null ? results.size() : 0);
                     
                     // AI 서비스 응답을 SearchResponseDto로 변환
                     return convertAIServiceResponseToSearchResponseDto(results);
@@ -227,8 +201,6 @@ public class SearchService {
      */
     private SearchResponseDto convertToSearchResponseDtoFromId(Object[] result) {
         try {
-            log.info("DTO 변환 시작: Object[] 길이 = {}", result.length);
-            
             // Object[] 구조: [id, similarity]
             Long id = safeCastToLong(result[0]);
             Double distance = safeCastToDouble(result[1]); // Euclidean distance
@@ -237,16 +209,12 @@ public class SearchService {
             // 거리가 0에 가까울수록 유사도 1, 거리가 클수록 유사도 0에 가까워짐
             Double similarity = convertDistanceToSimilarity(distance);
             
-            log.info("상품 ID: {}, 원본 거리: {}, 변환된 유사도: {}", id, distance, similarity);
-            
             // ID로 상품 조회
             NaverProduct product = naverProductRepository.findById(id).orElse(null);
             if (product == null) {
                 log.warn("상품을 찾을 수 없습니다: id = {}", id);
                 return null;
             }
-            
-            log.info("상품 조회 완료: {}", product.getTitle());
             
             SearchResponseDto dto = SearchResponseDto.builder()
                     .id(product.getId())
@@ -272,7 +240,6 @@ public class SearchService {
                     .similarity(similarity) // 변환된 유사도 점수 사용
                     .build();
             
-            log.info("DTO 변환 완료: {}", dto.getTitle());
             return dto;
             
         } catch (Exception e) {

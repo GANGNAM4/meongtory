@@ -92,13 +92,8 @@ export async function fetchDiaries(
   sort: string = "latest",
   date?: string
 ): Promise<DiaryPageResponse> {
-  console.log("=== fetchDiaries called ===");
-  console.log("Category filter:", category);
-  console.log("Page:", page, "Size:", size, "Sort:", sort);
-  console.log("Date filter:", date);
   
   const accessToken = getAccessTokenOrRedirect();
-  console.log("Access token obtained:", accessToken ? "Yes" : "No");
 
   let url = `${getBackendUrl()}/api/diary?page=${page}&size=${size}&sort=${sort}`;
   if (date) {
@@ -107,26 +102,12 @@ export async function fetchDiaries(
     url += `&category=${encodeURIComponent(category)}`;
   }
     
-  console.log("Making request to:", url);
-  console.log("Request headers:", {
-    "Access_Token": accessToken, 
-  });
-
   try {
     const response = await axios.get(url, {
       headers: {
         "Access_Token": accessToken, 
       },
     });
-
-    console.log("=== fetchDiaries success ===");
-    console.log("Response status:", response.status);
-    console.log("Response headers:", response.headers["content-type"]);
-    console.log("Raw response data:", response.data);
-    console.log("Data type:", typeof response.data);
-    console.log("Is page response:", response.data.content !== undefined);
-    console.log("Content length:", response.data.content?.length);
-    console.log("Total pages:", response.data.totalPages);
     
     return response.data;
   } catch (error: any) {
@@ -144,16 +125,8 @@ export async function fetchDiaries(
 }
 
 export async function fetchDiary(diaryId: number): Promise<DiaryEntry> {
-  console.log("=== fetchDiary called ===");
-  console.log("Diary ID:", diaryId);
   
   const accessToken = getAccessTokenOrRedirect();
-  console.log("Access token obtained:", accessToken ? "Yes" : "No");
-
-  console.log("Making GET request to:", `${getBackendUrl()}/api/diary/${diaryId}`);
-  console.log("Request headers:", {
-    "Access_Token": accessToken,
-  });
 
   try {
     const response = await axios.get(`${getBackendUrl()}/api/diary/${diaryId}`, {
@@ -162,10 +135,6 @@ export async function fetchDiary(diaryId: number): Promise<DiaryEntry> {
       },
     });
 
-    console.log("=== fetchDiary success ===");
-    console.log("Response status:", response.status);
-    console.log("Response data:", response.data);
-    
     return response.data;
   } catch (error: any) {
     console.error("=== fetchDiary error ===");
@@ -183,18 +152,10 @@ export async function fetchDiary(diaryId: number): Promise<DiaryEntry> {
 }
 
 export async function createDiary(diaryData: CreateDiaryRequest): Promise<DiaryEntry> {
-  console.log("=== createDiary called ===");
-  console.log("diaryData:", diaryData);
   
   const accessToken = getAccessTokenOrRedirect();
-  console.log("Access token obtained:", accessToken ? "Yes" : "No");
 
   try {
-    console.log("Making POST request to:", `${getBackendUrl()}/api/diary`);
-    console.log("Request headers:", {
-      "Access_Token": accessToken,
-      "Content-Type": "application/json",
-    });
     
     const response = await axios.post(`${getBackendUrl()}/api/diary`, diaryData, {
       headers: {
@@ -203,10 +164,6 @@ export async function createDiary(diaryData: CreateDiaryRequest): Promise<DiaryE
       },
     });
 
-    console.log("=== createDiary success ===");
-    console.log("Response status:", response.status);
-    console.log("Response data:", response.data);
-    
     return response.data;
   } catch (error: any) {
     console.error("=== createDiary error ===");

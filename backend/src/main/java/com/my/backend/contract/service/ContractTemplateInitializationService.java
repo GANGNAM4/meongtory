@@ -31,8 +31,6 @@ public class ContractTemplateInitializationService implements CommandLineRunner 
             return;
         }
         
-        log.info("기본 계약서 템플릿을 생성합니다.");
-        
         // 입양계약서 템플릿
         ContractTemplate adoptionTemplate = ContractTemplate.builder()
                 .name("표준 입양계약서")
@@ -136,7 +134,5 @@ public class ContractTemplateInitializationService implements CommandLineRunner 
         );
         
         contractSectionRepository.saveAll(saleSections);
-        
-        log.info("기본 계약서 템플릿 생성 완료: {}개", contractTemplateRepository.count());
     }
 } 

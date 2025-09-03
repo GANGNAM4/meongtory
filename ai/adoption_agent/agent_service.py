@@ -18,12 +18,11 @@ logger = logging.getLogger(__name__)
 
 class AgentStage(Enum):
     """Agent 진행 단계"""
-    INITIAL = "initial"           # 초기 상태
-    PET_SEARCH = "pet_search"     # 강아지 검색 중
-    PET_SELECTED = "pet_selected" # 강아지 선택 완료
-    INSURANCE = "insurance"       # 보험 추천 중
-    PRODUCTS = "products"         # 상품 추천 중
-    COMPLETED = "completed"       # 모든 단계 완료
+    INITIAL = "initial"               # 초기 상태
+    PET_SEARCH = "pet_search"         # 강아지 검색 중
+    PET_SELECTED = "pet_selected"     # 강아지 선택 완료
+    RECOMMENDATIONS = "recommendations" # 보험 및 상품 추천 중
+    COMPLETED = "completed"           # 모든 단계 완료
 
 class AgentSession:
     """개별 사용자 세션"""
@@ -197,15 +196,11 @@ class AdoptionAgentService:
                 self._extract_selected_pet(session, ai_response)
                 logger.info(f"세션 {session.session_id}: PET_SELECTED 단계로 진행")
                 
-            elif "보험" in ai_response and "추천" in ai_response and session.stage == AgentStage.PET_SELECTED:
-                session.stage = AgentStage.INSURANCE
-                logger.info(f"세션 {session.session_id}: INSURANCE 단계로 진행")
+            elif (("보험" in ai_response and "추천" in ai_response) or ("상품" in ai_response and "추천" in ai_response)) and session.stage == AgentStage.PET_SELECTED:
+                session.stage = AgentStage.RECOMMENDATIONS
+                logger.info(f"세션 {session.session_id}: RECOMMENDATIONS 단계로 진행 (보험 및 상품 통합 추천)")
                 
-            elif "상품" in ai_response and "추천" in ai_response and session.stage == AgentStage.INSURANCE:
-                session.stage = AgentStage.PRODUCTS
-                logger.info(f"세션 {session.session_id}: PRODUCTS 단계로 진행")
-                
-            elif "추천" in ai_response and "완료" in ai_response and session.stage == AgentStage.PRODUCTS:
+            elif ("완료" in ai_response or ("보험" in ai_response and "상품" in ai_response)) and session.stage == AgentStage.RECOMMENDATIONS:
                 session.stage = AgentStage.COMPLETED
                 logger.info(f"세션 {session.session_id}: COMPLETED 단계 완료")
                 
@@ -241,17 +236,12 @@ class AdoptionAgentService:
             },
             AgentStage.PET_SELECTED: {
                 "title": "강아지 선택 완료",
-                "description": "선택하신 강아지에 맞는 보험을 추천드릴게요",
-                "next": "보험 추천"
+                "description": "선택하신 강아지에 맞는 보험과 용품을 함께 추천드릴게요",
+                "next": "통합 추천"
             },
-            AgentStage.INSURANCE: {
-                "title": "보험 추천",
-                "description": "적합한 보험 상품을 추천드리고 있습니다", 
-                "next": "상품 추천"
-            },
-            AgentStage.PRODUCTS: {
-                "title": "상품 추천",
-                "description": "입양 준비 상품을 추천드리고 있습니다",
+            AgentStage.RECOMMENDATIONS: {
+                "title": "보험 및 상품 추천",
+                "description": "맞춤형 보험과 입양 준비 용품을 추천드리고 있습니다",
                 "next": "완료"
             },
             AgentStage.COMPLETED: {
@@ -267,10 +257,9 @@ class AdoptionAgentService:
         """진행률 계산"""
         stage_progress = {
             AgentStage.INITIAL: 0,
-            AgentStage.PET_SEARCH: 20,
-            AgentStage.PET_SELECTED: 40,
-            AgentStage.INSURANCE: 70,
-            AgentStage.PRODUCTS: 90,
+            AgentStage.PET_SEARCH: 25,
+            AgentStage.PET_SELECTED: 50,
+            AgentStage.RECOMMENDATIONS: 85,
             AgentStage.COMPLETED: 100
         }
         

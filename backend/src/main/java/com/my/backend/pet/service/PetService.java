@@ -48,16 +48,13 @@ public class PetService {
     // 펫 등록
     @Transactional
     public Pet createPet(Pet pet) {
-        log.info("Creating new pet: {}", pet.getName());
         
         // 이미지가 Base64 형태로 전달된 경우 S3에 업로드
         if (pet.getImageUrl() != null && pet.getImageUrl().startsWith("data:")) {
-            log.info("Base64 이미지 감지됨 - S3 업로드 시작");
             try {
                 // Base64 이미지를 S3에 업로드하고 URL 반환
                 String s3ImageUrl = s3Service.uploadBase64Image(pet.getImageUrl());
                 pet.setImageUrl(s3ImageUrl);
-                log.info("S3 업로드 완료: {}", s3ImageUrl);
             } catch (Exception e) {
                 log.error("S3 업로드 실패: {}", e.getMessage());
                 e.printStackTrace();
@@ -103,19 +100,16 @@ public class PetService {
         
         // 이미지가 Base64 형태로 전달된 경우 S3에 업로드
         if (petDetails.getImageUrl() != null && petDetails.getImageUrl().startsWith("data:")) {
-            log.info("Base64 이미지 감지됨 - S3 업로드 시작");
             try {
                 // Base64 이미지를 S3에 업로드하고 URL 반환
                 String s3ImageUrl = s3Service.uploadBase64Image(petDetails.getImageUrl());
                 pet.setImageUrl(s3ImageUrl);
-                log.info("S3 업로드 완료: {}", s3ImageUrl);
                 
                 // 기존 S3 이미지가 있으면 삭제 (입양 펫용)
                 if (oldImageUrl != null && oldImageUrl.startsWith("https://")) {
                     try {
                         String fileName = oldImageUrl.substring(oldImageUrl.lastIndexOf("/") + 1);
                         s3Service.deleteAdoptionPetImage(fileName);
-                        log.info("기존 입양 펫 S3 이미지 삭제 완료: {}", fileName);
                     } catch (Exception e) {
                         log.error("기존 입양 펫 S3 이미지 삭제 실패: {}", e.getMessage());
                     }
@@ -134,8 +128,6 @@ public class PetService {
             // imageUrl이 null인 경우 기존 이미지 유지
             log.info("imageUrl이 null - 기존 이미지 유지: {}", oldImageUrl);
         }
-        
-        log.info("Updated pet: {}", pet.getName());
         return petRepository.save(pet);
     }
     
@@ -147,7 +139,6 @@ public class PetService {
         
         pet.setImageUrl(imageUrl);
         
-        log.info("Updated pet image URL: {} for pet: {}", imageUrl, pet.getName());
         return petRepository.save(pet);
     }
     
@@ -158,7 +149,6 @@ public class PetService {
                 .orElseThrow(() -> new RuntimeException("Pet not found with id: " + petId));
         
         pet.setAdopted(adopted);
-        log.info("Updated adoption status for pet {}: {}", pet.getName(), adopted);
         return petRepository.save(pet);
     }
     
@@ -168,13 +158,11 @@ public class PetService {
         Pet pet = petRepository.findById(petId)
                 .orElseThrow(() -> new RuntimeException("Pet not found with id: " + petId));
         
-        log.info("Deleting pet: {}", pet.getName());
         
         // 관련된 입양신청들 먼저 삭제
         try {
             // 해당 펫에 대한 모든 입양신청 삭제
             int deletedRequests = adoptionRequestRepository.deleteByPetId(petId);
-            log.info("펫 {}에 대한 {}개의 입양신청이 삭제되었습니다.", pet.getName(), deletedRequests);
         } catch (Exception e) {
             log.error("입양신청 삭제 중 오류: {}", e.getMessage());
             throw new RuntimeException("입양신청 삭제 중 오류가 발생했습니다: " + e.getMessage());
@@ -186,7 +174,6 @@ public class PetService {
                 // URL에서 파일명 추출
                 String fileName = pet.getImageUrl().substring(pet.getImageUrl().lastIndexOf("/") + 1);
                 s3Service.deleteAdoptionPetImage(fileName);
-                log.info("입양 펫 S3 이미지 삭제 완료: {}", fileName);
             } catch (Exception e) {
                 log.error("입양 펫 S3 이미지 삭제 실패: {}", e.getMessage());
                 // 삭제 실패해도 계속 진행

@@ -239,7 +239,6 @@ export default function AdminPage({
   }
 
   const handleViewContractFromTab = async (pet: Pet) => {
-    console.log("계약서 보기 시작:", pet)
     try {
       // 모든 계약서를 가져온 후 해당 동물의 계약서를 필터링
       const response = await axios.get(`${getBackendUrl()}/api/contract-generation/user`, {
@@ -269,7 +268,6 @@ export default function AdminPage({
         })
         
         if (petContract) {
-          console.log("찾은 계약서:", petContract)
           setSelectedContract(petContract)
           setSelectedPetForEdit(pet) // pet 정보 저장
           // AI 계약서 탭으로 이동
@@ -363,7 +361,6 @@ export default function AdminPage({
           'Refresh_Token': localStorage.getItem("refreshToken") || '',
         },
       });
-      console.log('Raw product data from API:', JSON.stringify(response.data, null, 2));
 
       // ResponseDto 구조 확인
       if (!response.data || !response.data.success) {
@@ -376,7 +373,6 @@ export default function AdminPage({
       }
 
       const convertedProducts = productsData.map((product: any, index: number) => {
-        console.log(`Converting product ${index + 1}:`, product);
         return {
           id: product.id || product.productId || 0,
           name: product.name || product.productName || '이름 없음',
@@ -394,8 +390,6 @@ export default function AdminPage({
           registeredBy: product.registered_by || product.registeredBy || 'admin',
         };
       });
-
-      console.log('Converted products:', convertedProducts);
 
       const sortedProducts = convertedProducts.sort((a: Product, b: Product) => {
         const dateA = new Date(a.registrationDate).getTime();

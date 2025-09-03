@@ -36,27 +36,21 @@ public class PaymentService {
      */
     @Transactional
     public TossPayment savePaymentInfo(ConfirmPaymentRequest request, String tossResponseBody, Account account) {
-        log.info("결제 정보 저장 시작: paymentKey={}, orderId={}", request.paymentKey(), request.orderId());
-        log.info("응답 본문 길이: {}", tossResponseBody != null ? tossResponseBody.length() : "null");
-        log.info("응답 본문: {}", tossResponseBody);
         
         JsonNode jsonNode;
         try {
             jsonNode = objectMapper.readTree(tossResponseBody);
-            log.info("JSON 파싱 성공");
         } catch (Exception e) {
             log.error("JSON 파싱 실패: {}", e.getMessage(), e);
             throw new RuntimeException("토스페이먼츠 응답 파싱 실패", e);
         }
 
         // 주문 정보 조회 (일반 상품 + 네이버 상품)
-        log.info("주문 정보 조회 시작: orderId={}", request.orderId());
         Order order;
         try {
             order = orderRepository.findByMerchantOrderId(request.orderId())
                     .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다. orderId: " + request.orderId()));
-            log.info("주문 정보 조회 완료: orderId={}, merchantOrderId={}, isNaverProduct={}", 
-                    order.getId(), order.getMerchantOrderId(), order.getNaverProduct() != null);
+
         } catch (Exception e) {
             log.error("주문 정보 조회 실패: {}", e.getMessage(), e);
             throw new RuntimeException("주문 정보 처리 실패", e);
@@ -112,9 +106,6 @@ public class PaymentService {
                 .metadata(extractMetadata(jsonNode))
                 .build();
 
-        log.info("결제 정보 저장 완료: paymentKey={}, orderId={}, status={}", 
-                request.paymentKey(), request.orderId(), status);
-        
         TossPayment savedPayment = tossPaymentRepository.save(payment);
         
         // 결제 성공 시 주문 상태 업데이트
@@ -123,7 +114,6 @@ public class PaymentService {
             order.setStatus(OrderStatus.PAID);
             order.setPaidAt(LocalDateTime.now());
             orderRepository.save(order);
-            log.info("주문 상태 업데이트 완료: orderId={}, status=PAID", request.orderId());
             
             // 같은 사용자의 다른 CREATED 상태 주문들도 함께 PAID로 업데이트
             List<Order> relatedOrders = orderRepository.findByAccountAndStatusAndCreatedAtBetween(
@@ -138,11 +128,8 @@ public class PaymentService {
                     relatedOrder.setStatus(OrderStatus.PAID);
                     relatedOrder.setPaidAt(LocalDateTime.now());
                     orderRepository.save(relatedOrder);
-                    log.info("관련 주문 상태 업데이트 완료: orderId={}, status=PAID", relatedOrder.getMerchantOrderId());
                 }
             }
-            
-            log.info("총 {}개의 주문이 PAID 상태로 업데이트되었습니다.", relatedOrders.size() + 1);
         }
         
         return savedPayment;
@@ -152,7 +139,6 @@ public class PaymentService {
      * 주문 ID로 결제 정보 조회
      */
     public TossPayment getPaymentByOrderId(String orderId) {
-        log.info("결제 정보 조회: orderId={}", orderId);
         return tossPaymentRepository.findByOrder_MerchantOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다. orderId: " + orderId));
     }
@@ -161,7 +147,6 @@ public class PaymentService {
      * 결제 키로 결제 정보 조회
      */
     public TossPayment getPaymentByPaymentKey(String paymentKey) {
-        log.info("결제 정보 조회: paymentKey={}", paymentKey);
         return tossPaymentRepository.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다. paymentKey: " + paymentKey));
     }
@@ -183,11 +168,8 @@ public class PaymentService {
             Order order = payment.getOrder();
             if (order != null) {
                 orderService.updateOrderStatus(order.getId(), OrderStatus.CANCELED);
-                log.info("결제 취소로 인한 주문 상태 업데이트: orderId={}, status=CANCELED", order.getId());
             }
         }
-        
-        log.info("결제 상태 업데이트: paymentKey={}, status={}", paymentKey, status);
     }
 
     /**

@@ -82,8 +82,6 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
           },
         });
 
-        console.log('상품 조회 응답:', response.data);
-
         // ResponseDto 형태로 응답이 오므로 response.data.data를 사용
         if (!response.data || !response.data.success) {
           throw new Error(response.data?.error?.message || "API 응답이 올바르지 않습니다.");
@@ -215,8 +213,6 @@ function StoreProductEditPageContent({ productId: propProductId, onBack, onSave 
           'Content-Type': 'application/json',
         },
       });
-
-      console.log('상품 수정 응답:', response.data);
 
       // ResponseDto 형태로 응답이 오므로 response.data.success를 확인
       if (!response.data || !response.data.success) {

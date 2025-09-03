@@ -36,8 +36,6 @@ public class GlobalSearchService {
      * 통합 검색 수행
      */
     public SearchResponseDto performSearch(Long userId, SearchRequestDto request) {
-        log.info("Performing search for user: {}, query: {}, petId: {}, type: {}", 
-                userId, request.getQuery(), request.getPetId(), request.getSearchType());
 
         // MyPet 정보 조회
         PetBasedSearchDto petInfo = getPetInfo(userId, request.getPetId());
@@ -84,8 +82,6 @@ public class GlobalSearchService {
      * Store 검색 - AI 서비스 호출
      */
     private List<Object> searchStore(String query, PetBasedSearchDto petInfo) {
-        log.info("Searching store with query: {}, pet: {}", query, petInfo);
-        
         try {
             // AI 서비스의 MyPet 태깅 검색 호출
             String aiServiceUrl = "http://ai:9000/search/mypet";
@@ -103,9 +99,6 @@ public class GlobalSearchService {
             
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestData, headers);
             
-            log.info("AI 서비스 호출 URL: {}", aiServiceUrl);
-            log.info("AI 서비스 요청 데이터: {}", requestData);
-            
             ResponseEntity<Map> response = restTemplate.postForEntity(aiServiceUrl, entity, Map.class);
             
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
@@ -114,7 +107,6 @@ public class GlobalSearchService {
                 
                 if (success != null && success) {
                     List<Map<String, Object>> results = (List<Map<String, Object>>) responseBody.get("data");
-                    log.info("AI 서비스 MyPet 검색 성공: {}개 결과", results != null ? results.size() : 0);
                     return new ArrayList<>(results);
                 } else {
                     log.warn("AI 서비스 MyPet 검색 실패: {}", responseBody.get("message"));
@@ -137,11 +129,6 @@ public class GlobalSearchService {
     private List<Object> getStoreRecommendations(PetBasedSearchDto petInfo) {
         if (petInfo == null) return new ArrayList<>();
         
-        log.info("Getting store recommendations for pet: {}", petInfo);
-        
-        // AI 서비스의 MyPet 태깅 시스템을 사용하므로 빈 리스트 반환
-        // 실제 추천은 AI 서비스(embedding_update.py)에서 수행
-        log.info("Delegating store recommendations to AI service (embedding_update.py)");
         return new ArrayList<>();
     }
 
@@ -149,7 +136,6 @@ public class GlobalSearchService {
      * Insurance 검색 - AI 서비스에 위임
      */
     private List<Object> searchInsurance(String query, PetBasedSearchDto petInfo) {
-        log.info("Searching insurance with query: {}, pet: {}", query, petInfo);
         
         try {
             // AI 서비스 호출하여 고급 필터링 수행
@@ -167,20 +153,17 @@ public class GlobalSearchService {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestData, headers);
             
             String aiEndpoint = "http://ai:9000/chatbot/insurance";
-            log.info("AI 서비스 호출: {}", aiEndpoint);
             
             ResponseEntity<Map> response = restTemplate.postForEntity(aiEndpoint, entity, Map.class);
             
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 Map<String, Object> responseBody = response.getBody();
                 String aiAnswer = (String) responseBody.get("answer");
-                log.info("AI 서비스 응답: {}", aiAnswer);
                 
                 // AI 응답에서 추천된 보험사명 추출하여 필터링
                 List<InsuranceProduct> allProducts = insuranceProductRepository.findAll();
                 List<InsuranceProduct> filteredProducts = filterProductsByAIResponse(allProducts, aiAnswer);
                 
-                log.info("AI 필터링 결과: {}개 상품", filteredProducts.size());
                 return new ArrayList<>(filteredProducts);
             } else {
                 log.warn("AI 서비스 호출 실패: {}", response.getStatusCode());
@@ -241,12 +224,8 @@ public class GlobalSearchService {
      */
     private List<Object> getInsuranceRecommendations(PetBasedSearchDto petInfo) {
         if (petInfo == null) return new ArrayList<>();
-        
-        log.info("Getting insurance recommendations for pet: {}", petInfo);
-        
         // AI 서비스의 고급 추천 시스템을 사용하므로 빈 리스트 반환
         // 실제 추천은 AI 서비스(insurance_rag.py)에서 수행
-        log.info("Delegating insurance recommendations to AI service");
         return new ArrayList<>();
     }
 

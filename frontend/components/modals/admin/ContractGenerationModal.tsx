@@ -67,7 +67,6 @@ export default function ContractGenerationModal({
       let petData = null
       if (adoptionRequest.petId) {
         try {
-          console.log("Pet API 호출 시작:", `${getBackendUrl()}/api/pets/${adoptionRequest.petId}`)
           const petResponse = await axios.get(`${getBackendUrl()}/api/pets/${adoptionRequest.petId}`, {
             headers: {
               'Authorization': accessToken,
@@ -77,7 +76,6 @@ export default function ContractGenerationModal({
           
           if (petResponse.data.success) {
             petData = petResponse.data.data
-            console.log("가져온 완전한 pet 데이터:", petData)
           } else {
             console.log("Pet API 응답 실패:", petResponse.data)
           }
@@ -101,7 +99,6 @@ export default function ContractGenerationModal({
           vaccinated: adoptionRequest.petVaccinated || false,
           neutered: adoptionRequest.petNeutered || false
         }
-        console.log("adoptionRequest 정보로 기본값 설정:", petData)
       }
 
       // userInfo 기본값 설정
@@ -110,12 +107,6 @@ export default function ContractGenerationModal({
         phone: adoptionRequest.contactNumber || "알 수 없음",
         email: adoptionRequest.email || "알 수 없음"
       }
-
-      // 데이터 검증
-      console.log("선택된 템플릿 ID:", selectedTemplate)
-      console.log("템플릿 데이터:", selectedTemplateData)
-      console.log("Pet 정보:", petData)
-      console.log("신청자 정보:", userInfo)
 
       const requestData = {
         templateId: selectedTemplate,
@@ -129,8 +120,6 @@ export default function ContractGenerationModal({
         userInfo: userInfo,
         additionalInfo: adoptionRequest.message || ""
       }
-
-      console.log("AI 서비스 요청 데이터:", JSON.stringify(requestData, null, 2))
 
       // AI 서비스 호출 시도
       let response
@@ -162,9 +151,6 @@ export default function ContractGenerationModal({
         }
       }
 
-      console.log("AI 서비스 응답:", response.data)
-      console.log("AI 서비스 응답 구조:", JSON.stringify(response.data, null, 2))
-
       // petData를 백엔드 형식에 맞게 변환
       const formattedPetInfo = {
         petId: petData?.petId || null,
@@ -177,8 +163,6 @@ export default function ContractGenerationModal({
         vaccinated: petData?.vaccinated || adoptionRequest.petVaccinated || false,
         neutered: petData?.neutered || adoptionRequest.petNeutered || false
       }
-
-      console.log("formattedPetInfo:", formattedPetInfo)
 
       // 생성된 계약서를 백엔드에 저장
       const contractData = {
@@ -201,8 +185,6 @@ export default function ContractGenerationModal({
         content: response.data.data?.content || response.data.content
       }
 
-      console.log("백엔드에 보낼 계약서 데이터:", JSON.stringify(contractData, null, 2))
-
       // 백엔드에 계약서 저장
       let saveResponse
       try {
@@ -219,12 +201,8 @@ export default function ContractGenerationModal({
         throw new Error(`계약서 저장에 실패했습니다: ${saveError.response?.data?.message || saveError.message}`)
       }
       
-      console.log("백엔드 저장 응답:", saveResponse.data)
-      console.log("백엔드 저장 응답 구조:", JSON.stringify(saveResponse.data, null, 2))
-      
       // 저장된 계약서 ID 받기
       const savedContractId = saveResponse.data.data?.id || saveResponse.data.id
-      console.log("저장된 계약서 ID:", savedContractId)
       
       if (!savedContractId) {
         console.error("계약서 ID를 받지 못함:", saveResponse.data)
@@ -233,7 +211,6 @@ export default function ContractGenerationModal({
       
       // PDF URL 저장
       const pdfUrl = saveResponse.data.data?.pdfUrl || saveResponse.data.pdfUrl
-      console.log("생성된 PDF URL:", pdfUrl)
       
       setGeneratedContract(response.data.data?.content || response.data.content)
       
@@ -286,7 +263,6 @@ export default function ContractGenerationModal({
       const pdfUrl = localStorage.getItem(`contract_pdf_url_${contractId}`)
       
       if (pdfUrl && pdfUrl.startsWith('http')) {
-        console.log("S3 URL에서 PDF 다운로드 시도:", pdfUrl)
         
         try {
           const response = await axios.get(pdfUrl, {
@@ -334,8 +310,6 @@ export default function ContractGenerationModal({
         return
       }
 
-      console.log("백엔드 API에서 PDF 다운로드 시도:", `${getBackendUrl()}/api/contract-generation/${contractId}/download`)
-
       const response = await axios.get(`${getBackendUrl()}/api/contract-generation/${contractId}/download`, {
         responseType: 'blob',
         headers: {
@@ -344,9 +318,6 @@ export default function ContractGenerationModal({
         },
         timeout: 30000
       })
-      
-      console.log("PDF 다운로드 응답 상태:", response.status)
-      console.log("PDF 다운로드 응답 헤더:", response.headers)
       
       const blob = new Blob([response.data], { type: 'application/pdf' })
       const url = window.URL.createObjectURL(blob)
@@ -544,7 +515,6 @@ export default function ContractGenerationModal({
                           className="bg-white text-black border border-gray-300 hover:bg-gray-50"
                           onClick={() => {
                             if (generatedContractId) {
-                              console.log("PDF 다운로드 시작, 계약서 ID:", generatedContractId)
                               handleDownloadContract(generatedContractId)
                             } else {
                               console.error("generatedContractId가 없음:", generatedContractId)

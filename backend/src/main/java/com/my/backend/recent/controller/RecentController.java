@@ -38,22 +38,13 @@ public class RecentController {
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @RequestParam String productType) {
         
-        System.out.println("=== 최근 본 상품 추가 요청 ===");
-        System.out.println("productId: " + productId + " (타입: " + (productId != null ? productId.getClass().getSimpleName() : "null") + ")");
-        System.out.println("productType: " + productType);
-        System.out.println("userDetails: " + (userDetails != null ? "존재" : "null"));
-        
         if (userDetails == null) {
-            System.out.println("사용자 정보가 없음");
             return ResponseEntity.ok(ResponseDto.success(null));
         }
-        
-        System.out.println("사용자 ID: " + userDetails.getAccount().getId());
         
         try {
             recentProductService.addToRecentProducts(
                     userDetails.getAccount().getId(), productId, productType);
-            System.out.println("최근 본 상품 추가 성공");
             return ResponseEntity.ok(ResponseDto.success(null));
         } catch (Exception e) {
             System.out.println("최근 본 상품 추가 실패: " + e.getMessage());

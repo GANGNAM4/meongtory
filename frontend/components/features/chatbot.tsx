@@ -123,8 +123,6 @@ export default function Chatbot() {
     // 커서 앞에서 가장 가까운 @태그 찾기
     const atTagMatch = beforeCursor.match(/@([ㄱ-ㅎ가-힣a-zA-Z0-9_]*)$/)
     
-    console.log('handleInputChange 호출됨:', { value, position, beforeCursor, afterCursor, atTagMatch })
-    
     if (atTagMatch) {
       const keyword = atTagMatch[1]
       

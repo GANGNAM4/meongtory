@@ -106,11 +106,6 @@ export function ProductRecommendationCard({
           onClick={(e) => {
             e.stopPropagation(); // 카드 클릭 이벤트 전파 방지
             const productId = product.id || product.productId || 0;
-            console.log('추천 상품 장바구니 버튼 클릭:', {
-              productId: productId,
-              product: product,
-              onAddToCart: typeof onAddToCart
-            });
             onAddToCart?.(productId, product);
           }}
           className="w-full bg-yellow-400 hover:bg-yellow-500 text-black"

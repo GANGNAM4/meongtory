@@ -90,9 +90,6 @@ public class DiaryService {
                 Arrays.stream(imageCategories)
         ).distinct().toArray(String[]::new);
         
-        log.info("일기 생성 - 텍스트 카테고리: {}, 이미지 카테고리: {}, 최종 카테고리: {}", 
-                Arrays.toString(textCategories), Arrays.toString(imageCategories), Arrays.toString(categories));
-        
         diary.setCategories(categories);
 
         return DiaryResponseDto.from(diaryRepository.save(diary));
@@ -102,7 +99,6 @@ public class DiaryService {
         try {
             // S3에 이미지 업로드 (/diary/images/ 폴더에 저장)
             String imageUrl = s3Service.uploadDiaryImage(imageFile.getOriginalFilename(), imageFile.getBytes());
-            log.info("이미지 업로드 성공: {}", imageUrl);
             return imageUrl;
         } catch (Exception e) {
             log.error("이미지 업로드 중 오류 발생: {}", e.getMessage(), e);
@@ -119,17 +115,11 @@ public class DiaryService {
 
             // S3에서 이미지 다운로드
             byte[] imageBytes = s3Service.downloadFile(imageUrl);
-            log.info("File downloaded successfully from S3: {} ({} bytes)", imageUrl, imageBytes.length);
-
             String classifyUrl = aiServiceUrl + "/classify-image";
-            log.info("이미지 분류 시작 - AI 서비스 URL: {}", classifyUrl);
-
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
             String filename = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
-            log.info("파일명 추출: {}", filename);
-            
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             
             // Custom ByteArrayResource with proper filename
@@ -144,19 +134,11 @@ public class DiaryService {
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-            log.info("AI 서비스로 multipart 요청 전송 시작...");
-            log.info("요청 헤더: {}", headers);
-            log.info("파일 리소스 타입: {}", fileResource.getClass().getName());
-
             ResponseEntity<Map> response = restTemplate.postForEntity(
                     classifyUrl,
                     requestEntity,
                     Map.class
             );
-            
-            log.info("AI 서비스 요청 완료");
-
-            log.info("AI 서비스 응답 - 상태 코드: {}, 응답 본문: {}", response.getStatusCode(), response.getBody());
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 // AI 응답에서 category 추출 및 한국어 태그로 매핑
@@ -184,7 +166,6 @@ public class DiaryService {
                     categoryToTag.put("dog treat", "간식");
 
                     String koreanTag = categoryToTag.getOrDefault(category, "기타");
-                    log.info("이미지 분류 성공 - 영어 카테고리: {}, 한국어 태그: {}", category, koreanTag);
                     return new String[]{koreanTag};
                 } else {
                     log.error("AI 서비스 응답에서 카테고리를 찾을 수 없음: {}", responseBody);
@@ -305,8 +286,6 @@ public class DiaryService {
         try {
             // AI 서비스 URL 구성
             String transcribeUrl = aiServiceUrl + "/transcribe";
-            log.info("음성 변환 시작 - AI 서비스 URL: {}", transcribeUrl);
-            log.info("음성 파일 정보 - 이름: {}, 크기: {} bytes", audioFile.getOriginalFilename(), audioFile.getSize());
 
             // 헤더 설정
             HttpHeaders headers = new HttpHeaders();
@@ -323,8 +302,6 @@ public class DiaryService {
 
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-            log.info("AI 서비스로 요청 전송 중...");
-
             // AI 서비스 호출
             ResponseEntity<TranscribeResponse> response = restTemplate.postForEntity(
                 transcribeUrl,
@@ -332,11 +309,8 @@ public class DiaryService {
                 TranscribeResponse.class
             );
 
-            log.info("AI 서비스 응답 - 상태 코드: {}, 응답 본문: {}", response.getStatusCode(), response.getBody());
-
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 String transcribedText = response.getBody().getTranscript();
-                log.info("음성 변환 성공 - 변환된 텍스트: {}", transcribedText);
                 return transcribedText;
             } else {
                 log.error("AI 서비스에서 음성 변환 실패 - 상태 코드: {}", response.getStatusCode());
@@ -380,7 +354,6 @@ public class DiaryService {
             // 건강 관련 키워드가 있으면 건강 카테고리만 반환
             for (String keyword : healthKeywords) {
                 if (lowerContent.contains(keyword)) {
-                    log.info("건강 카테고리 분류: 건강 관련 키워드 '{}' 발견", keyword);
                     return new String[]{"건강"};
                 }
             }
@@ -397,12 +370,6 @@ public class DiaryService {
 
     // 카테고리별 일기 조회 메서드 (페이징 지원)
     public Page<DiaryResponseDto> getDiariesByCategory(String category, Long userId, String userRole, Pageable pageable) {
-        log.info("=== 카테고리별 일기 조회 ===");
-        log.info("Category: '{}'", category);
-        log.info("UserId: {}", userId);
-        log.info("UserRole: {}", userRole);
-        log.info("Pageable: page={}, size={}, sort={}", pageable.getPageNumber(), pageable.getPageSize(), pageable.getSort());
-
         try {
             int page = pageable.getPageNumber();
             int size = pageable.getPageSize();
@@ -412,11 +379,9 @@ public class DiaryService {
             long totalElements;
 
             if ("ADMIN".equals(userRole)) {
-                log.info("관리자 권한으로 전체 '{}' 카테고리 일기 조회", category);
                 diaries = diaryRepository.findByCategoryWithPaging(category, size, offset);
                 totalElements = diaryRepository.countByCategory(category);
             } else {
-                log.info("일반 사용자 권한으로 '{}' 카테고리 일기 조회 (userId: {})", category, userId);
                 diaries = diaryRepository.findByCategoryAndUserWithPaging(category, userId, size, offset);
                 totalElements = diaryRepository.countByCategoryAndUser(category, userId);
             }
@@ -426,8 +391,6 @@ public class DiaryService {
                     .collect(Collectors.toList());
 
             int totalPages = (int) Math.ceil((double) totalElements / size);
-
-            log.info("조회 결과: {} 개의 일기 (총 {} 개, {} 페이지)", content.size(), totalElements, totalPages);
 
             return new PageImpl<>(content, pageable, totalElements);
         } catch (Exception e) {

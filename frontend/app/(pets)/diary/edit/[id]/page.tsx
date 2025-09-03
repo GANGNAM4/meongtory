@@ -55,16 +55,11 @@ export default function DiaryEditPage() {
     const fetchEntry = async () => {
       try {
         setIsLoading(true);
-        console.log("Fetching entry with params:", params);
         
                 // 로그인 상태 확인 (accessToken만 확인)
         const accessToken = localStorage.getItem("accessToken");
 
-        console.log("=== Login check ===");
-        console.log("accessToken from localStorage:", accessToken ? "exists" : "not found");
-
         if (!accessToken) {
-          console.log("Login required, redirecting...");
           toast({
             title: "로그인 필요",
             description: "로그인이 필요합니다.",
@@ -76,7 +71,6 @@ export default function DiaryEditPage() {
 
         // params.id가 배열일 수 있으므로 첫 번째 요소를 사용
         const diaryId = Array.isArray(params.id) ? params.id[0] : params.id;
-        console.log("Diary ID:", diaryId);
 
         if (!diaryId) {
           toast({
@@ -88,10 +82,6 @@ export default function DiaryEditPage() {
           return;
         }
 
-        // 개별 일기 데이터 가져오기
-        console.log("Calling fetchDiary with ID:", Number(diaryId));
-        console.log("Access token available:", !!accessToken);
-        
         try {
           const foundEntry = await fetchDiary(Number(diaryId));
           console.log("Found entry:", foundEntry);
@@ -104,12 +94,6 @@ export default function DiaryEditPage() {
             setContent(foundEntry.text || "");
             setImageUrl(foundEntry.imageUrl || null);
             setAudioUrl(foundEntry.audioUrl || null);
-            console.log("Entry data set successfully:", {
-              title: foundEntry.title,
-              content: foundEntry.text,
-              imageUrl: foundEntry.imageUrl,
-              audioUrl: foundEntry.audioUrl
-            });
           } else {
             console.log("Entry not found for ID:", diaryId);
             toast({
@@ -254,9 +238,7 @@ export default function DiaryEditPage() {
       mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
 
       mediaRecorder.onstop = async () => {
-        console.log('=== 녹음 중지됨 ===');
         const blob = new Blob(chunks, { type: "audio/webm" });
-        console.log('Created blob:', blob.size, 'bytes');
         const url = URL.createObjectURL(blob);
         setNewAudioUrl(url);
         setNewAudioBlob(blob);
@@ -269,9 +251,7 @@ export default function DiaryEditPage() {
         }
 
         // STT 변환 시작
-        console.log('Calling convertAudioToText...');
         await convertAudioToText(blob);
-        console.log('convertAudioToText completed');
         
         stream.getTracks().forEach(track => track.stop());
       };
@@ -311,18 +291,12 @@ export default function DiaryEditPage() {
   // 오디오를 텍스트로 변환 (덮어쓰기)
   const convertAudioToText = async (audioBlob: Blob) => {
     try {
-      console.log('=== STT 변환 시작 ===');
-      console.log('Audio blob size:', audioBlob.size);
-      console.log('Audio blob type:', audioBlob.type);
-      
       setIsConvertingAudio(true);
       
       // FormData 생성
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
       
-      console.log('FormData created, sending request to backend...');
-
       // 백엔드로 직접 전송
       const response = await fetch(`${getBackendUrl()}/api/diary/voice`, {
         method: 'POST',
@@ -332,9 +306,6 @@ export default function DiaryEditPage() {
         body: formData,
       });
 
-      console.log('Backend response status:', response.status);
-      console.log('Backend response headers:', Object.fromEntries(response.headers.entries()));
-
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Backend error response:', errorText);
@@ -342,12 +313,10 @@ export default function DiaryEditPage() {
       }
 
       const transcribedText = await response.text();
-      console.log('Transcribed text received:', transcribedText);
 
       // 변환된 텍스트를 기존 내용에 추가
       setContent(prevContent => {
         const newContent = prevContent + (prevContent ? '\n\n' : '') + transcribedText;
-        console.log('Updated content:', newContent);
         return newContent;
       });
 
@@ -369,7 +338,6 @@ export default function DiaryEditPage() {
       });
     } finally {
       setIsConvertingAudio(false);
-      console.log('=== STT 변환 완료 ===');
     }
   };
 
@@ -458,10 +426,8 @@ export default function DiaryEditPage() {
         });
 
         try {
-          console.log("Uploading image to S3:", selectedImageFile.name);
           const uploadedUrl = await uploadImageToS3(selectedImageFile);
           finalImageUrl = uploadedUrl;
-          console.log("Image uploaded successfully:", uploadedUrl);
         } catch (error) {
           console.error("이미지 업로드 실패:", error);
           toast({
@@ -510,16 +476,8 @@ export default function DiaryEditPage() {
         audioUrl: finalAudioUrl,
       };
 
-      console.log("Saving entry:", {
-        diaryId: entry.diaryId,
-        updateData,
-        voiceChanged
-      });
-
       const result = await updateDiary(entry.diaryId, updateData);
 
-      console.log("Diary updated successfully:", result);
-      
       toast({
         title: "수정 완료",
         description: "수정이 완료되었습니다.",

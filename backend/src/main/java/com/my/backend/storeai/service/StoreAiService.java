@@ -39,15 +39,11 @@ public class StoreAiService {
     public List<ProductRecommendationResponseDto> getProductRecommendations(
         Long productId, Long accountId, Long myPetId, RecommendationType type) {
         
-        log.info("상품 추천 요청 - productId: {}, accountId: {}, myPetId: {}, type: {}", 
-                productId, accountId, myPetId, type);
-        
         // 1) 현재 상품 정보 조회 (productId가 null이면 null)
         Product currentProduct = null;
         if (productId != null) {
             try {
                 currentProduct = productService.getProduct(productId);
-                log.info("현재 상품 조회 성공: {}", currentProduct != null ? currentProduct.getName() : "null");
             } catch (Exception e) {
                 log.error("상품 조회 실패: {}", e.getMessage());
             }
@@ -60,7 +56,6 @@ public class StoreAiService {
         
         try {
             myPetsResponse = myPetService.getMyPets(accountId);
-            log.info("펫 정보 조회 성공 - 펫 개수: {}", myPetsResponse.getMyPets().size());
             
             userPets = myPetsResponse.getMyPets().stream()
                 .map(dto -> MyPet.builder()
@@ -73,9 +68,6 @@ public class StoreAiService {
                 .collect(Collectors.toList());
             
             selectedPet = getSelectedPet(userPets, myPetId);
-            log.info("선택된 펫: {}", selectedPet != null ? 
-                    String.format("ID=%d, 이름=%s, 품종=%s, 나이=%d", 
-                    selectedPet.getMyPetId(), selectedPet.getName(), selectedPet.getBreed(), selectedPet.getAge()) : "null");
             
         } catch (Exception e) {
             log.error("펫 정보 조회 실패: {}", e.getMessage());
@@ -169,12 +161,8 @@ public class StoreAiService {
         requestData.put("notes", pet.getNotes() != null ? pet.getNotes() : "");
         requestData.put("microchipId", pet.getMicrochipId() != null ? pet.getMicrochipId() : "");
         
-        log.info("AI 서버 호출 요청 데이터: {}", requestData);
-        
         try {
-            log.info("AI 서버 호출 시작: {}", aiServerUrl);
             ResponseEntity<String> response = restTemplate.postForEntity(aiServerUrl, requestData, String.class);
-            log.info("AI 서버 응답 상태: {}, 응답: {}", response.getStatusCode(), response.getBody());
             return response.getBody();
         } catch (Exception e) {
             log.error("AI 서버 호출 실패: {}", e.getMessage(), e);
@@ -607,7 +595,6 @@ public class StoreAiService {
                 .build();
             
             NaverProduct savedProduct = naverProductRepository.save(naverProduct);
-            log.info("네이버 상품을 DB에 저장했습니다: {}", savedProduct.getProductId());
             return savedProduct;
             
         } catch (Exception e) {

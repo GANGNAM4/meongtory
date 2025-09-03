@@ -63,11 +63,6 @@ public class NaverShoppingService {
                     .encode()
                     .toUri();
 
-            log.info("네이버 쇼핑 API 호출 URL: {}", uri);
-            log.info("네이버 쇼핑 API 헤더: X-Naver-Client-Id={}, X-Naver-Client-Secret={}", 
-                    headers.getFirst("X-Naver-Client-Id"), 
-                    headers.getFirst("X-Naver-Client-Secret") != null ? "***" : "null");
-
             HttpEntity<String> entity = new HttpEntity<>(headers);
             
             ResponseEntity<NaverShoppingResponseDto> response = naverRestTemplate.exchange(
@@ -77,7 +72,6 @@ public class NaverShoppingService {
                     NaverShoppingResponseDto.class
             );
 
-            log.info("네이버 쇼핑 API 호출 성공: {}", requestDto.getQuery());
             return response.getBody();
             
         } catch (Exception e) {
@@ -133,7 +127,6 @@ public class NaverShoppingService {
             Product product = productOpt.get();
             naverProduct.setRelatedProduct(product);
             naverProductRepository.save(naverProduct);
-            log.info("네이버 상품과 기존 상품 연결 완료: {} -> {}", naverProductId, productId);
         }
     }
 
@@ -141,16 +134,9 @@ public class NaverShoppingService {
      * 키워드로 네이버 상품 검색
      */
     public Page<NaverProductDto> searchNaverProductsByKeyword(String keyword, int page, int size) {
-        log.info("=== 키워드 기반 검색 시작 (SQL LIKE 검색) ===");
-        log.info("검색어: '{}'", keyword);
-        log.info("페이지: {}, 크기: {}", page, size);
-        log.info("검색 방식: 키워드 기반 검색 (SQL LIKE - title, description, brand)");
         
         Pageable pageable = PageRequest.of(page, size);
         Page<NaverProduct> naverProducts = naverProductRepository.findByKeyword(keyword, pageable);
-        
-        log.info("키워드 기반 검색 완료: {}개 결과", naverProducts.getTotalElements());
-        log.info("=== 키워드 기반 검색 완료 ===");
         
         return naverProducts.map(this::convertToDto);
     }
@@ -191,8 +177,6 @@ public class NaverShoppingService {
     @Transactional
     public NaverProductSaveResult saveOrUpdateNaverProduct(NaverProductDto naverProductDto) {
         try {
-            log.info("네이버 상품 저장/업데이트 시작: {}", naverProductDto.getProductId());
-            
             // 필수 필드 검증
             if (naverProductDto.getTitle() == null || naverProductDto.getTitle().trim().isEmpty()) {
                 log.warn("title이 비어있어 저장을 건너뜁니다: {}", naverProductDto.getProductId());
@@ -208,7 +192,6 @@ public class NaverShoppingService {
             // productId가 있으면 productId로 먼저 검색
             if (naverProductDto.getProductId() != null && !naverProductDto.getProductId().trim().isEmpty()) {
                 existingProduct = naverProductRepository.findByProductId(naverProductDto.getProductId());
-                log.info("productId로 중복 체크: {}", naverProductDto.getProductId());
             }
             
             // productId로 찾지 못했거나 productId가 없으면 title과 mallName으로 검색
@@ -219,13 +202,11 @@ public class NaverShoppingService {
                         naverProductDto.getTitle().trim(), 
                         mallName
                     );
-                    log.info("title과 mallName으로 중복 체크: {} - {}", naverProductDto.getTitle(), mallName);
                 }
             }
             
             if (existingProduct.isPresent()) {
                 // 기존 상품 업데이트
-                log.info("기존 네이버 상품 업데이트: {}", naverProductDto.getProductId() != null ? naverProductDto.getProductId() : naverProductDto.getTitle());
                 NaverProduct product = existingProduct.get();
                 
                 // 카테고리 매핑 적용
@@ -249,12 +230,8 @@ public class NaverShoppingService {
                 // titleEmbedding은 vector 타입이므로 업데이트하지 않음
                 
                 NaverProduct savedProduct = naverProductRepository.save(product);
-                log.info("네이버 상품 업데이트 완료: {}", savedProduct.getId());
                 return new NaverProductSaveResult(savedProduct.getId(), false, "기존 상품 업데이트");
             } else {
-                // 새 상품 생성
-                log.info("새 네이버 상품 생성: {}", naverProductDto.getProductId() != null ? naverProductDto.getProductId() : naverProductDto.getTitle());
-                
                 // 카테고리 매핑 적용
                 String mappedCategory = mapCategory(naverProductDto.getTitle(), naverProductDto.getCategory1(), naverProductDto.getCategory2(), naverProductDto.getCategory3(), naverProductDto.getCategory4());
                 
@@ -279,7 +256,6 @@ public class NaverShoppingService {
                         .build();
                 
                 NaverProduct savedProduct = naverProductRepository.save(newProduct);
-                log.info("네이버 상품 생성 완료: {}", savedProduct.getId());
                 return new NaverProductSaveResult(savedProduct.getId(), true, "새 상품 생성");
             }
         } catch (Exception e) {
@@ -428,14 +404,11 @@ public class NaverShoppingService {
      */
     public Page<NaverProductDto> getPopularProducts(int page, int size) {
         try {
-            log.info("인기 네이버 상품 조회 시작: page={}, size={}", page, size);
-            
             Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "searchCount", "reviewCount"));
             Page<NaverProduct> products = naverProductRepository.findPopularProducts(pageable);
             
             Page<NaverProductDto> productDtos = products.map(this::convertToDto);
             
-            log.info("인기 네이버 상품 조회 완료: 총 {}개 상품", productDtos.getTotalElements());
             return productDtos;
             
         } catch (Exception e) {
@@ -449,14 +422,11 @@ public class NaverShoppingService {
      */
     public Page<NaverProductDto> getAllNaverProducts(int page, int size) {
         try {
-            log.info("모든 네이버 상품 조회 시작: page={}, size={}", page, size);
-            
             Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
             Page<NaverProduct> products = naverProductRepository.findAll(pageable);
             
             Page<NaverProductDto> productDtos = products.map(this::convertToDto);
             
-            log.info("모든 네이버 상품 조회 완료: 총 {}개 상품", productDtos.getTotalElements());
             return productDtos;
             
         } catch (Exception e) {
@@ -470,11 +440,8 @@ public class NaverShoppingService {
      */
     public long getNaverProductCount() {
         try {
-            log.info("네이버 상품 개수 조회 시작");
-            
             long count = naverProductRepository.count();
             
-            log.info("네이버 상품 개수 조회 완료: 총 {}개 상품", count);
             return count;
             
         } catch (Exception e) {
@@ -488,12 +455,9 @@ public class NaverShoppingService {
      */
     @Transactional
     public void deleteNaverProduct(Long id) {
-        log.info("네이버 상품 삭제 시작: {}", id);
         
         NaverProduct naverProduct = naverProductRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("네이버 상품을 찾을 수 없습니다: " + id));
-        
-        log.info("삭제할 네이버 상품: {}", naverProduct.getTitle());
         
         try {
             // 관련된 장바구니 항목들 먼저 삭제
@@ -502,7 +466,6 @@ public class NaverShoppingService {
             
             // 네이버 상품 삭제
             naverProductRepository.delete(naverProduct);
-            log.info("네이버 상품 삭제 완료: {}", id);
             
         } catch (Exception e) {
             log.error("네이버 상품 삭제 중 오류 발생: {}", e.getMessage(), e);
@@ -531,26 +494,21 @@ public class NaverShoppingService {
         
         String combinedText = (title + " " + category1 + " " + category2 + " " + category3 + " " + category4).toLowerCase();
         
-        log.info("카테고리 매핑 - 제목: {}, 카테고리: {}, {}, {}, {}", title, category1, category2, category3, category4);
-        
         // 사료 카테고리
         if (combinedText.contains("사료") || combinedText.contains("feed") || combinedText.contains("dog food") || combinedText.contains("cat food") ||
             combinedText.contains("펫푸드") || combinedText.contains("pet food")) {
-            log.info("사료 카테고리로 매핑됨: {}", title);
             return "사료";
         }
         
         // 간식 카테고리
         if (combinedText.contains("간식") || combinedText.contains("트릿") || combinedText.contains("snack") || combinedText.contains("treat") ||
             combinedText.contains("껌") || combinedText.contains("chew") || combinedText.contains("biscuit")) {
-            log.info("간식 카테고리로 매핑됨: {}", title);
             return "간식";
         }
         
         // 장난감 카테고리
         if (combinedText.contains("장난감") || combinedText.contains("공") || combinedText.contains("로프") || combinedText.contains("toy") || combinedText.contains("ball") ||
             combinedText.contains("인형") || combinedText.contains("doll") || combinedText.contains("플러시") || combinedText.contains("plush")) {
-            log.info("장난감 카테고리로 매핑됨: {}", title);
             return "장난감";
         }
         
@@ -562,7 +520,6 @@ public class NaverShoppingService {
             combinedText.contains("조끼") || combinedText.contains("vest") || combinedText.contains("스웨터") || combinedText.contains("sweater") ||
             combinedText.contains("양말") || combinedText.contains("socks") || combinedText.contains("모자") || combinedText.contains("hat") ||
             combinedText.contains("카프") || combinedText.contains("scarf") || combinedText.contains("넥타이") || combinedText.contains("tie")) {
-            log.info("의류 카테고리로 매핑됨: {}", title);
             return "의류";
         }
         
@@ -576,12 +533,10 @@ public class NaverShoppingService {
             combinedText.contains("유산균") || combinedText.contains("lactobacillus") || combinedText.contains("면역력") || combinedText.contains("immune") ||
             combinedText.contains("항산화") || combinedText.contains("antioxidant") || combinedText.contains("오메가3") || combinedText.contains("omega3") ||
             combinedText.contains("오메가6") || combinedText.contains("omega6") || combinedText.contains("오메가9") || combinedText.contains("omega9")) {
-            log.info("건강관리 카테고리로 매핑됨: {}", title);
             return "건강관리";
         }
         
         // 용품 카테고리 (기본값)
-        log.info("용품 카테고리로 매핑됨 (기본값): {}", title);
         return "용품";
     }
 }

@@ -35,7 +35,6 @@ public class ProductController {
             Product createdProduct = productService.createProduct(product);
             return createdProduct;
         } catch (Exception e) {
-            System.out.println("=== 상품 생성 실패 ===");
             System.out.println("에러 메시지: " + e.getMessage());
             e.printStackTrace();
             throw e;
@@ -106,7 +105,6 @@ public class ProductController {
             ResponseDto<?> result = productService.deleteProduct(id);
             return result;
         } catch (Exception e) {
-            System.out.println("=== 상품 삭제 실패 ===");
             System.out.println("에러 메시지: " + e.getMessage());
             e.printStackTrace();
             throw e;

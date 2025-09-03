@@ -32,7 +32,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                         Authentication authentication) throws IOException {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         String email = userDetails.getUsername();
-        log.info("OAuth2 로그인 성공: {}", email);
 
         // 추가: 사용자 정보 조회
         Account account = accountRepository.findByEmail(email)
@@ -48,7 +47,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 URLEncoder.encode(account.getName(), StandardCharsets.UTF_8),
                 URLEncoder.encode(account.getRole(), StandardCharsets.UTF_8)
         );
-        log.info("Redirecting to: {}", targetUrl);
         response.addHeader("Access_Token", tokenDto.getAccessToken());
         response.addHeader("Refresh_Token", tokenDto.getRefreshToken());
         getRedirectStrategy().sendRedirect(request, response, targetUrl);

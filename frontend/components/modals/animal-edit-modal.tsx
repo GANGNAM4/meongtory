@@ -162,7 +162,6 @@ export default function AnimalEditModal({
           const fileName = deletedImageUrl.split('/').pop()
           if (fileName) {
             await s3Api.deleteFile(fileName)
-            console.log(`S3에서 이미지 삭제 완료: ${fileName}`)
           }
         } catch (error) {
           console.error("S3 이미지 삭제 실패:", error)

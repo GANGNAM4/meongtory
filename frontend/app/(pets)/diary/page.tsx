@@ -48,6 +48,7 @@ export default function GrowthDiaryPage({
   const router = useRouter();
   const { toast } = useToast();
 
+  const loadDiaries = async (category: string = "전체", page: number = 0, sort: string = "latest", date: string = "") => {
     try {
       const data: DiaryPageResponse = await fetchDiaries(category, page, 7, sort || sortOption, date);
       setDiaryEntries(data.content);
@@ -55,7 +56,6 @@ export default function GrowthDiaryPage({
       setTotalElements(data.totalElements);
       setCurrentPage(data.number);
     } catch (err: any) {
-      console.error("=== fetchDiaries error ===");
       console.error("일기 목록 불러오기 실패:", err);
       console.error("Error details:", err.message);
       

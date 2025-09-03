@@ -49,17 +49,7 @@ public class NaverShoppingController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         try {
-            log.info("=== 키워드 기반 검색 요청 시작 ===");
-            log.info("검색어: '{}'", keyword);
-            log.info("페이지: {}, 크기: {}", page, size);
-            log.info("검색 방식: 키워드 기반 검색 (SQL LIKE)");
-            log.info("엔드포인트: /api/naver-shopping/products/search");
-            
             Page<NaverProductDto> products = naverShoppingService.searchNaverProductsByKeyword(keyword, page, size);
-            
-            log.info("키워드 기반 검색 결과 개수: {}", products.getTotalElements());
-            log.info("=== 키워드 기반 검색 요청 완료 ===");
-            
             return ResponseEntity.ok(ResponseDto.success(products));
         } catch (Exception e) {
             log.error("키워드 기반 검색 실패: {}", e.getMessage());
@@ -110,8 +100,6 @@ public class NaverShoppingController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         try {
-            log.info("인기 네이버 상품 조회 요청: page={}, size={}", page, size);
-            
             Page<NaverProductDto> products = naverShoppingService.getPopularProducts(page, size);
             return ResponseEntity.ok(ResponseDto.success(products));
         } catch (Exception e) {
@@ -128,8 +116,6 @@ public class NaverShoppingController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "1000") int size) {
         try {
-            log.info("모든 네이버 상품 조회 요청: page={}, size={}", page, size);
-            
             Page<NaverProductDto> products = naverShoppingService.getAllNaverProducts(page, size);
             return ResponseEntity.ok(ResponseDto.success(products));
         } catch (Exception e) {
@@ -144,8 +130,6 @@ public class NaverShoppingController {
     @GetMapping("/products/count")
     public ResponseEntity<ResponseDto> getNaverProductCount() {
         try {
-            log.info("네이버 상품 개수 조회 요청");
-            
             long count = naverShoppingService.getNaverProductCount();
             return ResponseEntity.ok(ResponseDto.success(count));
         } catch (Exception e) {
@@ -191,11 +175,6 @@ public class NaverShoppingController {
                                                            @RequestParam(defaultValue = "1") int quantity,
                                                            @AuthenticationPrincipal UserDetailsImpl userDetails) {
         try {
-            log.info("=== 네이버 상품 장바구니 추가 요청 시작 ===");
-            log.info("요청 데이터: {}", naverProductDto);
-            log.info("수량: {}", quantity);
-            log.info("사용자: {}", userDetails != null ? userDetails.getUsername() : "null");
-            
             // 요청 데이터 검증
             if (naverProductDto == null) {
                 log.error("요청 데이터가 null입니다.");
@@ -218,12 +197,9 @@ public class NaverShoppingController {
             }
             
             Long accountId = getCurrentUserId(userDetails);
-            log.info("사용자 ID: {}", accountId);
             
             // 네이버 상품을 데이터베이스에 저장하거나 업데이트
-            log.info("상품 저장 시작 - productId: {}, title: {}", naverProductDto.getProductId(), naverProductDto.getTitle());
             NaverShoppingService.NaverProductSaveResult result = naverShoppingService.saveOrUpdateNaverProduct(naverProductDto);
-            log.info("상품 저장 결과: {}", result);
             
             if (result.getProductId() == null) {
                 log.error("상품 저장 실패: {}", result.getMessage());
@@ -232,12 +208,8 @@ public class NaverShoppingController {
             
             // 카트에 추가
             cartService.addNaverProductToCart(accountId, result.getProductId(), quantity);
-            log.info("장바구니 추가 성공");
-            
-            log.info("=== 네이버 상품 장바구니 추가 요청 완료 ===");
             return ResponseEntity.ok(ResponseDto.success("네이버 상품을 카트에 추가했습니다"));
         } catch (Exception e) {
-            log.error("=== 네이버 상품 카트 추가 실패 ===");
             log.error("오류 메시지: {}", e.getMessage());
             log.error("오류 스택 트레이스:", e);
             return ResponseEntity.badRequest().body(ResponseDto.fail("CART_ADD_FAILED", "네이버 상품을 카트에 추가하는데 실패했습니다: " + e.getMessage()));
@@ -287,8 +259,6 @@ public class NaverShoppingController {
     @PostMapping("/save")
     public ResponseEntity<ResponseDto> saveNaverProduct(@RequestBody NaverProductDto naverProductDto) {
         try {
-            log.info("네이버 상품 저장 요청 받음: {}", naverProductDto.getTitle());
-            
             // 필수 필드 검증
             if (naverProductDto == null) {
                 return ResponseEntity.badRequest().body(ResponseDto.fail("INVALID_REQUEST", "요청 데이터가 null입니다."));
@@ -312,7 +282,6 @@ public class NaverShoppingController {
             NaverShoppingService.NaverProductSaveResult result = naverShoppingService.saveOrUpdateNaverProduct(naverProductDto);
             
             if (result.getProductId() != null) {
-                log.info("네이버 상품 저장 성공: {} (새 상품: {})", result.getProductId(), result.isNewProduct());
                 return ResponseEntity.ok(ResponseDto.success(result));
             } else {
                 log.warn("네이버 상품 저장 실패: {}", result.getMessage());
@@ -330,14 +299,11 @@ public class NaverShoppingController {
     @DeleteMapping("/products/{id}")
     public ResponseEntity<ResponseDto> deleteNaverProduct(@PathVariable Long id) {
         try {
-            log.info("네이버 상품 삭제 요청 받음: {}", id);
-            
             if (id == null || id <= 0) {
                 return ResponseEntity.badRequest().body(ResponseDto.fail("INVALID_ID", "유효하지 않은 상품 ID입니다."));
             }
             
             naverShoppingService.deleteNaverProduct(id);
-            log.info("네이버 상품 삭제 성공: {}", id);
             return ResponseEntity.ok(ResponseDto.success("네이버 상품이 성공적으로 삭제되었습니다."));
         } catch (Exception e) {
             log.error("네이버 상품 삭제 실패: {}", e.getMessage(), e);
@@ -351,24 +317,16 @@ public class NaverShoppingController {
     @PostMapping("/update-embeddings")
     public ResponseEntity<ResponseDto> updateEmbeddings() {
         try {
-            log.info("=== 임베딩 업데이트 요청 시작 ===");
-            log.info("요청 URL: /api/naver-shopping/update-embeddings");
-            log.info("요청 메서드: POST");
-            
             // EmbeddingService 가져오기
             EmbeddingService embeddingService = naverShoppingService.getEmbeddingService();
-            log.info("EmbeddingService 가져오기 성공: {}", embeddingService != null);
             
             // 비동기로 임베딩 업데이트 실행
             CompletableFuture<String> future = embeddingService.updateEmbeddingsAsync();
-            log.info("임베딩 업데이트 비동기 작업 시작됨");
             
             // 즉시 응답 (백그라운드에서 실행)
-            log.info("=== 임베딩 업데이트 요청 완료 ===");
             return ResponseEntity.ok(ResponseDto.success("임베딩 업데이트가 백그라운드에서 시작되었습니다."));
             
         } catch (Exception e) {
-            log.error("=== 임베딩 업데이트 요청 실패 ===");
             log.error("오류 메시지: {}", e.getMessage());
             log.error("오류 스택 트레이스:", e);
             return ResponseEntity.badRequest().body(ResponseDto.fail("EMBEDDING_UPDATE_FAILED", "임베딩 업데이트 요청에 실패했습니다: " + e.getMessage()));

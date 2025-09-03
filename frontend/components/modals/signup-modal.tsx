@@ -79,11 +79,6 @@ export default function SignupModal({ isOpen, onClose, onSignup, onSwitchToLogin
         petAge: petAge || null,
         petBreeds: petBreed || null,
       };
-      console.log("회원가입 요청 전송:", {
-        url: `${getBackendUrl()}/api/accounts/register`,
-        data: requestData,
-        headers: { "Content-Type": "application/json" },
-      });
 
       const response = await axios.post(`${getBackendUrl()}/api/accounts/register`, requestData, {
         headers: {
@@ -91,15 +86,7 @@ export default function SignupModal({ isOpen, onClose, onSignup, onSwitchToLogin
         },
       });
 
-      console.log("회원가입 응답:", {
-        status: response.status,
-        statusText: response.statusText,
-        data: response.data,
-        headers: response.headers,
-      });
-
       if (response.status >= 200 && response.status < 300) {
-        console.log("회원가입 성공:", response.data);
         onSignup({
           id: response.data.data.id, // 백엔드에서 받은 id
           name,

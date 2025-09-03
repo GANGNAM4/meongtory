@@ -36,16 +36,12 @@ public class AutoCommentService {
      */
     public void createAutoComment(Long postId) {
         try {
-            log.info("=== 자동 댓글 생성 시작 - postId: {} ===", postId);
-            
             CommunityPost post = postRepository.findById(postId)
                     .orElseThrow(() -> new RuntimeException("Post not found"));
 
             // AI 기반 댓글 생성 시도
             String aiComment = openAiService.generateComment(post.getContent(), post.getCategory());
             
-            log.info("AI 댓글 생성 완료: {}", aiComment);
-
             // 자동 댓글 생성
             CommunityComment autoComment = CommunityComment.builder()
                     .post(post)
@@ -59,9 +55,6 @@ public class AutoCommentService {
             // 게시글의 댓글 수 증가
             post.setComments(post.getComments() + 1);
             postRepository.save(post);
-
-            log.info("자동 댓글 저장 완료 - 댓글 ID: {}", autoComment.getId());
-
         } catch (Exception e) {
             // 자동 댓글 생성 실패는 로그만 남기고 예외를 던지지 않음
             // (게시글 작성 자체는 성공해야 하므로)

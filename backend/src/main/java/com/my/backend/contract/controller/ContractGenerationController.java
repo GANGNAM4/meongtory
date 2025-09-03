@@ -52,32 +52,20 @@ public class ContractGenerationController {
     @GetMapping("/{id}/download")
     public ResponseEntity<ByteArrayResource> downloadContract(@PathVariable Long id) {
         try {
-            System.out.println("=== 계약서 다운로드 시작 ===");
-            System.out.println("요청된 계약서 ID: " + id);
-            
             // 계약서 데이터 조회
             ContractGenerationResponseDto contract = contractGenerationService.getGeneratedContractById(id);
             if (contract == null) {
-                System.out.println("계약서를 찾을 수 없음: " + id);
                 return ResponseEntity.notFound().build();
             }
-            
-            System.out.println("계약서 내용 길이: " + (contract.getContent() != null ? contract.getContent().length() : 0));
             
             // PDF 생성
             byte[] fileContent = contractFileService.generatePDF(contract.getContent());
             if (fileContent == null || fileContent.length == 0) {
-                System.out.println("PDF 생성 실패: 빈 파일");
                 return ResponseEntity.internalServerError().build();
             }
             
-            System.out.println("PDF 생성 완료, 파일 크기: " + fileContent.length + " bytes");
-            
             // ContractFileService에서 파일명 생성
             String filename = contractFileService.generateFilename(contract.getContent());
-            System.out.println("=== 파일명 생성 완료 ===");
-            System.out.println("생성된 파일명: " + filename);
-            System.out.println("Content-Disposition 헤더: attachment; filename=\"" + filename + "\"");
             
             ByteArrayResource resource = new ByteArrayResource(fileContent);
             

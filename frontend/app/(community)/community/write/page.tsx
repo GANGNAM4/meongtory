@@ -165,7 +165,6 @@ function CommunityWritePageContent({ onShowLogin }: CommunityWritePageProps) {
           throw new Error("Email field not found in response data");
         }
         setCurrentUserEmail(email);
-        console.log("Fetched User Data:", res.data.data);
       } catch (err: any) {
         console.error("사용자 정보 로드 에러:", err);
         if (err.response?.status === 401) {
@@ -182,7 +181,6 @@ function CommunityWritePageContent({ onShowLogin }: CommunityWritePageProps) {
               }
               const { email } = res.data.data;
               setCurrentUserEmail(email);
-              console.log("Fetched User Data after refresh:", res.data.data);
             } catch (retryErr: any) {
               console.error("재시도 실패:", retryErr);
               localStorage.removeItem("accessToken");

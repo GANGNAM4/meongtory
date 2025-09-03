@@ -100,25 +100,21 @@ public class IntegratedInsuranceCrawler {
         try {
             // 삼성화재는 정밀한 크롤러 사용
             if ("삼성화재".equals(companyName)) {
-                log.info("삼성화재 정밀 크롤러 사용");
                 return insuranceCrawlerJob.crawlSamsungFireDirect();
             }
             
             // KB손해보험은 정밀한 크롤러 사용
             if ("KB손해보험".equals(companyName)) {
-                log.info("KB손해보험 정밀 크롤러 사용");
                 return insuranceCrawlerJob.crawlKbInsuranceDirect();
             }
             
             // 현대해상은 정밀한 크롤러 사용
             if ("현대해상".equals(companyName)) {
-                log.info("현대해상 정밀 크롤러 사용");
                 return insuranceCrawlerJob.crawlHyundaiHiDirect();
             }
             
             // NH농협손해보험은 정밀한 크롤러 사용
             if ("NH농협손해보험".equals(companyName)) {
-                log.info("NH농협손해보험 정밀 크롤러 사용");
                 return insuranceCrawlerJob.crawlNhFireDirect();
             }
             

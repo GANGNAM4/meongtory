@@ -62,7 +62,6 @@ public class JwtUtil {
                 }
             }
         }
-        log.info("Header {} value: {}", headerName, token);
         return token;
     }
 
@@ -84,7 +83,6 @@ public class JwtUtil {
                 .setIssuedAt(date)
                 .signWith(key, signatureAlgorithm)
                 .compact();
-        log.info("Generated token: {}", token);
         return token;
     }
 
@@ -95,7 +93,6 @@ public class JwtUtil {
                     .setSigningKey(key)
                     .build()
                     .parseClaimsJws(token);
-            log.info("Token validated successfully: {}", token);
             return true;
         } catch (Exception e) {
             log.error("Token validation failed: {}", e.getMessage());

@@ -111,8 +111,6 @@ public class AdoptionRequestService {
                             .build();
                     
                     myPetRepository.save(myPet);
-                    log.info("입양 승인으로 인한 MyPet 자동 등록 완료: userId={}, petName={}", 
-                            request.getUser().getId(), request.getPet().getName());
                 } else {
                     log.info("이미 등록된 MyPet이 존재합니다: userId={}, petName={}", 
                             request.getUser().getId(), request.getPet().getName());

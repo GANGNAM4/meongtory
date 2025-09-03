@@ -99,7 +99,6 @@ export default function ContractsTab({
       // 입양신청으로부터 계약서 생성 요청
       setContractView("contracts")
       setShowContractGenerationModal(true)
-      console.log("입양신청으로부터 계약서 생성 요청:", selectedAdoptionRequest)
     }
   }, [selectedAdoptionRequest])
 
@@ -110,7 +109,6 @@ export default function ContractsTab({
       setContractView("contracts")
       setSelectedContractForView(selectedContract)
       setShowGeneratedContractViewModal(true)
-      console.log("입양관리로부터 계약서 보기 요청:", selectedContract)
     }
   }, [selectedContract])
 
@@ -177,7 +175,6 @@ export default function ContractsTab({
       const response = await axios.get(`${getBackendUrl()}/api/contract-generation/${contractId}`)
       if (response.data.success) {
         const contractData = response.data.data
-        console.log("계약서 데이터:", contractData)
         
         // pet 정보 추출
         let petInfo = null
@@ -186,7 +183,6 @@ export default function ContractsTab({
             petInfo = typeof contractData.petInfo === 'string' 
               ? JSON.parse(contractData.petInfo) 
               : contractData.petInfo
-            console.log("추출된 pet 정보:", petInfo)
           } catch (error) {
             console.error("petInfo 파싱 오류:", error)
           }
@@ -252,8 +248,6 @@ export default function ContractsTab({
       if (response.data.success) {
         // localStorage에서 PDF URL도 삭제
         localStorage.removeItem(`contract_pdf_url_${contractId}`)
-        console.log(`계약서 ${contractId} 삭제 완료 - PDF URL도 함께 삭제됨`)
-        
         alert("계약서가 삭제되었습니다.")
         fetchGeneratedContracts() // 목록 새로고침
       } else {
@@ -267,8 +261,6 @@ export default function ContractsTab({
 
   // 계약서 수정 핸들러
   const handleEditContract = async (contract: any) => {
-    console.log("계약서 수정 시작:", contract)
-    
     setSelectedContractForView(contract)
     setSelectedPetForView(null) // AI 계약서 탭에서는 pet 정보 전달하지 않음
     setShowContractEditModal(true)

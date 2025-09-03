@@ -106,13 +106,11 @@ export default function AdoptionAgentPage() {
         
         // 단계 업데이트
         if (data.stage) {
-          console.log('Initial stage from API:', data.stage);
           dispatch({ type: 'SET_STAGE', payload: data.stage });
         }
         
         // 진행률 업데이트
         if (data.progress) {
-          console.log('Initial progress from API:', data.progress);
           dispatch({ type: 'SET_PROGRESS', payload: data.progress });
         }
         
@@ -147,7 +145,6 @@ export default function AdoptionAgentPage() {
       });
       
       const data: AgentResponse = await response.json();
-      console.log('Full API Response:', data); // 전체 응답 로그
       
       if (data.success) {
         dispatch({ type: 'ADD_MESSAGE', payload: { 
@@ -157,13 +154,11 @@ export default function AdoptionAgentPage() {
         
         // 단계 업데이트
         if (data.stage) {
-          console.log('Updating stage from API:', data.stage);
           dispatch({ type: 'SET_STAGE', payload: data.stage });
         }
         
         // 진행률 업데이트
         if (data.progress) {
-          console.log('Updating progress from API:', data.progress);
           dispatch({ type: 'SET_PROGRESS', payload: data.progress });
         }
         

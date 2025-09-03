@@ -99,7 +99,6 @@ export default function LoginModal({
   // 수정: OAuth 요청 URL 디버깅 함수 추가
   const handleOAuthLogin = (provider: string) => {
     const oauthUrl = `${getBackendUrl()}/oauth2/authorization/${provider}`;
-    console.log(`${provider} OAuth 요청 URL:`, oauthUrl);
     window.location.href = oauthUrl;
   };
 

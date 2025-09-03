@@ -209,8 +209,6 @@ public class InsuranceCrawlerJob {
             coverageCount++;
         }
 
-        log.info("삼성화재 크롤링 완료 - 특징: {}개, 보장내역: {}개", limitedFeatures.size(), limitedCoverage.size());
-
         return InsuranceProductDto.builder()
                 .company("삼성화재")
                 .productName(name)
@@ -229,8 +227,6 @@ public class InsuranceCrawlerJob {
         List<String> coverage = new ArrayList<>();
         String finalUrl = "https://www.kbinsure.co.kr/CG313010001.ec";
 
-        log.info("KB손해보험 크롤링 시작 - URL: {}", finalUrl);
-
         try {
             Playwright playwright = Playwright.create();
             Browser browser = playwright.chromium().launch(
@@ -242,10 +238,8 @@ public class InsuranceCrawlerJob {
             BrowserContext ctx = browser.newContext();
             Page page = ctx.newPage();
 
-            log.info("KB손해보험 페이지 로딩 시작");
             page.navigate(finalUrl, new Page.NavigateOptions().setTimeout(30000));
             page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(20000));
-            log.info("KB손해보험 페이지 로딩 완료 - 현재 URL: {}", page.url());
 
             String[] featureSelectors = {
                 ".bulBox li", ".Gray_bul li", ".p_txt_bul li",
@@ -254,11 +248,9 @@ public class InsuranceCrawlerJob {
                 ".product-info .item", ".feature-list li", ".highlight-item"
             };
 
-            log.info("KB손해보험 특징 추출 시작");
             for (String selector : featureSelectors) {
                 try {
                     int count = page.locator(selector).count();
-                    log.info("KB손해보험 선택자 '{}' - {}개 요소 발견", selector, count);
                     
                     for (int i = 0; i < count && features.size() < 8; i++) {
                         String text = page.locator(selector).nth(i).innerText();
@@ -268,14 +260,12 @@ public class InsuranceCrawlerJob {
                             
                             if (isValidKbFeature(cleaned)) {
                                 features.add(cleaned);
-                                log.info("KB손해보험 특징 추가: {}", cleaned);
                             } else {
                                 log.debug("KB손해보험 특징 검증 실패: {}", cleaned);
                             }
                         }
                     }
                     if (!features.isEmpty()) {
-                        log.info("KB손해보험 특징 추출 성공 - {}개", features.size());
                         break;
                     }
                 } catch (Exception e) {
@@ -291,11 +281,9 @@ public class InsuranceCrawlerJob {
                 ".product-info table tr", ".coverage-info li"
             };
 
-            log.info("KB손해보험 보장내역 추출 시작");
             for (String selector : coverageSelectors) {
                 try {
                     int count = page.locator(selector).count();
-                    log.info("KB손해보험 보장내역 선택자 '{}' - {}개 요소 발견", selector, count);
                     
                     for (int i = 0; i < count && coverage.size() < 12; i++) {
                         String text = page.locator(selector).nth(i).innerText();
@@ -307,7 +295,6 @@ public class InsuranceCrawlerJob {
                                 // 중복 제거
                                 if (!coverage.contains(cleaned)) {
                                     coverage.add(cleaned);
-                                    log.info("KB손해보험 보장내역 추가: {}", cleaned);
                                 } else {
                                     log.debug("KB손해보험 보장내역 중복 제거: {}", cleaned);
                                 }
@@ -317,7 +304,6 @@ public class InsuranceCrawlerJob {
                         }
                     }
                     if (!coverage.isEmpty()) {
-                        log.info("KB손해보험 보장내역 추출 성공 - {}개", coverage.size());
                         break;
                     }
                 } catch (Exception e) {
@@ -377,8 +363,6 @@ public class InsuranceCrawlerJob {
             }
             coverageCount++;
         }
-
-        log.info("KB손해보험 크롤링 완료 - 특징: {}개, 보장내역: {}개", limitedFeatures.size(), limitedCoverage.size());
 
         return InsuranceProductDto.builder()
                 .company("KB손해보험")
@@ -456,7 +440,6 @@ public class InsuranceCrawlerJob {
             for (String selector : coverageSelectors) {
                 try {
                     int count = page.locator(selector).count();
-                    log.debug("현대해상 보장내역 선택자 '{}'에서 {}개 요소 발견", selector, count);
                     
                     for (int i = 0; i < count && coverage.size() < 12; i++) {
                         String text = page.locator(selector).nth(i).innerText();
@@ -469,7 +452,6 @@ public class InsuranceCrawlerJob {
                                 // 중복 제거
                                 if (!coverage.contains(cleaned)) {
                                     coverage.add(cleaned);
-                                    log.info("현대해상 보장내역 추가: {}", cleaned);
                                 } else {
                                     log.debug("현대해상 보장내역 중복 제거: {}", cleaned);
                                 }
@@ -537,8 +519,6 @@ public class InsuranceCrawlerJob {
             coverageCount++;
         }
 
-        log.info("현대해상 크롤링 완료 - 특징: {}개, 보장내역: {}개", limitedFeatures.size(), limitedCoverage.size());
-
         return InsuranceProductDto.builder()
                 .company("현대해상")
                 .productName(name)
@@ -557,8 +537,6 @@ public class InsuranceCrawlerJob {
         List<String> coverage = new ArrayList<>();
         String finalUrl = "https://nhfire.co.kr/product/retrieveProduct.nhfire?pdtCd=D314511";
 
-        log.info("NH농협손해보험 크롤링 시작 - URL: {}", finalUrl);
-
         try {
             Playwright playwright = Playwright.create();
             Browser browser = playwright.chromium().launch(
@@ -570,10 +548,8 @@ public class InsuranceCrawlerJob {
             BrowserContext ctx = browser.newContext();
             Page page = ctx.newPage();
 
-            log.info("NH농협손해보험 페이지 로딩 시작");
             page.navigate(finalUrl, new Page.NavigateOptions().setTimeout(30000));
             page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(20000));
-            log.info("NH농협손해보험 페이지 로딩 완료 - 현재 URL: {}", page.url());
 
             String[] featureSelectors = {
                 ".ProTable li", ".Titext1 li", ".Titext2 li",
@@ -583,11 +559,9 @@ public class InsuranceCrawlerJob {
                 ".product-detail li", ".coverage-item"
             };
 
-            log.info("NH농협손해보험 특징 추출 시작");
             for (String selector : featureSelectors) {
                 try {
                     int count = page.locator(selector).count();
-                    log.info("NH농협손해보험 선택자 '{}' - {}개 요소 발견", selector, count);
                     
                     for (int i = 0; i < count && features.size() < 8; i++) {
                         String text = page.locator(selector).nth(i).innerText();
@@ -597,14 +571,12 @@ public class InsuranceCrawlerJob {
                             
                             if (isValidNhFeature(cleaned)) {
                                 features.add(cleaned);
-                                log.info("NH농협손해보험 특징 추가: {}", cleaned);
                             } else {
                                 log.debug("NH농협손해보험 특징 검증 실패: {}", cleaned);
                             }
                         }
                     }
                     if (!features.isEmpty()) {
-                        log.info("NH농협손해보험 특징 추출 성공 - {}개", features.size());
                         break;
                     }
                 } catch (Exception e) {
@@ -620,11 +592,9 @@ public class InsuranceCrawlerJob {
                 ".product-info table tr", ".coverage-info li"
             };
 
-            log.info("NH농협손해보험 보장내역 추출 시작");
             for (String selector : coverageSelectors) {
                 try {
                     int count = page.locator(selector).count();
-                    log.info("NH농협손해보험 보장내역 선택자 '{}' - {}개 요소 발견", selector, count);
                     
                     for (int i = 0; i < count && coverage.size() < 12; i++) {
                         String text = page.locator(selector).nth(i).innerText();
@@ -646,7 +616,6 @@ public class InsuranceCrawlerJob {
                         }
                     }
                     if (!coverage.isEmpty()) {
-                        log.info("NH농협손해보험 보장내역 추출 성공 - {}개", coverage.size());
                         break;
                     }
                 } catch (Exception e) {
@@ -704,8 +673,6 @@ public class InsuranceCrawlerJob {
             }
             coverageCount++;
         }
-
-        log.info("NH농협손해보험 크롤링 완료 - 특징: {}개, 보장내역: {}개", limitedFeatures.size(), limitedCoverage.size());
 
         return InsuranceProductDto.builder()
                 .company("NH농협손해보험")
@@ -850,8 +817,6 @@ public class InsuranceCrawlerJob {
             }
             coverageCount++;
         }
-
-        log.info("메리츠화재 크롤링 완료 - 특징: {}개, 보장내역: {}개", limitedFeatures.size(), limitedCoverage.size());
 
         return InsuranceProductDto.builder()
                 .company("메리츠화재")
@@ -1496,7 +1461,6 @@ public class InsuranceCrawlerJob {
                             
                             if (isValidDbFeature(cleaned) && !features.contains(cleaned)) {
                                 features.add(cleaned);
-                                log.info("DB손해보험 특징 추가: {}", cleaned);
                             } else {
                                 log.debug("DB손해보험 특징 검증 실패 또는 중복: {}", cleaned);
                             }
@@ -1531,7 +1495,6 @@ public class InsuranceCrawlerJob {
                             
                             if (isValidDbCoverage(cleaned) && !coverage.contains(cleaned)) {
                                 coverage.add(cleaned);
-                                log.info("DB손해보험 보장내역 추가: {}", cleaned);
                             } else {
                                 log.debug("DB손해보험 보장내역 검증 실패 또는 중복: {}", cleaned);
                             }
@@ -1568,8 +1531,6 @@ public class InsuranceCrawlerJob {
                 "입원비"
             ));
         }
-
-        log.info("DB손해보험 크롤링 완료 - 특징: {}개, 보장내역: {}개", features.size(), coverage.size());
 
         return InsuranceProductDto.builder()
                 .company("DB손해보험")

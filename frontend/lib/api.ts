@@ -114,17 +114,11 @@ export const petApi = {
   },
 
   createPet: async (petData: Omit<Pet, 'petId'>): Promise<Pet> => {
-    console.log('Creating pet with URL:', `${getBackendUrl()}/api/pets`);
-    console.log('Pet data:', petData);
     const response = await axios.post(`${getBackendUrl()}/api/pets`, petData, {
       headers: {
         'Content-Type': 'application/json',
       },
     });
-    console.log('Create pet response:', response.data);
-    console.log('Create pet response.data:', response.data.data);
-    console.log('Create pet response.data type:', typeof response.data.data);
-    console.log('Create pet response.data keys:', response.data.data ? Object.keys(response.data.data) : 'null/undefined');
     
     // 백엔드 응답 구조 확인 및 적절한 데이터 반환
     if (response.data.data) {
@@ -164,8 +158,6 @@ export const petApi = {
   },
 
   updatePet: async (petId: number, petData: Partial<Pet>): Promise<Pet> => {
-    console.log('전송할 데이터:', petData);
-    
     const response = await axios.put(`${getBackendUrl()}/api/pets/${petId}`, petData, {
       headers: {
         'Content-Type': 'application/json',
@@ -214,7 +206,6 @@ export const s3Api = {
         'Content-Type': 'multipart/form-data',
       },
     });
-    console.log('S3 업로드 응답:', response.data);
     // 백엔드에서 직접 String을 반환하므로 response.data 사용
     return response.data;
   },
@@ -253,7 +244,6 @@ export const adoptionRequestApi = {
 
   getAdoptionRequests: async (): Promise<any[]> => {
     const response = await axios.get(`${getBackendUrl()}/api/adoption-requests`);
-    console.log('Raw adoption requests response:', response.data);
     // 응답이 배열이면 그대로 반환, 아니면 response.data.data 반환
     return Array.isArray(response.data) ? response.data : response.data.data;
   },
@@ -364,13 +354,6 @@ export const recentApi = {
 export const productApi = {
   getProducts: async (): Promise<any[]> => {
     const response = await axios.get(`${getBackendUrl()}/api/products`);
-    console.log('Raw products response:', response);
-    console.log('Response data:', response.data);
-    console.log('Response data type:', typeof response.data);
-    console.log('Response data keys:', Object.keys(response.data));
-    console.log('Response data.data:', response.data.data);
-    console.log('Response data.data type:', typeof response.data.data);
-    console.log('Response data.data isArray:', Array.isArray(response.data.data));
     
     // ResponseDto 형태로 응답이 오므로 response.data.data를 반환
     if (!response.data || !response.data.success) {
@@ -382,16 +365,12 @@ export const productApi = {
       throw new Error("상품 데이터가 배열 형식이 아닙니다.");
     }
     
-    console.log('Final products to return:', products);
     return products;
   },
 
   getProduct: async (productId: number): Promise<any> => {
-    console.log('상품 조회 요청:', `${getBackendUrl()}/api/products/${productId}`);
-    console.log('요청할 productId:', productId, '타입:', typeof productId);
     try {
       const response = await axios.get(`${getBackendUrl()}/api/products/${productId}`);
-      console.log('상품 조회 성공:', response.data);
       return response.data.data;
     } catch (error) {
       console.error('상품 조회 실패:', error);
@@ -409,8 +388,6 @@ export const productApi = {
   },
 
   createProduct: async (productData: any): Promise<any> => {
-    console.log('Creating product with URL:', `${getBackendUrl()}/api/products`);
-    console.log('Product data:', productData);
     const response = await axios.post(`${getBackendUrl()}/api/products`, productData, {
       headers: {
         'Content-Type': 'application/json',

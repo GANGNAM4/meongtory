@@ -26,9 +26,6 @@ import com.itextpdf.layout.borders.SolidBorder;
 public class ContractFileService {
     
     public byte[] generatePDF(String content) throws IOException {
-        System.out.println("=== PDF 생성 시작 ===");
-        System.out.println("입력된 content 길이: " + (content != null ? content.length() : 0));
-        
         // iText를 사용한 한글 PDF 생성
         try {
             return generateKoreanPDF(content);
@@ -54,7 +51,6 @@ public class ContractFileService {
             if (fontStream != null) {
                 byte[] fontBytes = fontStream.readAllBytes();
                 koreanFont = PdfFontFactory.createFont(fontBytes, "Identity-H");
-                System.out.println("NanumGothic 폰트 로드 성공");
             } else {
                 throw new Exception("NanumGothic 폰트 파일을 찾을 수 없음");
             }
@@ -62,16 +58,13 @@ public class ContractFileService {
             try {
                 // 기본 한글 폰트 시도
                 koreanFont = PdfFontFactory.createFont("STSong-Light", "UniGB-UCS2-H");
-                System.out.println("STSong-Light 폰트 로드 성공");
             } catch (Exception e2) {
                 try {
                     // 대체 한글 폰트 시도
                     koreanFont = PdfFontFactory.createFont("HeiseiMin-W3", "UniCNS-UCS2-H");
-                    System.out.println("HeiseiMin-W3 폰트 로드 성공");
                 } catch (Exception e3) {
                     // 기본 폰트 사용
                     koreanFont = PdfFontFactory.createFont();
-                    System.out.println("한글 폰트 로드 실패, 기본 폰트 사용");
                 }
             }
         }
@@ -79,7 +72,6 @@ public class ContractFileService {
         // 펫 이름 추출하여 제목 생성
         String petName = extractPetName(content);
         String title = petName + " 입양 계약서";
-        System.out.println("생성된 제목: " + title);
         
         // 현재 날짜
         String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일"));
@@ -102,7 +94,6 @@ public class ContractFileService {
         // 내용을 테이블 형태로 구성
         if (content != null && !content.trim().isEmpty()) {
             String[] lines = content.split("\n");
-            System.out.println("총 라인 수: " + lines.length);
             
             // 테이블 생성
             Table table = new Table(2).useAllAvailableWidth();
@@ -151,7 +142,6 @@ public class ContractFileService {
 
         
         document.close();
-        System.out.println("=== iText PDF 생성 완료 ===");
         return baos.toByteArray();
     }
     
@@ -178,7 +168,6 @@ public class ContractFileService {
             if (m.find()) {
                 String petName = m.group(1).trim();
                 if (!petName.isEmpty()) {
-                    System.out.println("펫 이름 추출 성공: " + petName);
                     return petName;
                 }
             }
@@ -192,7 +181,6 @@ public class ContractFileService {
                 String[] words = line.split("\\s+");
                 for (String word : words) {
                     if (word.matches("[가-힣]{2,4}") && !word.equals("이름")) {
-                        System.out.println("펫 이름 추출 성공: " + word);
                         return word;
                     }
                 }
@@ -200,25 +188,14 @@ public class ContractFileService {
         }
         
         // 기본값 반환
-        System.out.println("펫 이름 추출 실패, 기본값 사용: 반려동물");
         return "반려동물";
     }
     
     // 파일명 생성 메서드
     public String generateFilename(String content) {
-        System.out.println("=== 파일명 생성 시작 ===");
-        System.out.println("입력된 content: " + (content != null ? content.substring(0, Math.min(200, content.length())) : "null"));
-        
         String petName = extractPetName(content);
-        System.out.println("추출된 펫 이름: " + petName);
-        
         String today = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        System.out.println("오늘 날짜: " + today);
-        
         String filename = petName + "_" + today + ".pdf";
-        System.out.println("생성된 파일명: " + filename);
-        System.out.println("=== 파일명 생성 완료 ===");
-        
         return filename;
     }
 }

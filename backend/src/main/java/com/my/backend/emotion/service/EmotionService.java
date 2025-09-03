@@ -152,7 +152,6 @@ public class EmotionService {
             );
             
             if (response.getStatusCode().is2xxSuccessful()) {
-                System.out.println("✅ AI 서비스 재학습 요청 성공");
                 return response.getBody();
             } else {
                 throw new Exception("AI 서비스 재학습 요청 실패: " + response.getStatusCode());
@@ -175,9 +174,6 @@ public class EmotionService {
         }
         
         feedbackRepository.saveAll(unusedFeedbacks);
-        
-        // 로그 출력
-        System.out.println("✅ " + unusedFeedbacks.size() + "개 피드백을 학습 사용 완료로 표시했습니다.");
     }
     
     // === 대시보드용: 피드백 통계 조회 ===

@@ -195,7 +195,6 @@ export default function MyPage() {
         return dateB - dateA // 내림차순 (최신순)
       })
       
-      console.log('변환된 주문 데이터:', sortedOrders)
       setOrders(sortedOrders)
     } catch (error) {
       console.error('주문 내역을 가져오는데 실패했습니다:', error)
@@ -297,7 +296,6 @@ export default function MyPage() {
 
   const handleUserInfoSave = () => {
     // Here you would typically send the updated info to a backend
-    console.log("Updated User Info:", { name: editedName, email: editedEmail })
     setIsEditingUserInfo(false)
   }
 
@@ -434,7 +432,6 @@ export default function MyPage() {
       setSelectedImage(file)
       const reader = new FileReader()
       reader.onload = (e) => {
-        console.log("파일 읽기 완료:", e.target?.result)
         setImagePreview(e.target?.result as string)
       }
       reader.readAsDataURL(file)
@@ -482,9 +479,7 @@ export default function MyPage() {
     
     if (confirm(`정말로 "${petName}"을(를) 삭제하시겠습니까?\n\n⚠️ 주의: 삭제된 펫 정보는 복구할 수 없습니다.\n- 펫과 관련된 모든 데이터가 삭제됩니다.\n- 업로드된 이미지도 함께 삭제됩니다.`)) {
       try {
-        console.log(`펫 삭제 시작: ${petName} (ID: ${petId})`)
         await myPetApi.deleteMyPet(petId)
-        console.log(`펫 삭제 완료: ${petName}`)
         alert(`"${petName}"이(가) 성공적으로 삭제되었습니다.`)
         fetchMyPets()
       } catch (error: any) {

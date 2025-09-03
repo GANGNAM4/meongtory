@@ -42,9 +42,6 @@ public class ChatbotService {
             
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestData, headers);
 
-            System.out.println("Sending request to AI service: " + aiServiceUrl + " with query: " + request.getQuery() + ", petId: " + request.getPetId());
-            System.out.println("Request data: " + requestData);
-
             ResponseEntity<String> rawResponse = restTemplate.exchange(
                     aiServiceUrl,
                     HttpMethod.POST,
@@ -52,14 +49,11 @@ public class ChatbotService {
                     String.class
             );
 
-            System.out.println("Raw AI service response: " + rawResponse.getBody());
-
             ObjectMapper mapper = new ObjectMapper();
             JsonNode jsonNode = mapper.readTree(rawResponse.getBody());
             String answer = jsonNode.get("answer").asText();
 
             ChatbotResponse response = new ChatbotResponse(answer);
-            System.out.println("Parsed response from AI service: " + response.getAnswer());
             return response;
         } catch (Exception e) {
             System.err.println("Error in AI service request: " + e.getMessage());
@@ -85,9 +79,6 @@ public class ChatbotService {
             
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestData, headers);
 
-            System.out.println("Sending insurance request to AI service: " + aiServiceUrl + " with query: " + request.getQuery() + ", petId: " + request.getPetId());
-            System.out.println("Request data: " + requestData);
-
             ResponseEntity<String> rawResponse = restTemplate.exchange(
                     aiServiceUrl,
                     HttpMethod.POST,
@@ -95,14 +86,11 @@ public class ChatbotService {
                     String.class
             );
 
-            System.out.println("Raw insurance AI service response: " + rawResponse.getBody());
-
             ObjectMapper mapper = new ObjectMapper();
             JsonNode jsonNode = mapper.readTree(rawResponse.getBody());
             String answer = jsonNode.get("answer").asText();
 
             ChatbotResponse response = new ChatbotResponse(answer);
-            System.out.println("Parsed insurance response from AI service: " + response.getAnswer());
             return response;
         } catch (Exception e) {
             System.err.println("Error in insurance AI service request: " + e.getMessage());

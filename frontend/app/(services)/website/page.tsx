@@ -243,84 +243,6 @@ export default function PetServiceWebsite() {
     }
   }, [isLoading]);
 
-  // 로그인 상태 확인 (layout.tsx로 이동했으므로 주석 처리)
-  /*
-  useEffect(() => {
-    let isRefreshing = false;
-    const checkLoginStatus = async () => {
-      if (typeof window === "undefined" || isRefreshing) return;
-      setIsLoading(true);
-      let accessToken = localStorage.getItem("accessToken");
-      if (!accessToken) {
-        setIsLoading(false);
-        return;
-      }
-      try {
-        const response = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
-          headers: { "Access_Token": accessToken },
-          timeout: 5000,
-        });
-        const { id, email, name, role } = response.data.data;
-        setCurrentUser({ id, email, name });
-        setIsAdmin(role === "ADMIN");
-        setIsLoggedIn(true);
-      } catch (err: any) {
-        console.error("사용자 정보 조회 실패:", err);
-        if (err.code === "ECONNABORTED" || err.code === "ERR_NETWORK" || !err.response) {
-          console.log("백엔드 서버 연결 실패, 로그아웃 처리");
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-          setIsLoggedIn(false);
-          setCurrentUser(null);
-          setIsAdmin(false);
-          setIsLoading(false);
-          return;
-        }
-        if (err.response?.status === 401) {
-          isRefreshing = true;
-          accessToken = await refreshAccessToken();
-          if (accessToken) {
-            try {
-              const response = await axios.get(`${getBackendUrl()}/api/accounts/me`, {
-                headers: { "Access_Token": accessToken },
-                timeout: 5000,
-              });
-              const { id, email, name, role } = response.data.data;
-              setCurrentUser({ id, email, name });
-              setIsLoggedIn(true);
-              setIsAdmin(role === "ADMIN");
-              console.log("Retry login check successful:", { id, email, name, role });
-            } catch (retryErr) {
-              console.error("재시도 실패:", retryErr);
-              localStorage.removeItem("accessToken");
-              localStorage.removeItem("refreshToken");
-              setIsLoggedIn(false);
-              setCurrentUser(null);
-              setIsAdmin(false);
-            }
-          } else {
-            localStorage.removeItem("accessToken");
-            localStorage.removeItem("refreshToken");
-            setIsLoggedIn(false);
-            setCurrentUser(null);
-            setIsAdmin(false);
-          }
-        } else {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
-          setIsLoggedIn(false);
-          setCurrentUser(null);
-          setIsAdmin(false);
-        }
-      } finally {
-        isRefreshing = false;
-        setIsLoading(false);
-      }
-    };
-    checkLoginStatus();
-  }, []);
-  */
-
   // OAuth 콜백 처리는 Navigation 컴포넌트의 AuthContext에서 처리됨
 
   // 이벤트 핸들러 (기존과 동일)
@@ -361,7 +283,6 @@ export default function PetServiceWebsite() {
 
       // 수량 추출 (상품 상세페이지에서 전달받은 수량 또는 기본값 1)
       const quantity = (product as any).selectedQuantity || 1
-      console.log("추가할 수량:", quantity)
 
       // 재고 확인
       const stock = typeof product.stock === 'number' ? product.stock : 0
@@ -596,13 +517,9 @@ export default function PetServiceWebsite() {
         items: orderItems
       };
 
-      console.log("전체 주문 데이터:", orderData);
-
       const response = await axios.post(`${getBackendUrl()}/api/orders/bulk-all`, orderData, {
         headers: { "Access_Token": accessToken }
       });
-
-      console.log("전체 주문 응답:", response.data);
 
       if (response.data && response.data.success) {
         // 장바구니 비우기
@@ -852,11 +769,8 @@ export default function PetServiceWebsite() {
   };
 
   const handleViewProduct = (product: Product) => {
-    console.log("handleViewProduct called with:", product)
-    
     // 일반 상품인지 확인
     if ('id' in product && product.id) {
-      console.log("일반 상품으로 인식됨:", product)
       setSelectedProductId(Number(product.id))
       setCurrentPage("product-detail")
     }

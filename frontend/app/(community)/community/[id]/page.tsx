@@ -93,7 +93,6 @@ export default function CommunityDetailPage({
   const refreshToken = async () => {
     try {
       const refreshToken = localStorage.getItem("refreshToken");
-      console.log("Refresh Token:", refreshToken);
       if (!refreshToken) {
         console.warn("No refresh token found");
         return null;
@@ -103,11 +102,8 @@ export default function CommunityDetailPage({
         refreshToken: refreshToken
       });
 
-      console.log("Refresh token response:", response.data);
-
       if (response.data.data && response.data.data.accessToken) {
         localStorage.setItem("accessToken", response.data.data.accessToken);
-        console.log("Token refreshed:", response.data.data.accessToken);
         return response.data.data.accessToken;
       } else {
         console.error("Refresh token error response:", response.data);
@@ -122,15 +118,9 @@ export default function CommunityDetailPage({
   };
 
   useEffect(() => {
-    console.log("canEditOrDelete:", {
-      postOwnerEmail: post?.ownerEmail,
-      currentUserEmail,
-      currentUserRole,
-    });
     const fetchUserInfo = async () => {
       try {
         const token = localStorage.getItem("accessToken");
-        console.log("Access Token for /api/accounts/me:", token);
         
         if (!token) {
           console.warn("No access token found - user not logged in");
@@ -143,13 +133,11 @@ export default function CommunityDetailPage({
         });
         
         
-        console.log("User info response:", response.data);
 
         if (response.data.success && response.data.data) {
           setCurrentUserEmail(response.data.data.email);
           setCurrentUserRole(response.data.data.role);
           localStorage.setItem("email", response.data.data.email);
-          console.log("User info set:", { email: response.data.data.email, role: response.data.data.role });
         } else {
           console.error("User info fetch failed:", response.data.error);
           setCurrentUserEmail(null);
@@ -166,13 +154,11 @@ export default function CommunityDetailPage({
                  headers: { Access_Token: newToken },
                  withCredentials: true,
                });
-              console.log("Retry user info response:", retryResponse.data);
               
               if (retryResponse.data.success && retryResponse.data.data) {
                 setCurrentUserEmail(retryResponse.data.data.email);
                 setCurrentUserRole(retryResponse.data.data.role);
                 localStorage.setItem("email", retryResponse.data.data.email);
-                console.log("User info set after refresh:", { email: retryResponse.data.data.email, role: retryResponse.data.data.role });
               } else {
                 console.error("Retry failed:", retryResponse.data);
                 setCurrentUserEmail(null);

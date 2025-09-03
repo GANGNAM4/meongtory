@@ -73,16 +73,10 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
         throw new Error('로그인이 필요합니다.');
       }
 
-      console.log('전체 결제 아이템:', items);
-      console.log('아이템 개수:', items.length);
-      console.log('사용자 정보:', userData);
-      
       let response;
       let currentToken = accessToken;
       
       // 모든 상품을 bulk-all로 주문 생성 (결제는 첫 번째 주문 ID만 사용)
-      console.log('전체 주문 생성 시작 (결제용)');
-      
       const orderItems = items.map(item => {
         if (item.isNaverProduct) {
           // 네이버 상품인 경우 - item.id가 데이터베이스에 저장된 네이버 상품 ID
@@ -108,18 +102,12 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
         items: orderItems
       };
 
-      console.log('전체 주문 생성 요청:', orderData);
-
       response = await axios.post(`${getBackendUrl()}/api/orders/bulk-all`, orderData, {
         headers: {
           'Access_Token': currentToken
         }
       });
 
-      console.log('전체 주문 생성 응답:', response.data);
-
-      console.log('주문 생성 응답:', response.data);
-      
       // bulk-all API는 여러 주문을 반환하므로 첫 번째 주문의 ID를 사용
       const responseData = response.data;
       let createdOrder;
@@ -127,8 +115,6 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
       if (responseData.orders && responseData.orders.length > 0) {
         // bulk-all 응답인 경우
         createdOrder = responseData.orders[0]; // 첫 번째 주문 사용
-        console.log('전체 주문 생성 완료, 첫 번째 주문 ID 사용:', createdOrder.merchantOrderId);
-        console.log('생성된 전체 주문 수:', responseData.orders.length);
       } else {
         // 단일 주문 응답인 경우 (기존 방식)
         createdOrder = responseData;
@@ -157,14 +143,8 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
       const accessToken = localStorage.getItem('accessToken');
       const refreshToken = localStorage.getItem('refreshToken');
       
-      console.log('토큰 확인:', accessToken ? '토큰 존재' : '토큰 없음');
-      console.log('리프레시 토큰 확인:', refreshToken ? '토큰 존재' : '토큰 없음');
-
       if (!accessToken) {
         console.error('No access token found. Please login first.');
-        console.log('Current page URL:', window.location.href);
-        console.log('Available localStorage keys:', Object.keys(localStorage));
-        console.log('Available sessionStorage keys:', Object.keys(sessionStorage));
         throw new Error('로그인이 필요합니다.');
       }
 
@@ -177,13 +157,10 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
           }
         });
 
-        console.log('API Response:', response.data);
-
         // 백엔드에서 ResponseDto.success()로 감싸서 반환
         if (response.data.success) {
           const userData = response.data.data;
           setUserInfo(userData);
-          console.log('User info set:', userData);
           
           // 사용자 정보를 가져온 후 주문 생성
           await createOrder(userData);
@@ -196,8 +173,6 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
       } catch (tokenError: any) {
         // 토큰이 만료된 경우 리프레시 토큰으로 갱신 시도
         if (tokenError.response?.status === 401 && refreshToken) {
-          console.log('액세스 토큰이 만료되었습니다. 리프레시 토큰으로 갱신을 시도합니다.');
-          
           try {
             const refreshResponse = await axios.post(`${getBackendUrl()}/api/accounts/refresh`, {
               refreshToken: refreshToken
@@ -218,7 +193,6 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
               if (userResponse.data.success) {
                 const userData = userResponse.data.data;
                 setUserInfo(userData);
-                console.log('User info set (after refresh):', userData);
                 
                 // 사용자 정보를 가져온 후 주문 생성
                 await createOrder(userData);
@@ -269,12 +243,6 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
           return;
         }
 
-        console.log('TossPayments SDK 로드 시작');
-        console.log('CLIENT_KEY length:', CLIENT_KEY?.length);
-        console.log('CLIENT_KEY starts with:', CLIENT_KEY?.substring(0, 10));
-        console.log('Current domain:', window.location.hostname);
-        console.log('Current protocol:', window.location.protocol);
-
         // CDN 스크립트 로드
         await new Promise<void>((resolve, reject) => {
           const existing = document.querySelector('script[src="https://js.tosspayments.com/v2/standard"]');
@@ -288,7 +256,6 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
           script.src = 'https://js.tosspayments.com/v2/standard';
           script.async = true;
           script.onload = () => {
-            console.log('TossPayments CDN script loaded successfully');
             resolve();
           };
           script.onerror = () => {
@@ -300,15 +267,11 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
 
         // 전역 TossPayments 객체 확인
         const globalTP: any = (window as any).TossPayments;
-        console.log('Global TossPayments available:', typeof globalTP);
 
         if (typeof globalTP === 'function') {
           const tpInstance = globalTP(CLIENT_KEY);
-          console.log('TossPayments instance created:', tpInstance);
-          console.log('TossPayments instance keys:', Object.keys(tpInstance || {}));
           
           if (tpInstance && typeof tpInstance.payment === 'function') {
-            console.log('TossPayments payment method available');
             setTossPayments(tpInstance);
           } else {
             console.error('TossPayments payment method not available');
@@ -329,25 +292,17 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
   // tossPayments와 userInfo가 준비되면 payment 인스턴스를 미리 생성
   useEffect(() => {
     if (!tossPayments || !userInfo) {
-      console.log('Payment instance creation skipped:', { 
-        hasTossPayments: !!tossPayments, 
-        hasUserInfo: !!userInfo 
-      });
       return;
     }
     
     try {
       const customerKey = `customer_${userInfo.id}`;
-      console.log('Creating payment instance with customerKey:', customerKey);
       
       if (typeof tossPayments.payment === 'function') {
         const p = tossPayments.payment({ customerKey });
-        console.log('Payment instance created:', p);
-        console.log('Payment instance methods:', Object.keys(p || {}));
         
         if (p && typeof p.requestPayment === 'function') {
           setPayment(p);
-          console.log('Payment instance prepared successfully');
         } else {
           console.error('Payment instance invalid - requestPayment not available:', p);
           console.error('Available methods:', Object.keys(p || {}));
@@ -391,18 +346,6 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
       if (!accessToken) {
         throw new Error('로그인이 필요합니다.');
       }
-      
-      console.log('결제 요청 정보:', {
-        orderId,
-        totalAmount,
-        items: items.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          subtotal: item.price * item.quantity
-        }))
-      });
 
       // 필수 파라미터 검증
       if (!orderId || !totalAmount || totalAmount <= 0) {

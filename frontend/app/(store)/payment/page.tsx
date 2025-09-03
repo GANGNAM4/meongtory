@@ -30,15 +30,6 @@ function PaymentContent() {
     const imageUrl = searchParams.get('imageUrl');
     const isNaverProduct = searchParams.get('isNaverProduct'); // 네이버 상품 여부 추가
 
-    console.log('URL 파라미터 확인:', {
-      productId,
-      productName,
-      price,
-      quantity,
-      imageUrl,
-      isNaverProduct
-    });
-
     if (productId && productName && price && quantity && imageUrl) {
       // 실제 상품 데이터로 설정
       const items: PaymentItem[] = [
@@ -51,9 +42,6 @@ function PaymentContent() {
           isNaverProduct: isNaverProduct === 'true' // 네이버 상품 여부 설정
         }
       ];
-      console.log('실제 상품 정보로 설정:', items);
-      console.log('isNaverProduct 값:', isNaverProduct);
-      console.log('isNaverProduct === "true":', isNaverProduct === 'true');
       setPaymentItems(items);
     } else {
       // 파라미터가 없으면 테스트용 상품 데이터 사용
@@ -67,7 +55,6 @@ function PaymentContent() {
           isNaverProduct: false
         }
       ];
-      console.log('테스트 상품 정보로 설정:', testItems);
       setPaymentItems(testItems);
     }
     setIsLoading(false);

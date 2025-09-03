@@ -36,16 +36,13 @@ public class AccountService {
 
     @Transactional
     public ResponseDto<?> register(AccountRegisterRequestDto requestDto) {
-        log.info("회원가입 처리 시작: email={}", requestDto.getEmail());
         if (accountRepository.findByEmail(requestDto.getEmail()).isPresent()) {
-            log.warn("이미 사용 중인 이메일: {}", requestDto.getEmail());
             return ResponseDto.fail("EMAIL_ALREADY_TAKEN", "이미 사용 중인 이메일입니다.");
         }
 
         requestDto.setEncodePwd(passwordEncoder.encode(requestDto.getPassword()));
         Account account = new Account(requestDto);
         accountRepository.save(account);
-        log.info("계정 저장 완료: email={}", account.getEmail());
 
         // 펫 정보 저장 로직
         if (requestDto.getPet() != null && requestDto.getPetBreeds() != null) {
@@ -64,7 +61,6 @@ public class AccountService {
                         .specialNeeds("")
                         .build();
                 myPetRepository.save(myPet);
-                log.info("펫 정보 저장 완료: email={}", account.getEmail());
             } catch (Exception e) {
                 log.warn("펫 정보 저장 실패: {}", e.getMessage());
                 return ResponseDto.fail("PET_SAVE_FAILED", "펫 정보 저장 중 오류가 발생했습니다: " + e.getMessage());
@@ -77,7 +73,6 @@ public class AccountService {
                 account.getName(),
                 account.getRole()
         );
-        log.info("회원가입 성공: email={}", responseDto.getEmail());
         return ResponseDto.success(responseDto);
     }
 
@@ -115,7 +110,6 @@ public class AccountService {
                 .refreshToken(tokenDto.getRefreshToken())
                 .build();
         refreshTokenRepository.save(refreshToken);
-        log.info("로그인 성공: {}", account.getEmail());
         
         // 사용자 정보와 토큰을 모두 포함한 응답 반환
         return new LoginResponseDto(
@@ -131,7 +125,6 @@ public class AccountService {
     @Transactional
     public void accountLogout(String email) {
         refreshTokenRepository.deleteByAccountEmail(email);
-        log.info("로그아웃 성공: {}", email);
     }
 
     public AccountResponseDto getUserInfoByEmail(String email) {
@@ -174,8 +167,6 @@ public class AccountService {
 
         // 새로운 액세스 토큰 생성
         String newAccessToken = jwtUtil.createToken(email, account.getRole(), "Access");
-        log.info("새로운 액세스 토큰 생성 성공: email={}", email);
-
         return new TokenDto(newAccessToken, refreshToken);
     }
     

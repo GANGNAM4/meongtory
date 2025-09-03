@@ -44,20 +44,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         Enumeration<String> headerNames = request.getHeaderNames();
-        log.info("🔥 Incoming request headers:");
         while (headerNames.hasMoreElements()) {
             String headerName = headerNames.nextElement();
-            log.info("{}: {}", headerName, request.getHeader(headerName));
         }
 
-        log.info("Request Content-Type: {}", request.getContentType());
         String accessToken = jwtUtil.getHeaderToken(request, "Access_Token");
         String refreshToken = jwtUtil.getHeaderToken(request, "Refresh_Token");
-
-        log.info("Access Token from header: {}", accessToken);
-        log.info("Refresh Token from header: {}", refreshToken);
-        log.info("Raw Access_Token from header: {}", request.getHeader("Access_Token"));
-        log.info("Parsed Access Token: {}", accessToken);
 
         if (accessToken != null) {
             if (!jwtUtil.tokenValidation(accessToken)) {
@@ -66,9 +58,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 return;
             }
             String email = jwtUtil.getEmailFromToken(accessToken);
-            log.info("Extracted email from Access Token: {}", email);
             setAuthentication(email);
-            log.info("Authentication set for Access Token: {}", SecurityContextHolder.getContext().getAuthentication());
         } else if (refreshToken != null) {
             if (!jwtUtil.refreshTokenValidation(refreshToken)) {
                 log.warn("Token validation failed for Refresh Token: {}", refreshToken);
@@ -76,9 +66,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 return;
             }
             String email = jwtUtil.getEmailFromToken(refreshToken);
-            log.info("Extracted email from Refresh Token: {}", email);
             setAuthentication(email);
-            log.info("Authentication set for Refresh Token: {}", SecurityContextHolder.getContext().getAuthentication());
         } else {
             log.info("No valid tokens provided - Proceeding without authentication");
         }
@@ -94,7 +82,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 return;
             }
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.info("Authentication successfully set in SecurityContext: {}", authentication);
         } catch (Exception e) {
             log.error("Error setting authentication for email: {}. Exception: {}", email, e.getMessage());
         }

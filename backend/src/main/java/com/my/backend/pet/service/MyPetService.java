@@ -84,13 +84,10 @@ public class MyPetService {
         MyPet myPet = myPetRepository.findByMyPetIdAndOwnerId(myPetId, ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("펫을 찾을 수 없거나 삭제 권한이 없습니다."));
         
-        log.info("MyPet 삭제 시작: {} (ID: {})", myPet.getName(), myPetId);
-        
         try {
             // 1. 연관된 다이어리들 먼저 삭제
             try {
                 int deletedDiaries = diaryRepository.deleteByMyPetId(myPetId);
-                log.info("MyPet {}에 대한 {}개의 다이어리가 삭제되었습니다.", myPet.getName(), deletedDiaries);
             } catch (Exception e) {
                 log.error("다이어리 삭제 중 오류: {}", e.getMessage());
                 throw new RuntimeException("다이어리 삭제 중 오류가 발생했습니다: " + e.getMessage());
@@ -101,7 +98,6 @@ public class MyPetService {
                 try {
                     String fileName = myPet.getImageUrl().substring(myPet.getImageUrl().lastIndexOf("/") + 1);
                     s3Service.deleteMyPetImage(fileName);
-                    log.info("MyPet S3 이미지 삭제 완료: {}", fileName);
                 } catch (Exception e) {
                     log.error("MyPet S3 이미지 삭제 실패: {}", e.getMessage());
                     // 이미지 삭제 실패해도 계속 진행
@@ -110,7 +106,6 @@ public class MyPetService {
             
             // 3. MyPet 엔티티 삭제
             myPetRepository.delete(myPet);
-            log.info("MyPet 삭제 완료: {} (ID: {})", myPet.getName(), myPetId);
             
         } catch (Exception e) {
             log.error("MyPet 삭제 중 오류 발생: {}", e.getMessage(), e);

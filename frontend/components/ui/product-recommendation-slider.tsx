@@ -147,11 +147,6 @@ export function ProductRecommendationSlider({
                  onClick={(e) => {
                    e.stopPropagation();
                    const productId = product.id || product.productId || 0;
-                   console.log('추천 상품 장바구니 버튼 클릭:', {
-                     productId: productId,
-                     product: product,
-                     onAddToCart: typeof onAddToCart
-                   });
                    onAddToCart?.(productId, product);
                  }}
                  className="w-full bg-yellow-400 hover:bg-yellow-500 text-black mt-auto"

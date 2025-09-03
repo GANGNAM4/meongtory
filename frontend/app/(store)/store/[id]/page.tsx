@@ -273,19 +273,10 @@ export default function StoreProductDetailPage({
   const addToRecentProducts = async (product: Product | any) => {
     const isLoggedIn = typeof window !== 'undefined' && localStorage.getItem('accessToken')
     
-    console.log('최근 본 상품 추가 시도:', {
-      productId: product.id,
-      productName: product.name || product.title,
-      isLoggedIn: isLoggedIn,
-      productType: 'store'
-    })
-    
     if (isLoggedIn) {
       // 로그인 시: DB에 저장
       try {
-        console.log('DB에 저장 시도:', product.id, 'store')
         await recentApi.addToRecent(product.id, "store")
-        console.log('DB 저장 성공')
       } catch (error: any) {
         console.error("최근 본 상품 저장 실패:", error)
         if (error.response) {
@@ -446,14 +437,6 @@ export default function StoreProductDetailPage({
           registrationDate: rawData.registrationDate || rawData.createdAt || '등록일 없음',
           registeredBy: rawData.registeredBy || '등록자 없음'
         };
-        
-        console.log('상품 데이터 설정:', {
-          id: data.id,
-          name: data.name,
-          productId: productId,
-          rawDataId: rawData.id,
-          urlProductId: productId
-        })
         
         setProduct(data)
         
