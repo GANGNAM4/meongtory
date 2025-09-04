@@ -121,7 +121,6 @@ export default function PaymentPage({ items, onBack, onSuccess, onFail }: Paymen
       }
       
       setOrderId(createdOrder.merchantOrderId);
-      console.log('주문 ID 설정:', createdOrder.merchantOrderId);
     } catch (error) {
       console.error('주문 생성 오류:', error);
       throw error;

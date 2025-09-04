@@ -107,9 +107,7 @@ export default function GrowthDiaryWritePage({
     
     let finalUserId = userId;
     if (!userId) {
-      console.log("No userId found in localStorage, using currentUserId prop");
       finalUserId = currentUserId?.toString();
-      console.log("Using currentUserId as userId:", finalUserId);
       
       if (!finalUserId) {
         console.log("No userId available");
