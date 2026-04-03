@@ -27,7 +27,11 @@ from emotion.emotion_api import router as emotion_router
 from emotion.retrain_service import get_retrain_service
 from model import DogBreedClassifier
 from chatBot.rag_app import process_rag_query, initialize_vectorstore
-from chatBot.insurance_rag import process_insurance_rag_query, InsuranceQueryRequest
+from chatBot.insurance_rag import (
+    process_insurance_rag_query,
+    InsuranceQueryRequest,
+    initialize_insurance_vectorstore,
+)
 
 # StoreAI 서비스 import
 from store.api import app as storeai_app
@@ -373,6 +377,32 @@ async def insurance_chatbot_endpoint(request: InsuranceQueryRequest):
     except Exception as e:
         logger.error(f"Error processing insurance chatbot query: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Insurance chatbot endpoint failed: {str(e)}")
+
+
+@app.post("/chatbot/insurance/reindex")
+async def insurance_reindex_endpoint():
+    """보험 벡터스토어 재색인 트리거 (백그라운드 실행)"""
+    try:
+        def run_insurance_reindex():
+            try:
+                logger.info("보험 벡터스토어 재색인 시작")
+                initialize_insurance_vectorstore(force_refresh=True)
+                logger.info("보험 벡터스토어 재색인 완료")
+            except Exception as e:
+                logger.error(f"보험 벡터스토어 재색인 실패: {str(e)}")
+
+        thread = threading.Thread(target=run_insurance_reindex)
+        thread.daemon = True
+        thread.start()
+
+        return {
+            "success": True,
+            "message": "보험 벡터스토어 재색인이 백그라운드에서 시작되었습니다.",
+            "status": "processing"
+        }
+    except Exception as e:
+        logger.error(f"보험 재색인 트리거 실패: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"보험 재색인 트리거 실패: {str(e)}")
 
 @app.post("/search/mypet")
 async def search_with_mypet(request: dict):

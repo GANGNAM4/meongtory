@@ -4,8 +4,10 @@ import com.my.backend.insurance.dto.InsuranceProductDto;
 import com.my.backend.insurance.service.InsuranceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -26,6 +28,8 @@ public class IntegratedInsuranceCrawler {
     private final InsuranceService insuranceService;
     
     private final InsuranceCrawlerJob insuranceCrawlerJob;
+    private final RestTemplate restTemplate = new RestTemplate();
+    private static final String AI_SERVICE_URL = System.getenv().getOrDefault("AI_SERVICE_URL", "http://ai:9000");
 
     public IntegratedInsuranceCrawler(InsuranceService insuranceService) {
         this.insuranceService = insuranceService;
@@ -202,6 +206,7 @@ public class IntegratedInsuranceCrawler {
         if (!successfulResults.isEmpty()) {
             try {
                 insuranceService.upsertAll(successfulResults);
+                triggerInsuranceReindex();
         
             } catch (Exception e) {
                 log.error("크롤링 결과 저장 실패: {}", e.getMessage());
@@ -218,6 +223,17 @@ public class IntegratedInsuranceCrawler {
         }
         
         
+    }
+
+    private void triggerInsuranceReindex() {
+        try {
+            String url = AI_SERVICE_URL + "/chatbot/insurance/reindex";
+            ResponseEntity<String> response = restTemplate.postForEntity(url, null, String.class);
+            log.info("보험 벡터 재색인 트리거 호출 완료: status={}", response.getStatusCode());
+        } catch (Exception e) {
+            // 크롤링/저장 성공 자체를 막지 않기 위해 트리거 실패는 경고만 남김
+            log.warn("보험 벡터 재색인 트리거 호출 실패: {}", e.getMessage());
+        }
     }
     
     /**
