@@ -7,7 +7,6 @@ from langchain_core.documents import Document
 import os
 import logging
 import psycopg2
-import json
 from typing import List, Dict, Any, Optional
 
 # 로깅 설정
@@ -28,6 +27,72 @@ VECTORSTORE_COLLECTION_NAME = os.getenv("INSURANCE_VECTORSTORE_COLLECTION_NAME",
 VECTORSTORE_DISTANCE_STRATEGY = os.getenv("VECTORSTORE_DISTANCE_STRATEGY", "cosine")
 VECTORSTORE_SEARCH_LIMIT = int(os.getenv("INSURANCE_VECTORSTORE_SEARCH_LIMIT", "5"))
 PROMPT_TEMPLATE_PATH = os.getenv("INSURANCE_PROMPT_TEMPLATE_PATH", "/app/chatBot/insurance_prompt_template.txt")
+INSURANCE_VECTORSTORE_QUERY_K = int(
+    os.getenv("INSURANCE_VECTORSTORE_QUERY_K", str(max(VECTORSTORE_SEARCH_LIMIT, 8)))
+)
+
+
+def _split_multivalue_field(raw: Optional[str]) -> List[str]:
+    """InsuranceService는 features/coverage_details를 '|'로 저장. 레거시는 ','일 수 있음."""
+    if not raw or not str(raw).strip():
+        return []
+    s = str(raw).strip()
+    if "|" in s:
+        parts = [p.strip() for p in s.split("|")]
+    else:
+        parts = [p.strip() for p in s.split(",")]
+    return [p for p in parts if p]
+
+
+def _count_insurance_products_db() -> int:
+    try:
+        with psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        ) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM insurance_products")
+                return int(cur.fetchone()[0])
+    except Exception as e:
+        logger.error(f"Failed to count insurance_products: {e}")
+        return 0
+
+
+def _count_insurance_collection_embeddings() -> int:
+    try:
+        with psycopg2.connect(
+            host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+        ) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM langchain_pg_embedding e
+                    JOIN langchain_pg_collection c ON e.collection_id = c.uuid
+                    WHERE c.name = %s
+                    """,
+                    (VECTORSTORE_COLLECTION_NAME,),
+                )
+                return int(cur.fetchone()[0])
+    except Exception as e:
+        logger.debug(f"Insurance collection count failed (table may not exist yet): {e}")
+        return 0
+
+
+def _clear_insurance_collection_embeddings() -> None:
+    with psycopg2.connect(
+        host=DB_HOST, port=DB_PORT, dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD
+    ) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM langchain_pg_embedding
+                WHERE collection_id = (
+                    SELECT uuid FROM langchain_pg_collection WHERE name = %s
+                )
+                """,
+                (VECTORSTORE_COLLECTION_NAME,),
+            )
+        conn.commit()
 
 # 임베딩 모델
 try:
@@ -53,62 +118,53 @@ except Exception as e:
     logger.error(f"Failed to initialize PGVector: {e}", exc_info=True)
     raise Exception(f"Vectorstore initialization failed: {str(e)}")
 
-# 보험 상품 데이터를 벡터스토어에 삽입
-def initialize_insurance_vectorstore():
+def initialize_insurance_vectorstore(force_refresh: Optional[bool] = None) -> None:
+    """
+    insurance_products 행 수와 벡터 컬렉션 문서 수가 같으면 스킵.
+    INSURANCE_VECTORSTORE_FORCE_REFRESH=true 이면 항상 전체 재적재.
+    """
+    if force_refresh is None:
+        force_refresh = os.getenv("INSURANCE_VECTORSTORE_FORCE_REFRESH", "false").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
+
     try:
         logger.debug("Starting initialize_insurance_vectorstore")
-        
-        # 기존 데이터 확인 및 삭제
-        with psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        ) as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT COUNT(*)
-                    FROM langchain_pg_embedding e
-                    JOIN langchain_pg_collection c ON e.collection_id = c.uuid
-                    WHERE c.name = %s
-                """, (VECTORSTORE_COLLECTION_NAME,))
-                count = cur.fetchone()[0]
-                logger.debug(f"Existing records in {VECTORSTORE_COLLECTION_NAME}: {count}")
+        db_count = _count_insurance_products_db()
+        if db_count == 0:
+            logger.warning("No insurance products in DB; skipping vectorstore sync")
+            return
 
-                if count > 0:
-                    logger.info(f"Deleting existing data in {VECTORSTORE_COLLECTION_NAME}")
-                    cur.execute("""
-                        DELETE FROM langchain_pg_embedding
-                        WHERE collection_id = (
-                            SELECT uuid FROM langchain_pg_collection WHERE name = %s
-                        )
-                    """, (VECTORSTORE_COLLECTION_NAME,))
-                    conn.commit()
-                    logger.info("Existing data deleted")
+        vec_count = _count_insurance_collection_embeddings()
+        if not force_refresh and vec_count == db_count:
+            logger.info(
+                "Insurance vectorstore is up to date (%s embeddings == %s DB rows). Skipping sync.",
+                vec_count,
+                db_count,
+            )
+            return
 
-        # 보험 상품 데이터를 DB에서 가져와서 벡터스토어에 삽입
-        # logger.info("Fetching insurance products from database")
+        logger.info(
+            "Syncing insurance vectorstore (db_rows=%s, embeddings=%s, force_refresh=%s)",
+            db_count,
+            vec_count,
+            force_refresh,
+        )
+        _clear_insurance_collection_embeddings()
+
         insurance_docs = fetch_insurance_products_from_db()
-        
-        if insurance_docs:
-            try:
-                # 기존 데이터가 있으면 건너뛰기
-                existing_docs = vectorstore.similarity_search("보험", k=1)
-                if existing_docs:
-                    pass  # logger.info("Insurance data already exists in vectorstore, skipping insertion")
-                else:
-                    vectorstore.add_documents(insurance_docs)
-                    # logger.info(f"Inserted {len(insurance_docs)} insurance products into vectorstore")
-            except Exception as e:
-                logger.warning(f"Failed to add insurance documents to vectorstore: {e}")
-                logger.info("Continuing without insurance vectorstore initialization")
-        else:
-            logger.warning("No insurance products found in database")
-            
+        if not insurance_docs:
+            logger.warning("No insurance documents built from database")
+            return
+
+        vectorstore.add_documents(insurance_docs)
+        logger.info("Inserted %s insurance documents into vectorstore", len(insurance_docs))
+
     except Exception as e:
-        logger.error(f"Failed to initialize insurance vectorstore: {str(e)}")
-        raise Exception(f"Insurance vectorstore initialization failed: {str(e)}")
+        logger.error(f"Failed to initialize insurance vectorstore: {str(e)}", exc_info=True)
+        raise Exception(f"Insurance vectorstore initialization failed: {str(e)}") from e
 
 # DB에서 보험 상품 데이터를 가져와서 Document 형태로 변환
 def fetch_insurance_products_from_db() -> List[Document]:
@@ -135,9 +191,8 @@ def fetch_insurance_products_from_db() -> List[Document]:
                 for row in rows:
                     id, company, product_name, description, features, coverage_details, redirect_url, logo_url = row
                     
-                    # 보장내역과 특징을 파싱
-                    features_list = features.split(',') if features else []
-                    coverage_list = coverage_details.split(',') if coverage_details else []
+                    features_list = _split_multivalue_field(features)
+                    coverage_list = _split_multivalue_field(coverage_details)
                     
                     # Document 내용 구성
                     content = f"""
@@ -322,32 +377,28 @@ async def process_insurance_rag_query(query: str, pet_id: Optional[int] = None):
                 final_query = query
         else:
             final_query = query
-        
-        # 직접 데이터베이스에서 보험 상품 검색
-        insurance_products = fetch_insurance_products_from_db()
-        
-        if not insurance_products:
+
+        if _count_insurance_products_db() == 0:
             return {"answer": "죄송합니다. 현재 등록된 보험 상품 정보가 없습니다."}
-        
-        # 고급 필터링 시스템
-        filtered_products = filter_insurance_products(insurance_products, final_query)
-        
-        if not filtered_products:
-            return {"answer": "죄송합니다. 검색 조건에 맞는 보험 상품을 찾을 수 없습니다. 다른 검색어로 다시 시도해보세요."}
-        
-        # 컨텍스트 구성
+
+        k = INSURANCE_VECTORSTORE_QUERY_K
+        retrieved_docs = vectorstore.similarity_search(final_query, k=k)
+        logger.info("Vector retrieval returned %s document(s) (k=%s)", len(retrieved_docs), k)
+
+        if not retrieved_docs:
+            return {
+                "answer": "검색 가능한 보험 데이터가 아직 준비되지 않았거나 조건에 맞는 결과가 없습니다. 잠시 후 다시 시도해 주세요."
+            }
+
         context_parts = []
-        for i, product in enumerate(filtered_products, 1):
-            metadata = product.metadata
-            company = metadata.get('company', '')
-            product_name = metadata.get('product_name', '')
-            redirect_url = metadata.get('redirect_url', '')
-            
-            # 링크 정보를 포함한 컨텍스트 구성
+        for i, product in enumerate(retrieved_docs, 1):
+            metadata = product.metadata or {}
+            redirect_url = metadata.get("redirect_url", "")
+
             product_info = f"[상품 {i}]\n{product.page_content}"
             if redirect_url:
                 product_info += f"\n🔗 가입 링크: {redirect_url}"
-            
+
             context_parts.append(product_info)
         
         context = "\n\n".join(context_parts)
@@ -367,118 +418,5 @@ async def process_insurance_rag_query(query: str, pet_id: Optional[int] = None):
         logger.error(f"Error processing insurance query: {e}", exc_info=True)
         raise Exception(f"Insurance query processing failed: {str(e)}")
 
-def filter_insurance_products(products, query):
-    """
-    검색어에 따라 보험 상품을 필터링하는 고급 시스템
-    """
-    query_lower = query.lower() if query else ""
-    filtered_products = []
-    
-    # 검색 조건 정의
-    search_conditions = {
-        '보험사': {
-            '삼성화재': ['삼성', '삼성화재', 'samsung'],
-            'NH농협손해보험': ['nh', '농협', '농협손해보험', 'nh농협'],
-            'KB손해보험': ['kb', '국민', 'kb손해보험'],
-            '현대해상': ['현대', '현대해상', 'hi'],
-            '메리츠화재': ['메리츠', 'meritz'],
-            'DB손해보험': ['db', 'db손해보험']
-        },
-        '가입조건': {
-            '나이': ['나이', '연령', '만나이', '생후', '개월', '세'],
-            '종': ['강아지', '고양이', '반려견', '반려묘', '개', '고양이'],
-            '품종': ['품종', '견종', '묘종']
-        },
-        '보장내역': {
-            '의료비': ['의료비', '치료비', '병원비', '진료비'],
-            '수술비': ['수술비', '수술', '외과'],
-            '입원': ['입원', '입원비', '입원치료'],
-            '통원': ['통원', '통원치료', '외래'],
-            '검사비': ['검사비', '검사', '진단'],
-            '약품비': ['약품비', '약', '처방']
-        },
-        '의료기록관련': {
-            '만성질환': ['만성', '당뇨', '심장병', '관절염', '알레르기', '피부병'],
-            '수술이력': ['수술', '중성화', '불임수술', '외과수술'],
-            '예방접종': ['예방접종', '백신', '접종'],
-            '특별관리': ['특별관리', '식이요법', '운동요법', '물리치료'],
-            '마이크로칩': ['마이크로칩', '칩', '등록']
-        },
-        '특별조건': {
-            '특약': ['특약', '추가보장', '선택보장'],
-            '할인': ['할인', '혜택', '이벤트'],
-            '자동갱신': ['갱신', '자동갱신', '연장']
-        }
-    }
-    
-    for product in products:
-        score = 0
-        product_text = product.page_content.lower()
-        metadata = product.metadata
-        
-        # 1. 보험사 필터링 (가장 높은 우선순위)
-        company = metadata.get('company', '').lower()
-        for company_name, keywords in search_conditions['보험사'].items():
-            if any(keyword in query_lower for keyword in keywords):
-                if company_name.lower() in company:
-                    score += 20  # 매우 높은 점수
-                    break
-        
-        # 2. 의료기록관련 필터링 (펫 정보 기반)
-        for medical_type, keywords in search_conditions['의료기록관련'].items():
-            if any(keyword in query_lower for keyword in keywords):
-                if any(keyword in product_text for keyword in keywords):
-                    score += 15  # 높은 점수
-        
-        # 3. 가입조건 필터링
-        for condition_type, keywords in search_conditions['가입조건'].items():
-            if any(keyword in query_lower for keyword in keywords):
-                if any(keyword in product_text for keyword in keywords):
-                    score += 10
-        
-        # 4. 보장내역 필터링
-        for coverage_type, keywords in search_conditions['보장내역'].items():
-            if any(keyword in query_lower for keyword in keywords):
-                if any(keyword in product_text for keyword in keywords):
-                    score += 8
-        
-        # 5. 특별조건 필터링
-        for special_type, keywords in search_conditions['특별조건'].items():
-            if any(keyword in query_lower for keyword in keywords):
-                if any(keyword in product_text for keyword in keywords):
-                    score += 6
-        
-        # 6. 정확한 문구 매칭 (높은 점수)
-        if query_lower in product_text:
-            score += 25
-        
-        # 7. 제품명 매칭
-        product_name = metadata.get('product_name', '').lower()
-        if query_lower in product_name:
-            score += 18
-        
-        # 8. 일반 키워드 매칭 (낮은 점수)
-        general_keywords = ['보험', '펫보험', '동물보험', '가입', '보장', '보상', '보험료', '상품']
-        for keyword in general_keywords:
-            if keyword in query_lower and keyword in product_text:
-                score += 3
-        
-        # 점수가 있는 상품만 필터링
-        if score > 0:
-            filtered_products.append((score, product))
-    
-    # 점수순으로 정렬
-    filtered_products.sort(key=lambda x: x[0], reverse=True)
-    
-    # 최소 점수 기준 적용 (더 엄격한 필터링)
-    min_score = 10  # 최소 점수 기준
-    high_score_products = [product for score, product in filtered_products if score >= min_score]
-    
-    # 높은 점수 상품이 있으면 그것만 반환, 없으면 상위 1개만 반환
-    if high_score_products:
-        return high_score_products[:2]  # 최대 2개만 반환
-    else:
-        return [product for score, product in filtered_products[:1]]  # 상위 1개만 반환
-
-# 서버 시작 시 보험 벡터스토어 초기화
-initialize_insurance_vectorstore() 
+# 서버 시작 시: DB와 개수가 맞으면 스킵, 아니면 동기화
+initialize_insurance_vectorstore()
